@@ -1,13 +1,18 @@
-# BNGGIF
+# BNGIF
 
-Clone the repo, create a virtual‑env with Python 3.12 (or later), activate it, then install the package in editable mode so all dependencies declared in `pyproject.toml` are fetched automatically:
+## Installation
 
-1. Install repo
+Clone repo, enable environment, install:
 ```bash
-git clone https://github.com/your‑user/bngif.git
-cd bngif
+git clone https://github.com/mvsoom/BNGIF.git
+cd BNGIF
 python -m venv .venv && source .venv/bin/activate
 pip install -e .
 ```
 
-2. Load .env file (vscode can do this automatically through `python.envFile` setting)
+Then, in the current root folder, activate environment variables:
+```bash
+sudo apt install direnv
+direnv allow
+```
+There are convenient plugins for `vscode` to have the `.envrc` file loaded automatically, which will expose the environment variables in the Jupyter notebooks.
