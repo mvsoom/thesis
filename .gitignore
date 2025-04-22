@@ -2,6 +2,12 @@
 .venv/
 figures/
 
+manuscript/library.bib
+manuscript/thesis.pdf
+manuscript/template/
+manuscript/misc/
+manuscript/figures
+
 # Python packaging artefacts
 *.egg-info/
 *.egg

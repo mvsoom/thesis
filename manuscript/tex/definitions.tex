@@ -1,0 +1,109 @@
+% !TeX root = ../thesis.tex
+\newcommand{\xmax}{x_{\text{max}}}
+\newcommand{\Kmax}{K_{\text{max}}}
+
+\newcommand{\bx}{{\bm x}}
+\newcommand{\bxnull}{{\bm x_0}}
+\newcommand{\by}{{\bm y}}
+\newcommand{\blambda}{{\bm \lambda}}
+\newcommand{\ba}{{\bm a}}
+\newcommand{\bg}{{\bm g}}
+\newcommand{\bb}{{\bm b}}
+\newcommand{\balpha}{{\bm \alpha}}
+\newcommand{\bbeta}{{\bm \beta}}
+\newcommand{\bu}{{\bm u}}
+\newcommand{\bt}{{\bm t}}
+\newcommand{\bs}{{\bm s}}
+\newcommand{\be}{{\bm e}}
+\newcommand{\bud}{{\bm u'}}
+\newcommand{\bw}{{\bm w}}
+\newcommand{\bd}{{\bm d}}
+\newcommand{\bA}{{\bm A}}
+\newcommand{\bc}{{\bm c}}
+\newcommand{\bp}{{\bm p}}
+\newcommand{\bz}{{\bm z}}
+\newcommand{\bmu}{{\bm \mu}}
+
+\newcommand{\tagparam}[2]{#1 ^\mathrm{#2}} % Needs to be like this to allow super and subscripts to play together nicely, for example for $\Oqs$
+\newcommand{\lfparam}[1]{\tagparam{#1}{LF}}
+\newcommand{\sourceparam}[1]{\tagparam{#1}{S}}
+\newcommand{\filterparam}[1]{\tagparam{#1}{F}}
+\newcommand{\vsparam}[1]{\tagparam{#1}{VS}}
+
+\newcommand{\bF}{{\bm F}}
+\newcommand{\bB}{{\bm B}}
+\newcommand{\bFref}{\tagparam{\bF}{R}}
+\newcommand{\bBref}{\tagparam{\bB}{R}}
+
+\newcommand{\btheta}{{\bm \theta}}
+\newcommand{\bthetas}{\sourceparam{\btheta}}
+\newcommand{\bthetaf}{\filterparam{\btheta}}
+\newcommand{\bthetalf}{\lfparam{\btheta}}
+\newcommand{\bthetavs}{\vsparam{\btheta}}
+\newcommand{\Thetas}{\sourceparam{\Theta}}
+\newcommand{\Thetaf}{\filterparam{\Theta}}
+\newcommand{\Thetalf}{\lfparam{\Theta}}
+\newcommand{\Thetavs}{\vsparam{\Theta}}
+\newcommand{\lambdas}{\sourceparam{\lambda}}
+\newcommand{\lambdaf}{\filterparam{\lambda}}
+
+\newcommand{\Oq}{O_\mathrm{q}}
+\newcommand{\Oqlf}{\lfparam{\Oq}}
+\newcommand{\Oqs}{\sourceparam{\Oq}}
+
+\newcommand{\ppi}{\pi}
+\newcommand{\qpi}{\pi_\phi}
+\newcommand{\bphi}{{\bm \phi}}
+\newcommand{\bphinull}{\bphi_0}
+
+\newcommand{\fLF}{{\bm f}_{\text{LF}}}
+
+\newcommand{\piLF}{p_{\text{LF}}}
+\newcommand{\piGP}{p_{\text{GP}}}
+\newcommand{\piDGF}{p_{\text{DGF}}}
+\newcommand{\piPZ}{p_{\text{PZ}}}
+\newcommand{\piAP}{p_{\text{AP}}}
+\newcommand{\piVS}{p_{\text{VS}}}
+
+\newcommand{\barx}[1]{\overline{x_{#1}}}
+\newcommand{\barw}[1]{\overline{w_{#1}}}
+\newcommand{\bbarx}{\overline{\bm x}}
+\newcommand{\bbarxnull}{\overline{\bm{x_0}}}
+\newcommand{\bbarw}{\overline{{\bm w}}}
+
+\newcommand{\dtilde}{\tilde{d}}
+\newcommand{\utilde}{\tilde{u}}
+\newcommand{\Utilde}{\tilde{U}}
+\newcommand{\htilde}{\tilde{h}}
+\newcommand{\rtilde}{\tilde{r}}
+\newcommand{\ltilde}{\tilde{l}}
+\newcommand{\stilde}{\tilde{s}}
+
+\DeclareMathOperator{\Pareto}{\mathsf{Pareto}}
+\DeclareMathOperator{\ParetoChain}{\mathsf{ParetoChain}}
+\DeclareMathOperator{\Jeffreys}{\mathsf{Jeffreys}}
+\DeclareMathOperator{\Exp}{\mathsf{Exp}}
+\DeclareMathOperator{\Normal}{\mathcal{N}}
+\DeclareMathOperator{\GaussianProcess}{\mathcal{GP}}
+
+\newcommand{\priorinformation}{\mathcal{I}}
+\newcommand{\likelihood}{\mathcal{L}}
+\newcommand{\model}{\mathcal{M}}
+
+\newcommand{\orderedregion}{\mathcal{R}}
+
+\newcommand{\data}[1]{{\mathsf{#1}}}
+\newcommand{\little}{\data{little}}
+\newcommand{\until}{\data{until}}
+\newcommand{\shore}{\data{shore}}
+\newcommand{\that}{\data{that}}
+\newcommand{\you}{\data{you}}
+
+\newcommand{\numb}[1]{$\mathsf{#1}$}
+
+\newcommand{\pythonlibrary}[1]{\texttt{#1}\xspace}
+\newcommand{\JAX}{\pythonlibrary{JAX}}
+\newcommand{\JAXopt}{\pythonlibrary{JAXopt}}
+\newcommand{\dynesty}{\pythonlibrary{dynesty}}
+\newcommand{\parselmouth}{\pythonlibrary{parselmouth}}
+\newcommand{\Praat}{\pythonlibrary{Praat}}

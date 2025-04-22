@@ -1,0 +1,201 @@
+% !TeX root = ../thesis.tex
+\chapter{A parametric prior for $u(t)$\label{chapter:2}}
+
+\begin{chaptersections}{%
+In this Chapter, we turn the Liljencrants–Fant (LF) model of the glottal flow derivative into a generative model which can be used as prior for the glottal flow waveform.
+}
+
+\section{Introduction}
+
+The parametric LF model is actually used in several source-filter separation methods \citep{Schleusing2012}
+"Some of these works have utilized the autoregressive model
+with an exogenous (ARX) input, where the input has been represented in
+a pre-defined parametric form by using, for example, the Rosenberg-Klatt
+model or the Liljencrants-Fant (LF) model of the voice source (e.g. Isaksson
+and Millnert (1989), Kasuya et al. (1999), Frohlich et al. (2001), Fu and
+Murphy (2006), Berezina et al. (2010), Ghosh and Narayanan (2011))" \citep{Drugman2019, Alzamendi2017}
+(and sometimes even regressed to a single parameter $R_d$: \citep{Degottex2010}).
+
+However, we cannot expect that an analytical 4 parameter model to capture real glottal flow
+We need something nonparametric:
+``Due to the
+use of predefined mathematical functions for the glottal
+source, these GIF methods are limited in their ability
+to capture the behavior of the glottal source in natural
+speech, particularly for phonation types.'' \citep{Kadiri2021} p. 1926
+
+This definition is quite general and the actual physical mechanism underlying $u(t)$ depends on the type of phonation employed.\footnote{%
+	Perhaps a better name for $u(t)$ would be `source waveform' because $u(t)$ only describes the actual glottal flow passing through the glottis (the opening between the glottal folds) in case the phonation type is \emph{voiced} speech. % which is the default assumption in the source-filter separation literature.
+	For \emph{voiceless} speech the vocal folds are in the abducted state such that the glottal flow is essentially a relatively uninteresting DC signal.
+	In that case $u(t)$ describes an abstract source driving the filters $h(t)$ and $r(t)$ in \eqref{eq:lti-full} instead.
+	For example, in the case of fricatives [\underline{f}ish] $u(t)$ is a white noise-like signal because the underlying physical mechanism is turbulent airflow originating somewhere in the oral cavity.
+	Other examples of voiceless sounds where $u(t)$ describes a source signal that is not the actual glottal flow are plosives [\underline{p}an] and affricates [\underline{j}udge].
+} % NOT USED YET
+
+
+% Dit is niet correct volgens Bart
+%Among the three (voiced, unvoiced, and plosive)
+%categories of speech sounds, voiced sounds are of special
+%interest in speech science [1], [2]. \citep{Kadiri2021}
+
+% This paragraph is already used in Ch 1
+For source-filter separation the type of phonation assumed is \emph{voiced} speech \citep{Miller1959}, during which the vocal folds vibrate at the fundamental frequency $F_0$ while modulating a stream of air expelled from the lungs.
+The $u(t)$ waveform measures the flow rate (volume velocity, in ml/sec) of this airflow which looks like a quasiperiodic string of pulses, each pulse representing a ``puff of air'' passing through the glottis \citep{Schroeder1999}.
+The quasiperiodicity of $u(t)$ directly transfers to the voiced speech signal $s(t)$ because the vocal articulators move much more slowly than the vibrating vocal folds.
+
+It is extraordinary that the human brain readily perceives this quasiperiodic regularity in voiced speech as sounds with a definite pitch, corresponding to the fundamental frequency $F_0$ at which the vocal folds of the speaker vibrate.
+So-called \emph{pitch-synchronous} methods in acoustic phonetics exploit this regularity by using the duration of the pitch periods $T = 1/F_0$ as a natural time scale for their analysis \citep{Chen2019}.
+Most well-known source-filter separation approaches use pitch-synchronous methods \citep[for example][]{Miller1959,Wong1979,Alku1992} and we follow the same approach here.
+That is, we model the quasiperiodicity in $u(t)$ by expanding it into a sum of $P$ `similar' waveforms $u_p(t)$, each $u_p(t)$ defining \emph{a single pitch period}:
+\begin{equation}
+    u(t) = \sum_{p=1}^{P} u_p(t - t_p) \qq{where} t_{p+1} = t_p + T_p \quad (t_1 = 0),
+\end{equation}
+where $T_p$ is the length of the $p$th pitch period and the $u_p(t)$ do not overlap as they are by definition nonzero only on $[0,T_p]$.
+The superposition \eqref{eq:up-superposition} is illustrated in Figure~\ref{fig:gf-samples-overview}.
+
+\centeredfigure{gf-samples-overview}{%
+Models for $u(t)$ based on equations (\ref{eq:up-superposition},\ref{eq:uparametric},\ref{eq:unonparametric}).
+}{%
+\shloppy{%
+Sample $u_p(t)$ and then sum them as in \eqref{eq:up-superposition}.
+Note: we showcase correlated vs uncorrelated draws -- quasiperiodicity demands correlated draws, especially for the nonparametric model.
+It is seen that correlated draws are necessary for the quasiperiodicity of $u(t)$.
+}}
+
+The pitch-synchronous model for $u(t)$ in \eqref{eq:up-superposition} still requires us to specify a model for the individual pitch period $u_p(t)$.
+We present two generative models in this thesis that we will refer to as \emph{priors}, because they represent our a priori assumptions; that is, they are not conditioned on the speech data $(\bd,\bt)$.
+Chapter~\ref{chapter:2} introduces the \emph{parametric prior} for $u_p(t)$
+\begin{equation}
+    \hyperref[chapter:2]{\boxed{\textbf{Parametric prior:} \quad u_p(t) \sim \pi_{\text{LF}}(u_p(t)|\bphi)}}
+\end{equation}
+based on the well-known Liljencrants-Fant (LF) model \citep{Fant1985}, a simple analytical model parameterized by the LF parameters $\bphi$.
+Building on this, Chapter~\ref{chapter:3} then develops a \emph{nonparametric prior} for $u_p(t)$
+\begin{equation}
+    \hyperref[chapter:3]{\boxed{\textbf{Nonparametric prior:} \quad u_p(t) \sim \pi_{\text{GP}}(u_p(t)|\bthetas)}}
+\end{equation}
+using a Gaussian process (GP) that is calibrated to the parametric prior $\eqref{eq:uparametric}$ using Bayesian transfer learning \citep{Xuan2021}.
+The parameters of the GP are called the source parameters $\bthetas$.
+
+Note that we expect strong correlations between neighbouring pitch periods due to the quasiperiodicity of $u(t)$.
+These constraints are imposed by latent GPs that describe the correlation between two pitch periods $u_p(t)$, $u_q(t)$ in terms of how many pitch periods $|p-q|$ they are apart.
+The effect of these correlated draws on $u(t)$ is shown in Figure~\ref{fig:gf-samples-overview}.
+
+---
+
+
+In addition to providing the raw energy for the act of speech, the glottal flow shapes the most important speech characteristics related to prosody, voice quality and vocal effort \citep{Doval2006,Drugman2019a}.
+
+We call this a parametric \emph{prior} because we turn it into something sampleable.
+
+Discuss glottal flow with \citep{Doval2006}.
+
+The main advantage of using the LF representation is the transformed LF model, which models correlations between the LF parameters (called `data reduction' in the original paper \citep{Fant1994}), which we can use to get more realistic priors in `knowledge transfer' from plausible $U_0/E_e$ and $F_0$ values.
+
+One could also start from plausible ranges of \citep{Doval2006}'s generic parameters as these can be derived from one extremely valuable study \citep{Holmberg1989,Holmberg1989a}.
+But from this we cannot learn any correlations (e.g. between $F_0$ and $O_q$ \citep{Henrich2005}) because we do not have access to the full data.
+However we can use this data to see if our marginals roughly agree.
+
+Incorporating all this prior information about smoothness etc.: we don't need smoothness heuristics to select "winning" attemps as in \citep{Barreda2021} and Praat's heuristics -- more like \citep{Mehta2012}.
+
+\section{Single pitch period: $u_p(t)$}
+
+\subsection{The Liljencrants–Fant (LF) model}
+
+\subsection{Prior for the LF parameters}
+
+\subsubsection{Nonlinear whitening and coloring}
+
+Notation: whitened variable $w$, colored variable $z = \mu + Lw$, original variable $\theta = SoftClipExp(z)$. Then uniform values for nested sampling are denoted $v$, since $u$ is already reserved for waveforms.
+
+In this and the next Chapters, we will always whiten the parameters.
+This means that we come up with a reversible transformation (a bijection) that takes the empirical distribution of the parameters $\theta$ to a series of independent $w \sim N(0,1)$ distributions.
+In doing that, we are effectively \emph{modeling} the parameters at hand, although with a very simple and static model (only the transformation is parametrized).
+Nevertheless, we will see that the whitening procedure is very effective.
+The reverse of whitening is called coloring: $w \rightarrow z$, and then we do a nonlinear operation $z \rightarrow \theta$.
+
+Why do we whiten?
+We might as well just use the empirical distribution directly as our prior (by, e.g., interpolating the empirical CDF).
+The main reason for whitening is that by doing so we can model correlation between the parameters \emph{and through time} by GPs!
+This is the key to efficiently generating realistic(ally sounding) LF trains, even though all we do is use a deterministic formula to generate the waveforms.
+
+Which transformation do we use?
+
+From $z$-domain, use standard (TensorFlow) SoftClip first and then Exp bijectors. May be a bit counterintuitive, the other way around causes numerical instability (divergence of log likelihood) around $b$, the upper boundary, because Exp will make outliers in the $z$-domain even more outliers close to $b$.
+
+The default "temperatures" (scales) for SoftClip are so good (we set them to $\hat\sigma_i$ for dimension $i$) that we only optimize rescaling factors for $\hat\Sigma$. That is, optimize $$\Sigma = diag(s_1 \sigma_1, s_2 \sigma_2, \ldots) \hat{C} diag(s_1 \sigma_1, s_2 \sigma_2, \ldots)$$ for $s_i \sim Exp(1)$ and where $\hat{C}$ is the estimated correlation matrix, i.e. $$\hat{\Sigma} = diag(\sigma_1, \sigma_2, \ldots) \hat{C} diag(\sigma_1, \sigma_2, \ldots)$$. This results in vanishing log likelihoods near the boundaries $(a, b)$, which, if slightly unrealistic, brings so many numerical advantages (for example in ADVI) that we are happy with this behavior.
+
+The temperatures fix the scale and so solves the unit problems.
+Indeed, all parameters ($s$, $\lambda$ and $\sigma_n$ to be estimated are independent of the units (scale) used.
+
+\section{Multiple pitch periods: $u(t)$}
+
+Now introduce latent GP to control smoothness of varying parameters.
+
+\section{Discussion}
+
+Conclude this Chapter.
+
+\end{chaptersections}
+
+\begin{chapterappendices}{4}
+
+\section{Python/\JAX implementation of the LF model\label{lf-jax}}
+
+During our research, we found that an open-source Python implementation of the LF model was lacking.
+For this reason, we wrote a high-quality and fully differentiable Python/\JAX implementation \citep{Bradbury2020} of the LF model.
+We also use \JAXopt \citep{Blondel2021} for implicit differentiation of the bisection routines which numerically solve the equations implicit in the LF model $\fLF(\bphi)$. % TODO: link to the two implicit LF equations
+\shloppy{It is publicly available at ...[Provide GitHub link to JAX implementation]}
+
+The ability to `differentiate through' the LF model is useful when fitting to the LF model to data or when the LF model is a component in an end-to-end differentiable generative model \citep[e.g.,~][]{Degottex2010,Drugman2019,Alzamendi2017,Schleusing2012,Alku2011,Perrotin2017}.
+Being written in \JAX, it can also be compiled to GPU and TPU code and is thus suitable for use with modern deep machine learning frameworks such as \pythonlibrary{Flax} \citep{Heek2020} and \pythonlibrary{TensorFlow} \citep{Abadi2015}.
+
+\section{Calculating the density $\qpi$}
+% See notes "Deriving q(x)"
+
+Sampling from the parametric prior for the DGF $\qpi(\bud)$ is easy:
+sample a vector of LF parameters $\bphi \sim \pi(\bphi)$ and input it to the LF model to get a sampled $\bud = \fLF(\bphi)$.
+Then $\bud \sim \qpi(\bud)$, as required.
+
+But this does not yield the \emph{value} of the density $\qpi$, which we need to quantify how much mass $\qpi(\bud) \dd{\bud}$ is associated with a particular waveform $\bud$.
+We derive the expression for that value in \eqref{qpifinal} below.
+
+The calculation is slightly awkward because we are dealing with a deterministic mapping $\fLF: \mathbb{R}^{R_\phi} \mapsto \mathbb{R}^{N_u}$ from a small number of dimensions $R_\phi = \abs{\bphi}$ to a large number of dimensions $N_u = \abs{\bud}$.
+The Jacobian $\pdv{\bphi}{\bud}$ associated with this transformation is non-square and its determinant is thus undefined, which precludes direct application of the usual conservation of mass rule $\pi(\bphi) \dd\bphi = \qpi(\bud) \dd\bud$ to find $\qpi(\bud)$.
+The rule can still be applied if we patch things up by introducing $(N_u - R_\phi)$ dummy variables, but this results in a numerically unstable Jacobian determinant.
+% See \url{https://andymiller.github.io/2015/08/09/integral-jacobian.html} for an example of this.
+
+A more numerically stable approach is to add a very small amount of noise $\delta_n^2$ to $\bud$, which has the effect of regularizing the calculation.
+% Formally, the right thing to do here is to introduce a new variable $\bud_\delta = \bud + \delta_n$ and derive $\qpi(\bud_\delta)$, but here we are being sloppy and just continue in terms of $\bud$
+This yields
+\begin{equation}
+\qpi(\bud) = \int \dd{\bphi} \pi(\bphi) (2 \pi \delta_n^2)^{-N_u/2} \exp\qty(-\frac{1}{2\delta_n^2} ||\bud - \fLF(\bphi)||^2). \label{eq:qpizero}
+\end{equation}
+The original problem is recovered when $\delta_n^2 \rightarrow 0$, because the Gaussian in \eqref{eq:qpizero} will tend to $\delta(\bud - \fLF(\bphi))$.
+
+We proceed with two approximations.
+Assuming that $\bud = \fLF(\bphinull)$, we may take the slowly varying $\pi(\bphi)$ out of the integral in \eqref{eq:qpizero} and expand the rest of the integrand around $\bphinull$ with Laplace's method \citep[Ch.~27]{MacKay2005}:
+\begin{align}
+    \qpi(\bud) &\simeq \pi(\bphinull) \int \dd{\bphi} (2 \pi \delta_n^2)^{-N_u/2} \exp\qty(-\frac{1}{2\delta_n^2} ||\bud - \fLF(\bphi)||^2) \notag \\
+           &\approx \pi(\bphinull) (2 \pi \delta_n^2)^{-N_u/2} \sqrt{\frac{(2\pi)^{R_\phi}}{\det A}}
+\end{align}
+where $A \in \mathbb{R}^{R_{\phi}\times R_{\phi}}$ and
+\begin{equation}
+A_{ij} = \eval{\pdv{\phi_i}\pdv{\phi_j}\qty[\frac{||\bud - \fLF(\bphi)||^2}{2\delta_n^2}]}_{\bphi = \bphinull}.
+\end{equation}
+It is possible to show that
+\begin{equation}
+\det A = \left| \frac{1}{\delta_n^2} J^T J \right|
+\end{equation}
+where the Jacobian $J \in \mathbb{R}^{N_u\times R_\phi}$ has elements
+\begin{equation}
+J_{ij} = \eval{\pdv{f_{\text{LF},i}}{\phi_j}}_{\bphi = \bphinull}. \label{jacobianij}
+\end{equation}
+This gives the final result:
+\begin{equation}
+    \qpi(\bud) \approx \pi(\bphinull) (2 \pi \delta_n^2)^{(R_\phi-N_u)/2} \abs{J^T J}^{-1/2}. \label{qpifinal}
+\end{equation}
+The Jacobian \eqref{jacobianij} is calculated using automatic differentiation with \JAX and \JAXopt (Appendix~\ref{lf-jax}).
+Although this requires \JAXopt to differentiate through the bisection routines needed to solve the implicit equations inherent in the LF model, experience has shown \eqref{qpifinal} to be well behaved for $\bphi' \sim \pi(\bphi)$.
+Note that the determinant $\abs{J^T J}$ can be computed in a numerically stable way, since $J^T J$ is almost always positive definite.
+
+\end{chapterappendices}

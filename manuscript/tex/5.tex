@@ -1,0 +1,213 @@
+% !TeX root = ../thesis.tex
+\chapter{A nonparametric prior for $s(t)$\label{chapter:5}}
+
+\begin{chaptersections}{%
+We derive a nonparametric prior for voiced speech $\piVS$.
+This is the nonparametric generative model of voiced speech that underlies BNGIF.
+}
+
+It is really nice that our kernel for the dGF has negative parts, this is something not often seen: "We cannot even typically model negative covariances with kernel functions popular in the machine learning community" \citep{Wilson2014}
+
+When convolving one basisfunction of the Hilbert expansion of our DGF prior with a single pole pair (with the null integral constraint inplace), we obtain an elementary waveform we could call a wavelet.
+See the FWO report for more about that.
+
+Note we do not assume steady-state
+Steady-state vowels are vowels that are uttered with a momentarily fixed vocal tract
+configuration and with steady vibration of the vocal folds. In this steady-state, the vowel waveform
+appears as a quasi-periodic string of elementary units called pitch periods.
+
+Note we sidestep polarity issues -- GPs ensure invariance wrt polarity.
+Other methods have these, even necessitating specialized ``speech polarity detection'' methods \citep[][Sec.~3.2]{Drugman2019a}
+
+\section{Discussion}
+
+\end{chaptersections}
+
+\begin{chapterappendices}{5}
+
+\section{Parametric, nonparametric, semiparametric?}
+
+Perhaps long overdue at this point, we clarify some of the confusing terminology associated with Bayesian nonparametric models.
+
+\paragraph{Parametric models}
+are simply models with a fixed and prespecified amount of unknown parameters $R$, independent of the size of the dataset $N$.
+
+Examples are linear regression and neural networks.
+In BNGIF the filter priors $\piPZ$ and $\piAP$ priors are parametric as they have a fixed amount of parameters $R$ depending on their order $K$, similar to linear prediction (LP) methods.
+And of course the $\piLF$ prior with $R = 4$ is parametric as well.
+
+\paragraph{Nonparametric models}
+in a Bayesian context are models for which the effective number
+of parameters $\tilde R$ is capable of adapting to $N$ \citep{Orbanz2010}.
+
+They are also referred to as infinite-dimensional parametric models, which is just a shorthand way of saying that they are parametric models which have been mathematically constructed to behave consistently under inference as $R \rightarrow \infty$.
+That is, given the data of size $N$, a nonparametric model roughly behaves as an ordinary parametric model with $\tilde R < \infty$ parameters, with the exception that $\tilde R$ is determined automatically from the data rather than specified beforehand.
+
+Examples are Dirichlet process mixture models, for which the effective number of mixture components does not need to be known beforehand, and, of course, GPs, which are infinite-dimensional distributions over functions.
+% GPs are NNs with infinite width $R = \infty$.
+In BNGIF the $\piGP$ and $\piVS$ priors are nonparametric because they are GPs.\footnote{%
+Strictly, these are not fully nonparametric because they are only reduced-rank GPs and not full-rank GPs.
+Their capacity to adapt their complexity to growing amounts of data $N$ is limited by the number of basisfunctions $M$;
+nonparametric behavior is recovered in the limit $M \rightarrow \infty$.
+}
+\shloppy{Other nonparametric models are the multi-output GPs for the various parameter trajectories.}
+
+The name `nonparametric' is a bit of a misnomer because nonparametric models always have a set of $Q$ hyperparameters which typically determine either the scales present in the data or the degree to which sparsity or smoothness is encouraged.
+In theory, inference of these $Q$ hyperparameters is no different from inference with a parametric model of order $R = Q + \tilde R$ in which $\tilde R$ parameters have been marginalized over analytically.
+
+%Another confusing is nonparametric in classical statistics, not Bayesian.
+
+\paragraph{Semiparametric models}
+in a Bayesian context are models with both parametric and nonparametric components for which the latter is considered a nuisance parameter \citep[][p.~368]{Ghosal2017}.
+This means that we are mainly interested in conclusions about the parametric component of the model, which require marginalizing over the nonparametric component.
+
+In BNGIF the parametric and nonparametric components are very neatly divided into models for the filter $h(t)$ and the source $u(t)$, respectively, reflecting the qualitative difference between the information available from acoustic phonetics about the two.
+One might be tempted to call BNGIF semiparametric for this reason if it weren't for the fact that the nonparametric component describing $u(t)$ is actually the main object of interest for the GIF problem.
+If anything the nuisance bit for GIF is in the parametric component describing $h(t)$, not the nonparametric component for $u(t)$.
+%In addition, ``the term nonparametric is so popular that it makes little sense not to use it'' \citep[][p.~1]{Ghosal2017}, while Bayesian semiparametric models are more obscure.
+
+\section{Gaussians in signal processing\label{app:gaussians-lti}}
+
+The central tenet of Bayesian probability theory is that \emph{probabilities do not describe reality, only our information about reality} \citep{Jaynes1993}.
+So what kind of information do the Gaussian assignments in this thesis represent?
+
+General answer is that first and second moments, ME.
+(In fact we only use ME distributions in this thesis.)
+
+But why are first and second moments relevant for modeling speech?
+For ME cannot tell us which functions to choose.
+The short answer is that our choice of function is second moments because we generally care about frequency magnitude information over small scales in which the signal is assumed stationary.
+
+KEEP IT BRIEFFFFFFF
+
+Starting with the noise assignment, we do not have detailed information about the frequency distribution.
+Rather through symmetry we know first moment is zero and second moment has a certain magnitude.
+The general noise power is the aspect of the noise that we expect to be reproducible, not all the fine details.
+So by ME we assign Gaussian errors.
+In fact Gaussian of given variance has higher entropy than any other distrbution.
+
+In this thesis for example,
+the errors $\be = \bd - \bs$ are the mismatch between the actual data $\bd$ and the ideal model prediction $\bs$ and include among other sources various effects and imperfections of source-filter theory, the semiparametric generative model for $s(t)$ presented in this thesis, recording circumstances such as room reverb and idiosyncrasies of the particular microphone used.
+By assigning Gaussian errors we are not supposing the complicated frequency distribution of these errors to actually be of the form \eqref{eq:gaussian-errors}; we are simply assuming that the noise power $\sigma_n^2$ is a relevant parametrization of these errors \citep{Bretthorst1999} and have assigned the maximum entropy distribution accordingly \citep{Jaynes2003}.
+In other words it represents a state of knowledge rather than an assumption of physical fact.
+
+Now for the actual speech.
+Our $s(t) \sim \mathcal{GP}(0,k_\btheta)$
+
+Second-order correlations of the form $\expval{s(t)s(t')}$ are related to the power spectrum of the speech pressure waveform through the Wiener-Khinchin theorem.
+
+
+Likewise, the multivariate Gaussian distribution is the minimal object possible to represent a given covariance matrix.
+We use multivariate Gaussians (Gaussian processes) to represent speech-related waveforms in the time domain.
+Why is that appropriate?
+Because in speech we typically characterize stuff in terms of short-time magnitude spectra (the spectrogram), forgoing phase information.
+This is equivalent to thinking in terms of second-order statistics (autocorrelation functions), which then is equivalent to stationary covariance functions which describe the speech waveform on short time scales (where stationarity can be assumed momentarily).
+In this sense, if we care only about knowledge of magnitude spectra, and we want to represent that knowledge, then Gaussian processes are optimal in the sense that impose that knowledge and nothing else.\footnote{%
+	However, see Appendix A in  \citep{Oord2016} for a critique of this view -- though we only handle voiced speech in this thesis.
+}
+
+For example ET Jaynes derived the DFT from Bayesian principles (as in Tobar 2018) which pc gregory called a revolution. (see tobar 2018).
+The DFT is a correlation between the sinusoid basisfunctions.
+Reconstruction theory (nyquist theory) can also be shown through GPs (tobar sinc paper).
+
+Further explored in \citep{Tobar2018} and \citep{Turner2014}.
+
+Critiques of this view are \citep{Little2011} and Oord2016.
+
+Now in practice another major reason for employing Gaussians in signal processing -- especially LTI signal processing -- is their mathematical elegance.
+Gaussians are also very useful because they are closed under linear transformation, conditioning and marginalization.
+This keeps the math tractable and this is one of the primary reasons they are often the probability distribution of choice.
+They are the work horse of signal processing.
+This is expressed through `Gaussian algebra' \citep[Ch.~3]{Hennig2022}
+
+\paragraph{The spectrum as a statistic}
+power spectrum can be misleading so it is not the end all -- not all second order correlations are made the same!
+Power spectrum = FT of autocorrelation = second order method
+So if this can be misleading, why try another second order method?
+Well, not all second order methods are created the same; our method does not have this problem.
+This shows that there is a certain kind of creativity and diversity allowed in the second order correlation class.
+
+\citep{Fulop2011} % Fulop's reassigned spectrum
+deeper lying reason is that fourier transform assumes no low frequencies (bretthorst)
+overall need something pitch synchronous
+
+
+\paragraph{The error $\be$.}
+In the above we merely assumed the error $\be = \bd - \bs$ to be additive, but we will now go a step further and model its components as independent zero-mean Gaussian noise:
+\begin{equation}
+	e_n  \sim \Normal(0, \sigma_n^2) \quad (n = 1 \cdots N), \label{eq:gaussian-errors}
+\end{equation}
+where $\sigma_n^2$ is the overall noise power usually expressed in dB as the signal-to-noise ratio (SNR).
+\shloppy{In applications of our method the SNR is typically around 20~dB,} similar to prediction gains achieved by standard linear predictive coding (LPC) methods on voiced speech \citep{Schroeder1999}.
+The assignment \eqref{eq:gaussian-errors} is the canonical choice in LTI signal processing \citep{Little2011} for reasons explained in Appendix~\ref{sec:gaussian}.
+
+\section{The speech waveform as a GP?}
+
+% See `home/marnix/WRK/proj/gp/gp-notes.html` for a very good discussion about "the speech waveform as a GP?" 
+
+GP is just linear prediction (Rasmussen 2006 eq. 2.27) in a way.
+We already this should work to some extent, since LP is the workhourse of acoustic phonetics
+
+Modeling the speech waveform (i.e. the raw data) directly with a GP seems unfavorable at first sight.
+There is some literature to support this.
+
+The WaveNet paper \citep{Oord2016} has an interesting section, Appendix A, called `Text-to-Speech Background' where they shed some light on the use of linear prediction (LP) methods in statistical parametric speech synthesis, both historically and more recently.
+There are some insights in this text that are very valuable for speech modeling.
+
+As an example of a parametrical speech model they discuss LP analysis.
+The speech signal $x$ is a linear AR zero-mean Gaussian process (Eqs.  6 and 7):
+$$ x_t = \sum_{p=1}^P a_p x_{t-p} + \epsilon_t, $$
+where $\epsilon_t \sim N(0,G^2)$ and the $a_p$ are the LPC coefficients.
+
+Looking at this as a generative\footnote{%
+	A generative model means that a joint distribution over all variables is defined \citep{MacKay2005}, which automatically implies the existence of priors as the joint can be decomposed in conditional probabilities.
+	It also carries a connotation of ``being able to generate samples'' in a ML context.
+}
+model, an important fact is revealed.
+The innovations $\epsilon_t$ are samples from a Gaussian distribution, and because the $x_t$ are, in the end, linear combinations of the $\epsilon_t$ the LP model \emph{predicts that the speech signal $x_t$ follows a Gaussian distribution}.\footnote{%
+	It is however not entirely correct to assert, as in the paper, that the LP model assumes that the vocal source excitation at time $t$ is a sample from a Gaussian distribution, as some of the LPC poles are used to model the source itself (as expressed eloquently by \citep[p.~ 107]{Schroeder1999} or more precisely in Eq.  1 in \citep{Atal1971}).
+}
+However, distributions of real speech signals can be significantly different from Gaussians\footnote{%
+	A simple test consisting of reading the speech signal $x$ from a random CMU ARCTIC file and plotting the empirical distribution of the $x_t$ $f$ reveals that compared to a the ML Gaussian fit the $f(x_t)$ has heavier tails and more mass closer to the mean.
+	But other qualitative differences are possible; see e.g. Fig. 1(c) in \citep{Little2011} for a multimodal example in the case of speech by several speakers.
+}
+\citep{Little2006a,Little2011}, and though Gaussian LP is extremely cost effective (surely we are getting a lot for only little computational investment) and the workhorse for contemporary speech encoding, its shortcomings become visible, or rather audible, in the text-to-speech domain, as humans are just dazzingly good at `speech decoding'.
+See \citep{Little2011} for a short but comprehensive discussion of the classical basis of speech processing (and of classical DSP): linear; time invariant; and Gaussian, from which LP analysis naturally follows.
+The discussion concludes:
+\begin{quote}
+	The main conclusion from this paper is that, despite the mathematical elegance of [linear time invariant] Gaussian signal processing theory, it is too restrictive so that the fit to real speech signals leaves room for improvement.
+\end{quote}
+Likewise, Appendix A of the WaveNet paper expresses an essentially identical conclusion:
+\begin{quote}
+	Although these assumptions [i.e. linear; time invariant over short fixed-length windows; Gaussian] are convenient, samples from these generative models tend to be noisy and lose important details to make these audio signals sounding natural.
+\end{quote}
+Since predictions made by a Gaussian process (GP) are a linear combination of observed data, we are doing \emph{in that respect} no better than an LP model, and are on that ground susceptible to the conclusions just quoted.
+Using GPs to model raw audio data as a generative model seems ill-advised and probably too costly.
+Adding to that, \citep[p.~548]{MacKay2005} in his famous baby-with-the-bathwater discussion, also mentions that
+\begin{quote}
+	The most interesting problems, the task of feature discovery for example, are not ones that Gaussian processes will solve.
+\end{quote}
+But -- the thesis of \citet{Wilson2014} is one big effort to counter this argument:
+\begin{quote}
+	In this thesis we propose new covariance kernels for fast automatic pattern discovery and extrapolation with Gaussian processes (GPs).
+	Every model in this thesis is not simply for interpolation or smoothing, but is intended to discover patterns (aka features) in data, for the purpose of scientific discovery.
+\end{quote}
+The point being that in for machine learning GPs have been mainly limited to RBF kernels and the like, and that they indeed function as smoothing devices.
+But one can make kernels (and parametrize them) that can actually discover features in the data, such as spectral mixtures and the like.
+And then we still have Deep GPs -- see `./warp` for an example. (Figur here)
+
+The conclusion seems to be that:
+\begin{enumerate}
+	\item GPs are very powerful smoothing methods and can be creatively used within that context (e.g.  prior over functions, automatic relevance detection, high-dimensional conditioning \citep{Park2008}) at some computational cost.
+	
+	\item GPs generalize very succesful signal processing methods: LP analysis and Kalman smoothing [e.g. \citep{Reece2010}].
+	Thus they can be very fast with uniformly spaced data, and cubic complexity can be avoided.
+	For examples, see \citep[p.~141]{Wilson2014}; \citep[p.~25]{Wilkinson2019}.
+	
+	\item GPs are mostly used in a "costly data" scenario, e.g.  in physics, where a relatively small amount of data needs to be processed in an optimal way \citep[e.g.]{Shen2019}.
+	Applications to speech processing where GPs model raw speech data are relatively rare \citep{Koriyama2020}.
+	
+	\item Regardless, people \emph{are} pushing GPs into the audio domain anyway, mostly based on sparse approximations, and the last word about this has not been said yet.  See e.g.  \citep{Alvarado2016,Wilkinson2019,Wilson2014}.
+\end{enumerate}
+
+\end{chapterappendices}

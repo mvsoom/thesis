@@ -1,0 +1,41 @@
+% !TeX root = ../thesis.tex
+\chapter{Conventions and constants\label{chapter:conventions}}
+
+We abuse notation such that the meaning of a function depends on the symbol used for its argument, \shloppy{e.g. $p(\bu)$ is the nonparametric prior for the DGF, but $p(\bphi)$ is the prior for the LF parameters.}
+
+We use modern vector notation for brevity: $\bd = d_{1:N} \equiv \{d_n\}_{n=1}^N$.
+Index variables are lowercase and usually run from 1 to their uppercase form (for example $n = 1,2,\ldots,N)$.
+
+\begin{description}
+\item[Sampling frequency.]
+The speech waveform $d(t)$ is always sampled at $f_s = \text{10 kHz}$.
+The linear approximation to speech production (i.e., the source-filter model) is only valid up to 4 or 5~kHz \citep{Doval2006,Stevens2000}, so we restrict the signal bandwidth to 5~kHz.
+
+\item[Data normalization.]
+We always normalize samples of speech waveforms to unit power.
+Given $N$ samples $\bd = d_{1:N}$, we rescale $d_n \rightarrow d_n \times \qty[\sum_n d_n^2/N]^{-1/2}$ such that $\sum_n d_n^2/N := 1$.
+[This contrasts with amplitude normalization where $\max_n \abs{d_n} := 1$.]
+
+\item[Signal-to-noise ratio.]
+The signal-to-ratio (SNR) decibels measure power, not amplitude.
+With the data normalized to unit power, the SNR reduces to $\text{SNR [dB]} = -10 \log_{10} \sigma_n^2$.
+So a SNR of 20~dB corresponds to a noise power $\sigma_n^2 = 10^{-2}$.
+
+\item[Noise floor.]
+The noise floor $\delta_n$ is at -60 dB.
+With the data normalized to unit power, this means that $\delta_n^2 = 10^{-6}$.
+
+\item[Fourier transform.]
+The Fourier transform is denoted as $\mathcal{F}$ and is denoted with a tilde: $\htilde(x) = \mathcal{F}\qty[h(t)](x) := \int_{-\infty}^\infty h(t) \exp{-i2\pi xt} \dd{t}$.
+[Note that our frequency variable is denoted $x$, not $f$ or $\omega$.]
+The inverse Fourier transform is then defined as $h(t) = \mathcal{F}^{-1}\qty[\htilde(x)](t) := \int_{-\infty}^\infty \htilde(x) \exp{i2\pi tx} \dd{x}$.
+
+\item[Formants.]
+Formant frequencies $\bF$ and bandwidths $\bB$ are statistics of the vocal tract transfer function $\htilde(x)$ which are calculated through peak picking.
+A formant $F_k$ is defined as a local maximum in the power spectrum $|\htilde(x)|^2$.
+The frequency $F_k$ and bandwidth $B_k$ of a formant denote the (frequency at) and (full width at half maximum of) the maximum, respectively.
+Formants are modeled by \emph{one or more} poles in the rational expansion of $\htilde(x)$.
+However, there may be some poles in this expansion of $\htilde(x)$ that do not correspond to formants at all.
+The physical phenomenon underlying formants are vocal tract resonances.
+%[Antiformants are defined completely analogously: replace `maximum' with `minimum' and `poles' by `zeros' in the above.]
+\end{description}
