@@ -7,6 +7,8 @@ import tempfile
 from pathlib import Path
 
 import gnuplotlib as gp
+import jax
+import numpy as np
 from IPython.display import SVG, display
 
 FIGURES_PATH = Path(os.getenv("PROJECT_FIGURES_PATH", "figures")).resolve()
@@ -21,8 +23,7 @@ def iplot(
     **kwargs,
 ) -> None:
     """
-    Inline plot for Jupyter using gnuplotlib.
-    Uses `.gnuplot` file at project root for config.
+    Inline plot for Jupyter using gnuplotlib. Uses `.gnuplot` file at project root for config and tries to convert Jax arrays to numpy arrays.
 
     Args:
         *args, **kwargs: forwarded to gnuplotlib.plot
@@ -40,15 +41,19 @@ def iplot(
             else:
                 kwargs["cmds"] = [loadcmd, *cmds]
 
+    converted_args = [
+        np.asarray(arg) if isinstance(arg, jax.numpy.ndarray) else arg for arg in args
+    ]
+
     if export:
         base = FIGURES_PATH / Path(export)
         base.parent.mkdir(parents=True, exist_ok=True)
         print(base)
 
         # Save as PDF and GP
-        gp.plot(*args, hardcopy=str(base.with_suffix(".gp")), **kwargs)
+        gp.plot(*converted_args, hardcopy=str(base.with_suffix(".gp")), **kwargs)
         gp.plot(
-            *args,
+            *converted_args,
             hardcopy=str(base.with_suffix(".pdf")),
             terminal="pdfcairo font FONT",
             **kwargs,
@@ -56,7 +61,7 @@ def iplot(
 
     fd, path = tempfile.mkstemp(suffix=".svg")
     os.close(fd)
-    gp.plot(*args, hardcopy=path, terminal="svg font FONT", **kwargs)
+    gp.plot(*converted_args, hardcopy=path, terminal="svg font FONT", **kwargs)
     display(SVG(filename=path))
 
 

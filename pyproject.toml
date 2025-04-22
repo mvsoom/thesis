@@ -11,6 +11,7 @@ requires-python = ">=3.12"
 # Modules will be installed with `pip install -e .`
 dependencies = [
     "jax>=0.6",
+    "jaxopt>=0.8.5",
     "gnuplotlib>=0.42",
     "setuptools>=68",
 ]
