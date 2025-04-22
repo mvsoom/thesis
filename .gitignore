@@ -8,6 +8,8 @@ manuscript/template/
 manuscript/misc/
 manuscript/figures
 
+data/
+
 # Python packaging artefacts
 *.egg-info/
 *.egg
