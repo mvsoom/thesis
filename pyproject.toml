@@ -11,10 +11,12 @@ requires-python = ">=3.12"
 # Modules will be installed with `pip install -e .`
 dependencies = [
     "jax>=0.6",
+    "gnuplotlib>=0.42",
+    "setuptools>=68",
 ]
 
-[project.optional-dependencies.dev]
-contents = []
+# [project.optional-dependencies.dev]
+# contents = []
 
 [tool.setuptools]
 package-dir = {"" = "src"}
