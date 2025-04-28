@@ -12,8 +12,13 @@ requires-python = ">=3.12"
 dependencies = [
     "jax>=0.6",
     "jaxopt>=0.8.5",
+    "cola-ml>=0.0.7",
+    "gpjax>=0.11.0",
+    "distrax>=0.1.5",
     "gnuplotlib>=0.42",
     "setuptools>=68",
+    "pytest>=8.3.5",
+    "nbmake>=1.5.5",
 ]
 
 # [project.optional-dependencies.dev]
@@ -24,3 +29,7 @@ package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = ["--nbmake"]
