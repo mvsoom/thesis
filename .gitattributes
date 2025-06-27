@@ -1,4 +1,6 @@
-
+*.ipynb filter=ipynbclean
 *.ipynb	diff=jupyternotebook
-
 *.ipynb	merge=jupyternotebook
+
+# strip outputs & empty cells from Wolfram notebooks
+*.vsnb filter=vsnbclean
