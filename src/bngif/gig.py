@@ -52,6 +52,14 @@ def entropy(p: jnp.ndarray, a: jnp.ndarray, b: jnp.ndarray) -> jnp.ndarray:
     return H
 
 
+def E_log_p_under_q(a, b, q: GIG):
+    """E_q[ log p ] where q ~ GIG and p ~ Gamma(a, b) uses (shape, rate) parametrization."""
+    mean_z, _, mean_logz = q.moments()
+
+    const = a * jnp.log(b) - jss.gammaln(a)
+    return const + (a - 1) * mean_logz - b * mean_z
+
+
 @jax.tree_util.register_pytree_node_class
 @dataclass
 class GIG:
@@ -72,6 +80,11 @@ class GIG:
     def entropy(self):
         return entropy(self.p, self.a, self.b)
 
+    def KL_from_gamma(self, a, b):
+        """KL(GIG|Gamma) where p = Gamma(a, b) uses (shape, rate) parametrization"""
+        KL = -E_log_p_under_q(a, b, self) - self.entropy()
+        return KL
+
     def to_scipy(self):
         p_val = self.p
         b_scipy = jnp.sqrt(self.a * self.b)
@@ -88,17 +101,17 @@ class Gamma(GIG):
     A tiny positive ε keeps b>0 so √(ab) and Bessel calls stay valid.
     """
 
-    def __init__(self, shape: jnp.ndarray, rate: jnp.ndarray, eps: float = 1e-10):
+    def __init__(self, shape: jnp.ndarray, rate: jnp.ndarray, eps: float = 1e-32):
         a = 2.0 * rate
         b = jnp.full_like(a, eps)
         super().__init__(p=shape, a=a, b=b)
 
-    def entropy(self):
+    def _entropy(self):
         k = self.p
         rate = self.a / 2.0
         return k - jnp.log(rate) + jss.gammaln(k) + (1.0 - k) * jss.digamma(k)
 
-    def to_scipy(self):
+    def _to_scipy(self):
         k = float(self.p)
         scale = float(1.0 / (self.a / 2.0))
         return scipy.stats.gamma(a=k, scale=scale)
