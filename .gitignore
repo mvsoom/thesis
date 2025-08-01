@@ -2,6 +2,7 @@
 .pytest_cache/
 .venv/
 figures/
+cache/
 
 manuscript/library.bib
 manuscript/thesis.pdf
