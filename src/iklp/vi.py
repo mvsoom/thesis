@@ -45,8 +45,6 @@ def compute_unscaled_quad0(state: VIState, aux: Auxiliaries, w=None):
 def update_theta(state: VIState) -> VIState:
     aux = compute_auxiliaries(state)
 
-    jax.debug.print("argmax_i(theta) = {}", jnp.argmax(aux.E.theta))
-
     alpha = state.data.h.alpha
     quads = (
         (1 / aux.E.nu_w_inv)

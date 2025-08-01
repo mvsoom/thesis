@@ -156,7 +156,7 @@ def init_state(key, x, h: Hyperparams) -> VIState:
     return VIState(data, xi)
 
 
-def init_test_stable_state(key, h: Hyperparams) -> VIState:
+def init_test_stable_state(key, h: Hyperparams, remove_dc=False) -> VIState:
     """Sample xi, then E(x) from q(x|xi) with AR poles stabilized"""
     k1, k2, k3 = random.split(key, 3)
 
@@ -165,6 +165,9 @@ def init_test_stable_state(key, h: Hyperparams) -> VIState:
     z = sample_z_from_q(k2, xi, h)
     z_stable = z.replace(a=stabilize_ar(z.a))  # Cheat
     x = sample_x_from_z(k3, z_stable, h)
+
+    if remove_dc:
+        x = x - jnp.mean(x)
 
     data = build_data(x, h)
 
