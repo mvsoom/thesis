@@ -21,6 +21,10 @@ dependencies = [
     "nbmake>=1.5.5",
     "nbstripout>=0.8.1",
     "joblib>=1.5.1",
+    "soundfile>=0.13.1",
+    "papermill>=2.6.0",
+    "scrapbook>=0.5.0",
+    "jupyter_cache>=1.0.1",
 ]
 
 # [project.optional-dependencies.dev]
