@@ -94,12 +94,13 @@ def stage_and_run(notebooks, cache, runs, executor_name):
     )
 
     execr = load_executor(executor_name, cache=cache)
-    return execr.run_and_cache()
+    return execr.run_and_cache(timeout=None)
 
 
-def merge_executed(cache, uri):
-    pk, merged_nb = cache.merge_match_into_file(uri)
-    nbformat.write(merged_nb, uri)
+def merge_succeeded(result, cache, uri):
+    for uri in tqdm(result.succeeded, "Merging outputs"):
+        _, merged_nb = cache.merge_match_into_file(uri)
+        nbformat.write(merged_nb, uri)
 
 
 def main(args):
@@ -111,6 +112,10 @@ def main(args):
     notebooks = gen_notebooks(src_nb, cfg, runs)
     append_export_cell(notebooks)
 
+    # Should actually never clear cache
+    # just delete all files and remove cache files not present
+    # as jcache will notice any changes
+
     cache = init_cache(exp, len(notebooks), args.continue_run)
     result = stage_and_run(notebooks, cache, runs, args.executor)
 
@@ -120,8 +125,7 @@ def main(args):
         f"Errored: {len(result.errored)}"
     )
 
-    for uri in tqdm(result.succeeded, "Merging outputs"):
-        merge_executed(cache, uri)
+    merge_succeeded(result, cache, runs)
 
 
 if __name__ == "__main__":
