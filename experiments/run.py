@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import ast
 import importlib.util
 import logging
 from pathlib import Path
@@ -47,22 +48,33 @@ def gen_notebooks(src, cfg, runs):
 
     return notebooks
 
-def patch_exports(notebooks):
-    for nb_path in tqdm(notebooks, "Patching export cells"):
+
+def append_export_cell(notebooks):
+    for nb_path in tqdm(notebooks, desc="Appending export cell"):
         nb = nbformat.read(nb_path, as_version=4)
+        exports = set()
+
+        # collect all LHS names in cells tagged "export"
         for cell in nb.cells:
-            tags = cell.metadata.get("tags", [])
-            if "export" in tags:
-                vars_ = [
-                    line.strip()
-                    for line in cell.source.splitlines()
-                    if line.strip() and not line.strip().startswith("#")
-                ]
-                glue = ["import scrapbook as sb", ""]
-                for v in vars_:
-                    glue.append(f"sb.glue({v!r}, {v})")
-                cell.source = "\n".join(glue)
-        nbformat.write(nb, nb_path)
+            if "export" in cell.metadata.get("tags", []):
+                tree = ast.parse(cell.source)
+                for node in ast.walk(tree):
+                    if isinstance(node, ast.Assign):
+                        for tgt in node.targets:
+                            if isinstance(tgt, ast.Name):
+                                exports.add(tgt.id)
+                            elif isinstance(tgt, ast.Tuple):
+                                for elt in tgt.elts:
+                                    if isinstance(elt, ast.Name):
+                                        exports.add(elt.id)
+
+        if exports:
+            lines = ["import scrapbook as sb"]
+            for name in sorted(exports):
+                lines.append(f"sb.glue({name!r}, {name})")
+            nb.cells.append(nbformat.v4.new_code_cell(source="\n".join(lines)))
+            nbformat.write(nb, nb_path)
+
 
 
 def init_cache(exp, n, cont):
@@ -97,7 +109,7 @@ def main(args):
     runs = exp / "runs"
 
     notebooks = gen_notebooks(src_nb, cfg, runs)
-    patch_exports(notebooks)
+    append_export_cell(notebooks)
 
     cache = init_cache(exp, len(notebooks), args.continue_run)
     result = stage_and_run(notebooks, cache, runs, args.executor)
