@@ -47,6 +47,23 @@ def gen_notebooks(src, cfg, runs):
 
     return notebooks
 
+def patch_exports(notebooks):
+    for nb_path in tqdm(notebooks, "Patching export cells"):
+        nb = nbformat.read(nb_path, as_version=4)
+        for cell in nb.cells:
+            tags = cell.metadata.get("tags", [])
+            if "export" in tags:
+                vars_ = [
+                    line.strip()
+                    for line in cell.source.splitlines()
+                    if line.strip() and not line.strip().startswith("#")
+                ]
+                glue = ["import scrapbook as sb", ""]
+                for v in vars_:
+                    glue.append(f"sb.glue({v!r}, {v})")
+                cell.source = "\n".join(glue)
+        nbformat.write(nb, nb_path)
+
 
 def init_cache(exp, n, cont):
     cache = get_cache(exp / ".jupyter_cache")
@@ -80,6 +97,8 @@ def main(args):
     runs = exp / "runs"
 
     notebooks = gen_notebooks(src_nb, cfg, runs)
+    patch_exports(notebooks)
+
     cache = init_cache(exp, len(notebooks), args.continue_run)
     result = stage_and_run(notebooks, cache, runs, args.executor)
 
