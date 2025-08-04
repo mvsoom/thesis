@@ -8,24 +8,12 @@ from pathlib import Path
 import nbformat
 import papermill as pm
 from jupyter_cache import get_cache
-from jupyter_cache.executors import load_executor
 from tqdm import tqdm
 
 
 def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument("exp_folder", type=Path)
-    p.add_argument(
-        "--executor",
-        choices=["local-serial", "local-parallel"],
-        default="local-serial",
-    )
-    p.add_argument(
-        "--continue",
-        dest="continue_run",
-        action="store_true",
-        help="Don't clear existing cache; continue from previous runs",
-    )
     return p.parse_args()
 
 
@@ -38,23 +26,19 @@ def load_cfg(exp):
 
 def gen_notebooks(src, cfg, runs):
     runs.mkdir(exist_ok=True)
-
     notebooks = []
-    for config in tqdm(cfg.configurations(), "Generating notebooks"):
-        id = len(notebooks) + 1
-        out = runs / f"{id:06d}.ipynb"
-        pm.execute_notebook(src, out, parameters=config, prepare_only=True)
+    for cfg_ in tqdm(cfg.configurations()):
+        idx = len(notebooks) + 1
+        out = runs / f"{idx:06d}.ipynb"
+        pm.execute_notebook(src, out, parameters=cfg_, prepare_only=True)
         notebooks.append(out)
-
     return notebooks
 
 
 def append_export_cell(notebooks):
-    for nb_path in tqdm(notebooks, desc="Appending export cell"):
+    for nb_path in tqdm(notebooks):
         nb = nbformat.read(nb_path, as_version=4)
         exports = set()
-
-        # collect all LHS names in cells tagged "export"
         for cell in nb.cells:
             if "export" in cell.metadata.get("tags", []):
                 tree = ast.parse(cell.source)
@@ -64,83 +48,71 @@ def append_export_cell(notebooks):
                             if isinstance(tgt, ast.Name):
                                 exports.add(tgt.id)
                             elif isinstance(tgt, ast.Tuple):
-                                for elt in tgt.elts:
-                                    if isinstance(elt, ast.Name):
-                                        exports.add(elt.id)
-
+                                exports.update(
+                                    elt.id
+                                    for elt in tgt.elts
+                                    if isinstance(elt, ast.Name)
+                                )
         if exports:
-            lines = ["import scrapbook as sb"]
-            for name in sorted(exports):
-                lines.append(f"sb.glue({name!r}, {name})")
+            lines = ["import scrapbook as sb"] + [
+                f"sb.glue({name!r}, {name})" for name in sorted(exports)
+            ]
             nb.cells.append(nbformat.v4.new_code_cell(source="\n".join(lines)))
             nbformat.write(nb, nb_path)
 
 
-
-def init_cache(exp, n, cont):
-    cache = get_cache(exp / ".jupyter_cache")
-    if not cont:
-        cache.clear_cache()
-    cache.change_cache_limit(n * 2)
-    return cache
+def prune_stale(runs, notebooks):
+    keep = {str(nb) for nb in notebooks}
+    for f in runs.glob("*.ipynb"):
+        if str(f) not in keep:
+            f.unlink()
 
 
-def stage_and_run(notebooks, cache, runs, executor_name):
-    for nb in tqdm(notebooks, "Staging notebooks"):
-        cache.add_nb_to_project(nb)
-
-    logging.basicConfig(
-        level=logging.INFO, format="[%(asctime)s] %(levelname)s %(message)s"
-    )
-
-    execr = load_executor(executor_name, cache=cache)
-    return execr.run_and_cache(timeout=None)
+def prune_cache(cache, notebooks):
+    valid = {str(nb) for nb in notebooks}
+    for rec in cache.list_project_records():
+        if rec.uri not in valid:
+            cache.remove_nb_from_project(rec.pk)
 
 
-def merge_succeeded(result, cache, uri):
-    for uri in tqdm(result.succeeded, "Merging outputs"):
-        _, merged_nb = cache.merge_match_into_file(uri)
-        nbformat.write(merged_nb, uri)
+def execute_and_cache(notebooks, cache):
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    logger = logging.getLogger("papermill")
+    logger.setLevel(logging.INFO)
+
+    for nb_path in tqdm(notebooks):
+        nb_node = nbformat.read(str(nb_path), as_version=4)
+        try:
+            cache.match_cache_notebook(nb_node)
+            continue  # up-to-date
+        except KeyError:
+            pass
+
+        pm.execute_notebook(str(nb_path), str(nb_path), log_output=True)
+        cache.cache_notebook_file(
+            path=nb_path, overwrite=True, check_validity=False
+        )
 
 
-def main(args):
-    exp = args.exp_folder
+def main():
+    exp = parse_args().exp_folder
     cfg = load_cfg(exp)
     src_nb = exp / "code.ipynb"
     runs = exp / "runs"
 
     notebooks = gen_notebooks(src_nb, cfg, runs)
     append_export_cell(notebooks)
+    prune_stale(runs, notebooks)
 
-    # Should actually never clear cache
-    # just delete all files and remove cache files not present
-    # as jcache will notice any changes
+    cache = get_cache(exp / ".jupyter_cache")
+    cache.change_cache_limit(len(notebooks) * 2)
+    prune_cache(cache, notebooks)
 
-    cache = init_cache(exp, len(notebooks), args.continue_run)
-    result = stage_and_run(notebooks, cache, runs, args.executor)
+    for nb in notebooks:
+        cache.add_nb_to_project(nb)
 
-    print(
-        f"Succeeded: {len(result.succeeded)}, "
-        f"Excepted: {len(result.excepted)}, "
-        f"Errored: {len(result.errored)}"
-    )
-
-    merge_succeeded(result, cache, runs)
+    execute_and_cache(notebooks, cache)
 
 
 if __name__ == "__main__":
-    p = argparse.ArgumentParser()
-    p.add_argument("exp_folder", type=Path)
-    p.add_argument(
-        "--executor",
-        choices=["local-serial", "local-parallel"],
-        default="local-serial",
-    )
-    p.add_argument(
-        "--continue",
-        dest="continue_run",
-        action="store_true",
-        help="Don't clear existing cache; continue from previous runs",
-    )
-
-    main(p.parse_args())
+    main()
