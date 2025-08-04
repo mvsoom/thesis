@@ -49,3 +49,44 @@ def stabilize_ar(a: np.ndarray) -> np.ndarray:
     a_stable = -new_coefs[1:]
 
     return a_stable
+
+
+def ar_resonances(a, fs):
+    """
+    a : array-like, shape (P,)
+        AR coefficients a[0]…a[P-1] corresponding to
+        A(z) = 1 − a[0] z⁻¹ − … − a[P−1] z⁻P
+    fs: sampling rate in Hz
+
+    Returns
+    -------
+    freqs : array, shape (4,)
+        resonance frequencies in Hz (positive-freq half of the complex poles)
+    bw    : array, shape (4,)
+        corresponding bandwidths in Hz
+    real_pole: float
+        the lone real pole (its radius, <1)
+    """
+    # build polynomial [1, −a1, −a2, …, −aP]
+    coefs = np.concatenate(([1.0], -1 * np.array(a)))
+    # find all roots
+    roots = np.roots(coefs)
+
+    # separate real poles from complex
+    real_roots = roots[np.isreal(roots)]
+    complex_roots = roots[np.imag(roots) > 0]  # take only positive-Im half
+
+    # resonance frequencies (rad→Hz) and bandwidths
+    angles = np.angle(complex_roots)  # in radians
+    freqs = angles * fs / (2 * np.pi)
+    radii = np.abs(complex_roots)
+    bw = -np.log(radii) * fs / np.pi  # bandwidth in Hz
+
+    # pick the single real pole (or if more, take the one |r|<1)
+    real_pole = (
+        real_roots[np.argmin(np.abs(real_roots - 0))]
+        if real_roots.size > 0
+        else None
+    )
+
+    return freqs, bw, real_pole

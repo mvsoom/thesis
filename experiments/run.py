@@ -30,7 +30,9 @@ def gen_notebooks(src, cfg, runs):
     for cfg_ in tqdm(cfg.configurations()):
         idx = len(notebooks) + 1
         out = runs / f"{idx:06d}.ipynb"
-        pm.execute_notebook(src, out, parameters=cfg_, prepare_only=True)
+        pm.execute_notebook(
+            src, out, parameters=cfg_, prepare_only=True, kernel_name="python3"
+        )
         notebooks.append(out)
     return notebooks
 
@@ -88,7 +90,9 @@ def execute_and_cache(notebooks, cache):
         except KeyError:
             pass
 
-        pm.execute_notebook(str(nb_path), str(nb_path), log_output=True)
+        pm.execute_notebook(
+            str(nb_path), str(nb_path), kernel_name="python3", log_output=True
+        )
         cache.cache_notebook_file(
             path=nb_path, overwrite=True, check_validity=False
         )

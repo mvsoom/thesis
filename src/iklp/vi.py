@@ -222,10 +222,13 @@ def vi_step_test(state: VIState) -> VIState:
 
 # @partial(jax.jit, donate_argnums=(0,))  # TODO: if we record state, do not donate argnum
 def vi_step(state: VIState) -> VIState:
+    # Updating q(a) = delta(a* - a) as the very first update is known to yield better convergence as it is initalized to zeroes
+    state = update_delta_a(state)
+
     state = update_theta(state)
     state = update_nu_w(state)
     state = update_nu_e(state)
-    state = update_delta_a(state)
+
     return state
 
 
