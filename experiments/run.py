@@ -1,186 +1,372 @@
 #!/usr/bin/env python3
+"""
+Usage:
+  python -m experiments.run generate  <experiment-folder>
+  python -m experiments.run execute   <experiment-folder> [-- ...jcache-args]
+  python -m experiments.run merge     <experiment-folder>
+  python -m experiments.run collect <experiment-folder> [--output runs.csv]
+  python -m experiments.run list      <experiment-folder> [-- ...jcache-args]
+"""
+
 import argparse
 import ast
-import importlib.util
+import os
+import shutil
+import subprocess
 import sys
 from collections import OrderedDict
+from numbers import Number
 from pathlib import Path
 
 import nbformat
+import pandas as pd
 import papermill as pm
+import scrapbook as sb
 from jupyter_cache import get_cache
 from tqdm import tqdm
 
+KERNEL_NAME = "python3"
+CACHE_DIRNAME = ".jupyter_cache"
+RUNS_DIRNAME = "runs"
+EXPORT_CELL_ID = "export-glue"
 
-def load_cfg(exp: Path):
+
+def exp_paths(exp):
+    exp = exp.resolve()
+    return exp, exp / RUNS_DIRNAME, exp / CACHE_DIRNAME
+
+
+def load_cfg(exp):
+    import importlib.util
+
     spec = importlib.util.spec_from_file_location("config", exp / "config.py")
     m = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(m)
     return m
 
 
-def stable_params(d: dict):
-    # Make papermill's injected parameters cell text stable across runs.
+def stable_params(d):
     return OrderedDict(sorted(d.items(), key=lambda kv: kv[0]))
 
 
-def gen_notebooks(src: Path, cfg_module, runs: Path):
+def list_runs(runs):
+    return sorted(p for p in runs.glob("*.ipynb") if p.is_file())
+
+
+def jcache_cli(
+    *args,
+    cwd=None,
+    cache_path=None,
+    suppress_stdout=False,
+    suppress_stderr=False,
+):
+    exe = shutil.which("jcache")
+    if not exe:
+        raise RuntimeError("Could not find 'jcache' on PATH")
+    env = os.environ.copy()
+    if cache_path is not None:
+        env["JUPYTERCACHE"] = str(cache_path)
+    stdout = subprocess.DEVNULL if suppress_stdout else None
+    stderr = subprocess.DEVNULL if suppress_stderr else None
+    res = subprocess.run(
+        [exe] + list(args),
+        cwd=str(cwd) if cwd else None,
+        env=env,
+        stdout=stdout,
+        stderr=stderr,
+    )
+    return res.returncode
+
+
+def prepare_from_config(exp, runs):
+    cfg = load_cfg(exp)
+    src = exp / "code.ipynb"
     runs.mkdir(exist_ok=True)
     notebooks = []
-    for cfg_ in tqdm(cfg_module.configurations(), desc="Preparing notebooks"):
+
+    for cfg_ in tqdm(cfg.configurations(), desc="prepare"):
         idx = len(notebooks) + 1
         name = cfg_.get("name", f"{idx:06d}")
         out = runs / f"{name}.ipynb"
-
-        assert out not in notebooks, (
-            f"Duplicate notebook name: {out}. "
-            "Ensure unique 'name' per configuration or remove 'name'."
-        )
-
+        if out in notebooks:
+            raise RuntimeError("Duplicate notebook name: %s" % out)
         pm.execute_notebook(
             str(src),
             str(out),
             parameters=stable_params(cfg_),
             prepare_only=True,
-            kernel_name="python3",
+            kernel_name=KERNEL_NAME,
+            log_output=False,
+            progress_bar=False,
         )
         notebooks.append(out)
-    return [Path(nb) for nb in notebooks]
+
+    keep = {p.resolve() for p in notebooks}
+    for f in list_runs(runs):
+        if f.resolve() not in keep:
+            print("remove stale:", f)
+            f.unlink()
+
+    append_export_cell(notebooks)
+    return notebooks
 
 
 def append_export_cell(notebooks):
-    for nb_path in tqdm(notebooks, desc="Appending export cell"):
+    for nb_path in tqdm(list(notebooks), desc="export-cell"):
         nb = nbformat.read(nb_path, as_version=4)
-
-        # Remove any previous export cell to avoid duplicates.
         nb.cells = [
-            c for c in nb.cells if getattr(c, "id", None) != "export-glue"
+            c for c in nb.cells if getattr(c, "id", None) != EXPORT_CELL_ID
         ]
 
         exports = set()
         for cell in nb.cells:
-            if (
-                cell.cell_type == "code"
-                and "export" in cell.metadata.get("tags", [])
-                and isinstance(cell.source, str)
-            ):
-                try:
-                    tree = ast.parse(cell.source)
-                except SyntaxError:
-                    continue
-                for node in ast.walk(tree):
-                    if isinstance(node, ast.Assign):
-                        for tgt in node.targets:
-                            if isinstance(tgt, ast.Name):
-                                exports.add(tgt.id)
-                            elif isinstance(tgt, ast.Tuple):
-                                for elt in tgt.elts:
-                                    if isinstance(elt, ast.Name):
-                                        exports.add(elt.id)
+            if cell.cell_type != "code":
+                continue
+            if "export" not in cell.metadata.get("tags", []):
+                continue
+            try:
+                tree = ast.parse(cell.source)
+            except SyntaxError:
+                continue
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Assign):
+                    for tgt in node.targets:
+                        if isinstance(tgt, ast.Name):
+                            exports.add(tgt.id)
+                        elif isinstance(tgt, ast.Tuple):
+                            for elt in tgt.elts:
+                                if isinstance(elt, ast.Name):
+                                    exports.add(elt.id)
 
         if exports:
             lines = ["import scrapbook as sb"] + [
-                f"sb.glue({name!r}, {name})" for name in sorted(exports)
+                "sb.glue(%r, %s)" % (name, name) for name in sorted(exports)
             ]
             nb.cells.append(
                 nbformat.v4.new_code_cell(
                     source="\n".join(lines),
-                    id="export-glue",
+                    id=EXPORT_CELL_ID,
                 )
             )
-
         nbformat.write(nb, nb_path)
 
 
-def fullpath(p: Path) -> Path:
-    return Path(p).resolve()
+def reset_cache(cache_dir):
+    if cache_dir.exists():
+        shutil.rmtree(cache_dir)
+    cache_dir.mkdir(parents=True, exist_ok=True)
 
 
-def prune_stale(runs: Path, notebooks):
-    keep = {fullpath(nb) for nb in notebooks}
-    for f in runs.glob("*.ipynb"):
-        if fullpath(f) not in keep:
-            f.unlink()
-
-
-def prune_project_records(cache, notebooks):
-    valid = {str(fullpath(nb)) for nb in notebooks}
-    for rec in cache.list_project_records():
-        if str(fullpath(rec.uri)) not in valid:
-            cache.remove_nb_from_project(rec.pk)
-
-
-def add_to_project(cache, notebooks):
+def register_project(cache_dir, notebooks):
+    cache = get_cache(cache_dir)
     for nb in notebooks:
         cache.add_nb_to_project(nb)
 
 
-def execute_and_cache(notebooks, cache):
-    for nb_path in tqdm(notebooks, desc="Executing"):
-        nb_path = fullpath(nb_path)
-        nb_node = nbformat.read(str(nb_path), as_version=4)
+def set_cache_limit(cache_dir, n_records):
+    cache = get_cache(cache_dir)
+    cache.change_cache_limit(max(8, n_records))
 
+
+def cmd_generate(exp_dir):
+    exp, runs, cache_dir = exp_paths(exp_dir)
+    print("generate:", exp)
+    notebooks = prepare_from_config(exp, runs)
+    print("reset cache:", cache_dir)
+    reset_cache(cache_dir)
+    print("register project")
+    register_project(cache_dir, notebooks)
+    print("set cache limit:", len(notebooks) * 2)
+    set_cache_limit(cache_dir, len(notebooks) * 2)
+    print("done.")
+
+
+def cmd_execute(exp_dir, passthrough):
+    exp, runs, cache_dir = exp_paths(exp_dir)
+    if not cache_dir.exists():
+        print("no cache at %s, run generate first" % cache_dir, file=sys.stderr)
+        sys.exit(2)
+
+    # default timeout=0 unless user provided one
+    if not any(
+        arg == "--timeout" or arg.startswith("--timeout=")
+        for arg in passthrough
+    ):
+        passthrough = ["--timeout", "0"] + passthrough
+
+    print("execute: jcache project execute", " ".join(passthrough))
+    rc = jcache_cli(
+        "project", "execute", *passthrough, cwd=exp, cache_path=cache_dir
+    )
+    if rc != 0:
+        sys.exit(rc)
+
+
+def has_cache_match(cache_dir, nb_path):
+    cache = get_cache(cache_dir)
+    nb_node = nbformat.read(str(nb_path), as_version=4)
+    try:
+        cache.match_cache_notebook(nb_node)
+        return True
+    except KeyError:
+        return False
+
+
+def merge_one(cache_dir, src):
+    tmp = src.with_suffix(".merged.tmp.ipynb")
+    rc = jcache_cli(
+        "notebook",
+        "merge",
+        str(src),
+        str(tmp),
+        cache_path=cache_dir,
+        suppress_stdout=True,
+    )
+    if rc != 0:
+        return False
+    tmp.replace(src)
+    return True
+
+
+def cmd_merge(exp_dir):
+    exp, runs, cache_dir = exp_paths(exp_dir)
+    if not cache_dir.exists():
+        print(
+            "no cache at %s, run generate/execute first" % cache_dir,
+            file=sys.stderr,
+        )
+        sys.exit(2)
+
+    notebooks = list_runs(runs)
+    if not notebooks:
+        print("no notebooks to merge in %s" % runs)
+        return
+
+    merged = 0
+    for nb in tqdm(notebooks, desc="merge"):
+        if has_cache_match(cache_dir, nb):
+            if merge_one(cache_dir, nb):
+                merged += 1
+    print("merged %d / %d notebooks" % (merged, len(notebooks)))
+
+
+def cmd_collect(exp_dir, out_csv):
+    exp, runs, _ = exp_paths(exp_dir)
+    cmd_merge(exp_dir)
+    rows = []
+    for nb in tqdm(list_runs(runs), desc="collect"):
         try:
-            cache.match_cache_notebook(nb_node)
-            print(f"Cached: {nb_path} (skip)")
+            scraps = sb.read_notebook(str(nb)).scraps
+        except Exception:
             continue
-        except KeyError:
-            print(f"Miss: {nb_path} (execute)")
+        row = {"run": nb.stem}
+        for name, s in scraps.items():
+            v = getattr(s, "data", s)
+            if isinstance(v, dict):
+                for k, dv in v.items():
+                    row[f"{name}.{k}"] = (
+                        dv
+                        if (dv is None or isinstance(dv, (str, bool, Number)))
+                        else str(dv)
+                    )
+            elif v is None or isinstance(v, (str, bool, Number)):
+                row[name] = v
+        if len(row) > 1:
+            rows.append(row)
 
-        # Execute in place with the same kernel_name used at prepare time.
-        pm.execute_notebook(
-            str(nb_path),
-            str(nb_path),
-            kernel_name="python3",
-            log_output=True,
-            progress_bar=False,
-            stdout_file=sys.stdout,
-            stderr_file=sys.stderr,
-        )
+    if not rows:
+        print("no scraps found; nothing to write")
+        return
 
-        # Store cache record; validate against project metadata.
-        cache.cache_notebook_file(
-            path=str(nb_path),
-            overwrite=True,
-            check_validity=True,
-        )
+    df = pd.DataFrame(rows)
+    cols = ["run"] + sorted(c for c in df.columns if c != "run")
+    df = df.reindex(columns=cols)
+    print(
+        "collected %d rows with %d columns: %s"
+        % (len(df), len(df.columns), cols)
+    )
+    out = out_csv if Path(out_csv).is_absolute() else (exp / out_csv)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(out, index=False)
+    print("wrote", out)
 
 
-def main(args):
-    exp = args.experiment_folder
-    cfg = load_cfg(exp)
-    src_nb = exp / "code.ipynb"
-    runs = exp / "runs"
+def cmd_list(exp_dir, passthrough):
+    exp, runs, cache_dir = exp_paths(exp_dir)
+    if not cache_dir.exists():
+        print("no cache at %s, run generate first" % cache_dir, file=sys.stderr)
+        sys.exit(2)
+    print("list: jcache notebook list", " ".join(passthrough or []))
+    rc = jcache_cli(
+        "notebook", "list", *(passthrough or []), cwd=exp, cache_path=cache_dir
+    )
+    if rc != 0:
+        sys.exit(rc)
 
-    cache = get_cache(exp / ".jupyter_cache")
 
-    if args.regenerate:
-        notebooks = gen_notebooks(src_nb, cfg, runs)
-        append_export_cell(notebooks)
-        prune_stale(runs, notebooks)
-        prune_project_records(cache, notebooks)
-        cache.change_cache_limit(max(8, len(notebooks) * 2))
-        add_to_project(cache, notebooks)
+def main(argv=None):
+    ap = argparse.ArgumentParser(prog="experiments.run")
+    sub = ap.add_subparsers(dest="cmd", required=True)
+
+    p_gen = sub.add_parser(
+        "generate", help="prepare notebooks and reset/register cache"
+    )
+    p_gen.add_argument("experiment_folder", type=Path)
+
+    p_exec = sub.add_parser(
+        "execute", help="wrapper around jcache project execute"
+    )
+    p_exec.add_argument("experiment_folder", type=Path)
+    p_exec.add_argument(
+        "--",
+        dest="passthrough",
+        nargs=argparse.REMAINDER,
+        help="args passed to jcache",
+    )
+
+    p_merge = sub.add_parser(
+        "merge", help="merge executed outputs back into runs/*.ipynb"
+    )
+    p_merge.add_argument("experiment_folder", type=Path)
+
+    p_sum = sub.add_parser(
+        "collect", help="merge then extract scrapbook scraps into CSV"
+    )
+    p_sum.add_argument("experiment_folder", type=Path)
+    p_sum.add_argument(
+        "--output", default="runs.csv", help="output CSV filename"
+    )
+
+    p_list = sub.add_parser("list", help="wrapper around jcache notebook list")
+    p_list.add_argument("experiment_folder", type=Path)
+    p_list.add_argument(
+        "--",
+        dest="passthrough",
+        nargs=argparse.REMAINDER,
+        help="args passed to jcache",
+    )
+
+    args = ap.parse_args(argv)
+
+    if args.cmd == "generate":
+        cmd_generate(args.experiment_folder)
+    elif args.cmd == "execute":
+        passthrough = args.passthrough or []
+        if passthrough and passthrough[0] == "--":
+            passthrough = passthrough[1:]
+        cmd_execute(args.experiment_folder, passthrough)
+    elif args.cmd == "merge":
+        cmd_merge(args.experiment_folder)
+    elif args.cmd == "collect":
+        cmd_collect(args.experiment_folder, args.output)
+    elif args.cmd == "list":
+        passthrough = args.passthrough or []
+        if passthrough and passthrough[0] == "--":
+            passthrough = passthrough[1:]
+        cmd_list(args.experiment_folder, passthrough)
     else:
-        notebooks = sorted(runs.glob("*.ipynb"))
-        if not notebooks:
-            print("No notebooks found. Regenerating...")
-            args.regenerate = True
-            return main(args)
-        add_to_project(cache, notebooks)  # idempotent
-
-    execute_and_cache(notebooks, cache)
-    return 0
+        ap.error("unknown command")
 
 
 if __name__ == "__main__":
-    p = argparse.ArgumentParser()
-    p.add_argument("experiment_folder", type=Path)
-    p.add_argument(
-        "--regenerate",
-        action="store_true",
-        help="Regenerate prepared notebooks from the experiment's config.py and code.ipynb and rerun experiment from scratch",
-    )
-    args = p.parse_args()
-
-    exit(main(args))
+    main()
