@@ -2,7 +2,8 @@
 import argparse
 import ast
 import importlib.util
-import logging
+import sys
+from collections import OrderedDict
 from pathlib import Path
 
 import nbformat
@@ -11,112 +12,175 @@ from jupyter_cache import get_cache
 from tqdm import tqdm
 
 
-def parse_args():
-    p = argparse.ArgumentParser()
-    p.add_argument("exp_folder", type=Path)
-    return p.parse_args()
-
-
-def load_cfg(exp):
+def load_cfg(exp: Path):
     spec = importlib.util.spec_from_file_location("config", exp / "config.py")
     m = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(m)
     return m
 
 
-def gen_notebooks(src, cfg, runs):
+def stable_params(d: dict):
+    # Make papermill's injected parameters cell text stable across runs.
+    return OrderedDict(sorted(d.items(), key=lambda kv: kv[0]))
+
+
+def gen_notebooks(src: Path, cfg_module, runs: Path):
     runs.mkdir(exist_ok=True)
     notebooks = []
-    for cfg_ in tqdm(cfg.configurations()):
+    for cfg_ in tqdm(cfg_module.configurations(), desc="Preparing notebooks"):
         idx = len(notebooks) + 1
-        out = runs / f"{idx:06d}.ipynb"
+        name = cfg_.get("name", f"{idx:06d}")
+        out = runs / f"{name}.ipynb"
+
+        assert out not in notebooks, (
+            f"Duplicate notebook name: {out}. "
+            "Ensure unique 'name' per configuration or remove 'name'."
+        )
+
         pm.execute_notebook(
-            src, out, parameters=cfg_, prepare_only=True, kernel_name="python3"
+            str(src),
+            str(out),
+            parameters=stable_params(cfg_),
+            prepare_only=True,
+            kernel_name="python3",
         )
         notebooks.append(out)
-    return notebooks
+    return [Path(nb) for nb in notebooks]
 
 
 def append_export_cell(notebooks):
-    for nb_path in tqdm(notebooks):
+    for nb_path in tqdm(notebooks, desc="Appending export cell"):
         nb = nbformat.read(nb_path, as_version=4)
+
+        # Remove any previous export cell to avoid duplicates.
+        nb.cells = [
+            c for c in nb.cells if getattr(c, "id", None) != "export-glue"
+        ]
+
         exports = set()
         for cell in nb.cells:
-            if "export" in cell.metadata.get("tags", []):
-                tree = ast.parse(cell.source)
+            if (
+                cell.cell_type == "code"
+                and "export" in cell.metadata.get("tags", [])
+                and isinstance(cell.source, str)
+            ):
+                try:
+                    tree = ast.parse(cell.source)
+                except SyntaxError:
+                    continue
                 for node in ast.walk(tree):
                     if isinstance(node, ast.Assign):
                         for tgt in node.targets:
                             if isinstance(tgt, ast.Name):
                                 exports.add(tgt.id)
                             elif isinstance(tgt, ast.Tuple):
-                                exports.update(
-                                    elt.id
-                                    for elt in tgt.elts
-                                    if isinstance(elt, ast.Name)
-                                )
+                                for elt in tgt.elts:
+                                    if isinstance(elt, ast.Name):
+                                        exports.add(elt.id)
+
         if exports:
             lines = ["import scrapbook as sb"] + [
                 f"sb.glue({name!r}, {name})" for name in sorted(exports)
             ]
-            nb.cells.append(nbformat.v4.new_code_cell(source="\n".join(lines)))
-            nbformat.write(nb, nb_path)
+            nb.cells.append(
+                nbformat.v4.new_code_cell(
+                    source="\n".join(lines),
+                    id="export-glue",
+                )
+            )
+
+        nbformat.write(nb, nb_path)
 
 
-def prune_stale(runs, notebooks):
-    keep = {str(nb) for nb in notebooks}
+def fullpath(p: Path) -> Path:
+    return Path(p).resolve()
+
+
+def prune_stale(runs: Path, notebooks):
+    keep = {fullpath(nb) for nb in notebooks}
     for f in runs.glob("*.ipynb"):
-        if str(f) not in keep:
+        if fullpath(f) not in keep:
             f.unlink()
 
 
-def prune_cache(cache, notebooks):
-    valid = {str(nb) for nb in notebooks}
+def prune_project_records(cache, notebooks):
+    valid = {str(fullpath(nb)) for nb in notebooks}
     for rec in cache.list_project_records():
-        if rec.uri not in valid:
+        if str(fullpath(rec.uri)) not in valid:
             cache.remove_nb_from_project(rec.pk)
 
 
-def execute_and_cache(notebooks, cache):
-    logging.basicConfig(level=logging.INFO, format="%(message)s")
-    logger = logging.getLogger("papermill")
-    logger.setLevel(logging.INFO)
+def add_to_project(cache, notebooks):
+    for nb in notebooks:
+        cache.add_nb_to_project(nb)
 
-    for nb_path in tqdm(notebooks):
+
+def execute_and_cache(notebooks, cache):
+    for nb_path in tqdm(notebooks, desc="Executing"):
+        nb_path = fullpath(nb_path)
         nb_node = nbformat.read(str(nb_path), as_version=4)
+
         try:
             cache.match_cache_notebook(nb_node)
-            continue  # up-to-date
+            print(f"Cached: {nb_path} (skip)")
+            continue
         except KeyError:
-            pass
+            print(f"Miss: {nb_path} (execute)")
 
+        # Execute in place with the same kernel_name used at prepare time.
         pm.execute_notebook(
-            str(nb_path), str(nb_path), kernel_name="python3", log_output=True
+            str(nb_path),
+            str(nb_path),
+            kernel_name="python3",
+            log_output=True,
+            progress_bar=False,
+            stdout_file=sys.stdout,
+            stderr_file=sys.stderr,
         )
+
+        # Store cache record; validate against project metadata.
         cache.cache_notebook_file(
-            path=nb_path, overwrite=True, check_validity=False
+            path=str(nb_path),
+            overwrite=True,
+            check_validity=True,
         )
 
 
-def main():
-    exp = parse_args().exp_folder
+def main(args):
+    exp = args.experiment_folder
     cfg = load_cfg(exp)
     src_nb = exp / "code.ipynb"
     runs = exp / "runs"
 
-    notebooks = gen_notebooks(src_nb, cfg, runs)
-    append_export_cell(notebooks)
-    prune_stale(runs, notebooks)
-
     cache = get_cache(exp / ".jupyter_cache")
-    cache.change_cache_limit(len(notebooks) * 2)
-    prune_cache(cache, notebooks)
 
-    for nb in notebooks:
-        cache.add_nb_to_project(nb)
+    if args.regenerate:
+        notebooks = gen_notebooks(src_nb, cfg, runs)
+        append_export_cell(notebooks)
+        prune_stale(runs, notebooks)
+        prune_project_records(cache, notebooks)
+        cache.change_cache_limit(max(8, len(notebooks) * 2))
+        add_to_project(cache, notebooks)
+    else:
+        notebooks = sorted(runs.glob("*.ipynb"))
+        if not notebooks:
+            print("No notebooks found. Regenerating...")
+            args.regenerate = True
+            return main(args)
+        add_to_project(cache, notebooks)  # idempotent
 
     execute_and_cache(notebooks, cache)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    p = argparse.ArgumentParser()
+    p.add_argument("experiment_folder", type=Path)
+    p.add_argument(
+        "--regenerate",
+        action="store_true",
+        help="Regenerate prepared notebooks from the experiment's config.py and code.ipynb and rerun experiment from scratch",
+    )
+    args = p.parse_args()
+
+    exit(main(args))
