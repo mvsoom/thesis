@@ -88,7 +88,7 @@ def prepare_from_config(exp, runs):
 
     for cfg_ in tqdm(cfg.configurations(), desc="prepare"):
         idx = len(notebooks) + 1
-        name = cfg_.get("name", f"{idx:06d}")
+        name = cfg_.pop("name", f"{idx:06d}")
         out = runs / f"{name}.ipynb"
         if out in notebooks:
             raise RuntimeError("Duplicate notebook name: %s" % out)
