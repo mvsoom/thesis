@@ -15,10 +15,12 @@ import shutil
 import subprocess
 import sys
 from collections import OrderedDict
+from collections.abc import Mapping, Sequence
 from numbers import Number
 from pathlib import Path
 
 import nbformat
+import numpy as np
 import pandas as pd
 import papermill as pm
 import scrapbook as sb
@@ -139,12 +141,38 @@ def append_export_cell(notebooks):
                                     exports.add(elt.id)
 
         if exports:
-            lines = ["import scrapbook as sb"] + [
-                "sb.glue(%r, %s)" % (name, name) for name in sorted(exports)
-            ]
+            glue_lines = "\n".join(
+                f"sb.glue({name!r}, _walk({name}))" for name in sorted(exports)
+            )
+            code = (
+                """import scrapbook as sb
+import numpy as np
+
+def _to_py(x):
+    if hasattr(x, "tolist"):
+        try:
+            return x.tolist()
+        except Exception:
+            pass
+    if isinstance(x, np.generic):
+        return x.item()
+    return x
+
+def _walk(x):
+    x = _to_py(x)
+    if isinstance(x, dict):
+        return {k: _walk(v) for k, v in x.items()}
+    if isinstance(x, (list, tuple)):
+        return [_walk(v) for v in x]
+    return x
+
+# glue exports
+"""
+                + glue_lines
+            )
             nb.cells.append(
                 nbformat.v4.new_code_cell(
-                    source="\n".join(lines),
+                    source=code,
                     id=EXPORT_CELL_ID,
                 )
             )
@@ -250,45 +278,113 @@ def cmd_merge(exp_dir):
     print("merged %d / %d notebooks" % (merged, len(notebooks)))
 
 
+# Helpers for long-form collection via cartesian product
+def _is_listlike(x):
+    return isinstance(x, Sequence) and not isinstance(
+        x, (str, bytes, bytearray)
+    )
+
+
+def _series_df(name, seq):
+    seq = list(seq)
+    df = pd.DataFrame({name: seq})
+    df[f"{name}.index"] = range(len(df))
+    return df[[f"{name}.index", name]]
+
+
+def _lodf_df(name, seq):
+    vals = pd.json_normalize(list(seq), max_level=1)
+    vals.columns = [f"{name}.{c}" for c in vals.columns]
+    vals.insert(0, f"{name}.index", range(len(vals)))
+    return vals
+
+
+def _flatten_top_level_dict(name, mapping):
+    out = {}
+    for k, v in mapping.items():
+        if isinstance(v, (str, bool, Number, type(None), np.generic)):
+            out[f"{name}.{k}"] = v.item() if isinstance(v, np.generic) else v
+    return out
+
+
+def _cross_join(a, b):
+    if a is None:
+        return b.copy()
+    if b is None:
+        return a.copy()
+    a = a.copy()
+    b = b.copy()
+    a["_key"] = 1
+    b["_key"] = 1
+    res = a.merge(b, on="_key").drop(columns="_key")
+    return res
+
+
 def cmd_collect(exp_dir, out_csv):
     exp, runs, _ = exp_paths(exp_dir)
     cmd_merge(exp_dir)
-    rows = []
-    for nb in tqdm(list_runs(runs), desc="collect"):
+
+    outs = []
+    for nb in tqdm(list_runs(runs), desc="collect-explode"):
         try:
             scraps = sb.read_notebook(str(nb)).scraps
         except Exception:
             continue
-        row = {"run": nb.stem}
+
+        ids = {"run": nb.stem}
+        series_parts = []
+
         for name, s in scraps.items():
             v = getattr(s, "data", s)
-            if isinstance(v, dict):
-                for k, dv in v.items():
-                    row[f"{name}.{k}"] = (
-                        dv
-                        if (dv is None or isinstance(dv, (str, bool, Number)))
-                        else str(dv)
-                    )
-            elif v is None or isinstance(v, (str, bool, Number)):
-                row[name] = v
-        if len(row) > 1:
-            rows.append(row)
 
-    if not rows:
+            if isinstance(v, Mapping):
+                # treat top-level dicts of scalars as ID columns
+                ids.update(_flatten_top_level_dict(name, v))
+
+            elif _is_listlike(v):
+                seq = list(v)
+                if len(seq) == 0:
+                    # empty sequence means no rows for this run once crossed
+                    series_parts.append(
+                        pd.DataFrame({f"{name}.index": [], name: []})
+                    )
+                else:
+                    first = seq[0]
+                    if isinstance(first, Mapping):
+                        series_parts.append(
+                            _lodf_df(name, seq)
+                        )  # list of dicts
+                    else:
+                        series_parts.append(
+                            _series_df(name, seq)
+                        )  # list of scalars
+
+            elif isinstance(v, (str, bool, Number, type(None), np.generic)):
+                ids[name] = v.item() if isinstance(v, np.generic) else v
+            else:
+                # should not happen after glue normalization; ignore
+                pass
+
+        out = pd.DataFrame([ids])
+        for part in series_parts:
+            out = _cross_join(out, part)
+
+        outs.append(out)
+
+    if not outs:
         print("no scraps found; nothing to write")
         return
 
-    df = pd.DataFrame(rows)
+    df = pd.concat(outs, ignore_index=True)
     cols = ["run"] + sorted(c for c in df.columns if c != "run")
     df = df.reindex(columns=cols)
-    print(
-        "collected %d rows with %d columns: %s"
-        % (len(df), len(df.columns), cols)
-    )
+
     out = out_csv if Path(out_csv).is_absolute() else (exp / out_csv)
     out.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(out, index=False)
-    print("wrote", out)
+    print(
+        "collected %d rows, %d columns -> %s" % (len(df), len(df.columns), out)
+    )
 
 
 def cmd_list(exp_dir, passthrough):
