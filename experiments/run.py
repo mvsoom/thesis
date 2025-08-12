@@ -331,6 +331,10 @@ def cmd_collect(exp_dir, out_csv):
         except Exception:
             continue
 
+        # skip notebooks that haven't been executed (no glued scraps)
+        if not scraps:
+            continue
+
         ids = {"run": nb.stem}
         series_parts = []
 
@@ -378,6 +382,7 @@ def cmd_collect(exp_dir, out_csv):
     df = pd.concat(outs, ignore_index=True)
     cols = ["run"] + sorted(c for c in df.columns if c != "run")
     df = df.reindex(columns=cols)
+    df = df.convert_dtypes()  # <- preserve ints/bools where possible
 
     out = out_csv if Path(out_csv).is_absolute() else (exp / out_csv)
     out.parent.mkdir(parents=True, exist_ok=True)
