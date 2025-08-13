@@ -14,6 +14,7 @@ set auto fix
 set offsets graph .05, graph .05, graph .05, graph .05
 
 set grid
+set termoption dashed
 
 # Can't set font for each terminal, has to be done on invoke
 FONT = "JuliaMono,12"
