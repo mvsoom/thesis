@@ -220,8 +220,16 @@ def vi_step_test(state: VIState) -> VIState:
     return state
 
 
-# @partial(jax.jit, donate_argnums=(0,))  # TODO: if we record state, do not donate argnum
+
 def vi_step(state: VIState) -> VIState:
+    # NOTE: No need for donate_argnums here.
+    # vi_step() runs inside a jitted lax.scan, so the scan carry (state) is already
+    # input-output aliased by XLA. The .replace(...) calls in the update_*(state) functions
+    # only create new container objects; unchanged leaves (e.g., state.data) keep the same
+    # device buffers, and updated leaves can reuse old storage via carry aliasing.
+    # donate_argnums at this level would only matter at a real host => device call boundary,
+    # which this is not.
+
     # Updating q(a) = delta(a* - a) as the very first update is known to yield better convergence as it is initalized to zeroes
     state = update_delta_a(state)
 
