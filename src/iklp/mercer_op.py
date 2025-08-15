@@ -22,14 +22,7 @@ def build_X(x, P):
 class Data:
     """Precompute functions of the data and hyperparameters
 
-    Note: the `woodbury_ratio` is a quick indicator of whether `L = I*r`
-    is small enough for the Woodbury trick to be efficient. It is computed
-    as `L / M` where `M` is the number of samples. It is not used in the code.
-
-    Rough guideline for woodbury_ratio (empirical):
-        ratio ≤ 1.5         Woodbury clearly faster than CG
-        1.5 < ratio < 2     about equal, still safe
-        ratio > 2           consider CG / SLQ / Hutchinson
+    Note that `L = I*r` where I is the number of theta components and r is the SVD rank of the Phi matrix (I, M, r).
     """
 
     h: Hyperparams  # back‑link to shared Hyperparams
@@ -39,10 +32,10 @@ class Data:
     Gram: jnp.ndarray  # (L,L)  = ΦᵀΦ
     B0: jnp.ndarray  # (L,P)  = ΦᵀX
     w0: jnp.ndarray  # (L,)   = Φᵀx
-    woodbury_ratio: float  # L / M
 
 
 def build_data(x, h: Hyperparams) -> Data:
+    x = jnp.asarray(x, dtype=h.Phi.dtype)
     I, M, r = h.Phi.shape
     L = I * r
     X = build_X(x, h.P)
@@ -50,8 +43,7 @@ def build_data(x, h: Hyperparams) -> Data:
     Gram = Phi_cat.T @ Phi_cat
     B0 = Phi_cat.T @ X
     w0 = Phi_cat.T @ x
-    woodbury_ratio = L / M
-    return Data(h, X, x, Phi_cat, Gram, B0, w0, woodbury_ratio)
+    return Data(h, X, x, Phi_cat, Gram, B0, w0)
 
 
 @struct.dataclass
