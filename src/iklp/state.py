@@ -213,7 +213,7 @@ class Auxiliaries:
 
 
 def compute_auxiliaries(state: VIState) -> Auxiliaries:
-    """Compute the auxiliary variables from state needed all 4 variational updates and the ELBO"""
+    """Compute the auxiliary variables from state needed for all 4 variational updates and the ELBO"""
     E = compute_expectations(state)
     Omega = build_operator(E.nu_e, E.nu_w * E.theta, state.data)
     S = build_operator(

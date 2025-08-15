@@ -232,44 +232,6 @@ def vi_step(state: VIState) -> VIState:
     return state
 
 
-def update_next(state: VIState, i) -> VIState:
-    if i % 4 == 0:
-        state = update_theta(state)
-    elif i % 4 == 1:
-        state = update_nu_w(state)
-    elif i % 4 == 2:
-        state = update_nu_e(state)
-    elif i % 4 == 3:
-        state = update_delta_a(state)
-    return state
-
-
-def vi_run(
-    state: VIState, data: Data, compute_elbo=False, record=False
-) -> VIState:
-    # Updating q(a) = delta(a* - a) as the very first update
-    # is known to yield better convergence
-    # as it is initalized to zeroes
-    state = update_delta_a(state)
-
-    def scan_fn(state, batch):
-        new_state, _ = vi_step(state, batch)
-        # return new carry, and record the new carry as output
-        return new_state, new_state
-
-    final_state, states = jax.lax.scan(scan_fn, init_state, batches)
-    # states has shape [T, *state_tree_shapes]
-    return final_state, states
-
-
-def vi_test(state: VIState) -> VIState:
-    state = update_theta(state)
-    state = update_nu_w(state)
-    state = update_nu_e(state)
-    state = update_delta_a(state)
-    return state
-
-
 if __name__ == "__main__":
     jax.config.update("jax_enable_x64", True)
     jax.config.update("jax_debug_nans", True)
@@ -287,7 +249,6 @@ if __name__ == "__main__":
         vi_step = jax.jit(vi_step)
         compute_elbo_bound = jax.jit(compute_elbo_bound)
         vi_step_test = jax.jit(vi_step_test)
-        update_next = jax.jit(update_next, static_argnames=["i"])
 
     # %%
     # Test (first run very slow, then fast)
