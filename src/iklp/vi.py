@@ -101,6 +101,7 @@ def update_delta_a(state: VIState) -> VIState:
     aux = compute_auxiliaries(state)
 
     lam = state.data.h.lam
+    lam = jnp.asarray(lam, dtype=state.data.h.Phi.dtype)
 
     # Solve normal equation with S operator, as Sigma^(-1) == S^(-1)
     new_delta_a = solve_normal_eq(aux.S, lam)

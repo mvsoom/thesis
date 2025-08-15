@@ -1,7 +1,22 @@
 import jax
 import jax.numpy as jnp
 import numpy as np
+from flax import struct
 from jax.tree_util import DictKey, GetAttrKey, SequenceKey
+
+
+def static_constant(default_value):
+    """Make JAX specialize on this value"""
+    return struct.field(pytree_node=False, default=default_value)
+
+
+def maybe32(x):
+    """Convert to x32 if not jax_enable_x64"""
+    try:
+        dtype = jax.dtypes.canonicalize_dtype(x.dtype)
+    except AttributeError:
+        dtype = jax.dtypes.canonicalize_dtype(type(x))
+    return jnp.asarray(x, dtype=dtype)
 
 
 def _path_to_str(path):

@@ -1,11 +1,11 @@
 # %%
 from __future__ import annotations
 
-from typing import get_type_hints
-
 import jax
 import jax.numpy as jnp
 from flax import struct
+
+from utils.jax import maybe32, static_constant
 
 from .mercer import psd_svd
 from .util import _periodic_kernel_batch
@@ -15,35 +15,23 @@ from .util import _periodic_kernel_batch
 class Hyperparams:
     Phi: jnp.ndarray  # (I,M,r)
 
-    P: int = struct.field(pytree_node=False, default=30)
+    P: int = static_constant(
+        30
+    )  # Must be static because determines shape of xi.delta_a
 
-    alpha: jnp.ndarray = 1.0
-    aw: jnp.ndarray = 1.0
-    bw: jnp.ndarray = 1.0
-    ae: jnp.ndarray = 1.0
-    be: jnp.ndarray = 1.0
-    lam: jnp.ndarray = 0.1
+    # Use maybe32() again when initializing, e.g. `h = Hyperparams(Phi, aw=maybe32(aw))`
+    alpha: jnp.ndarray = maybe32(1.0)
+    aw: jnp.ndarray = maybe32(1.0)
+    bw: jnp.ndarray = maybe32(1.0)
+    ae: jnp.ndarray = maybe32(1.0)
+    be: jnp.ndarray = maybe32(1.0)
+    lam: jnp.ndarray = maybe32(0.1)
 
-    smoothness: jnp.ndarray = 100.0
+    smoothness: float = static_constant(100.0)
 
-    num_vi_restarts: int = struct.field(pytree_node=False, default=1)
-    num_vi_iters: int = struct.field(pytree_node=False, default=30)
-    num_epsilon_samples: int = struct.field(pytree_node=False, default=5)
-
-    def __post_init__(self):
-        """Make sure all jnp.ndarray fields follow jax_enable_x64()"""
-        dtype = jnp.float64 if jax.config.jax_enable_x64 else jnp.float32
-        hints = get_type_hints(type(self))
-        for name, ann in hints.items():
-            if ann is jnp.ndarray:
-                value = getattr(self, name)
-                if value is not None:
-                    casted_value = jnp.asarray(value, dtype=dtype)
-                    object.__setattr__(
-                        self,
-                        name,
-                        casted_value,
-                    )
+    num_vi_restarts: int = static_constant(1)
+    num_vi_iters: int = static_constant(30)
+    num_epsilon_samples: int = static_constant(5)
 
 
 def random_periodic_kernel_hyperparams(
