@@ -1,7 +1,7 @@
 # %%
 from __future__ import annotations
 
-from typing import NewType, get_type_hints
+from typing import get_type_hints
 
 import jax
 import jax.numpy as jnp
@@ -10,7 +10,6 @@ from flax import struct
 from .mercer import psd_svd
 from .util import _periodic_kernel_batch
 
-jfloat = NewType("jfloat", jnp.ndarray)
 
 @struct.dataclass
 class Hyperparams:
@@ -18,25 +17,25 @@ class Hyperparams:
 
     P: int = struct.field(pytree_node=False, default=30)
 
-    alpha: jfloat = 1.0
-    aw: jfloat = 1.0
-    bw: jfloat = 1.0
-    ae: jfloat = 1.0
-    be: jfloat = 1.0
-    lam: jfloat = 0.1
+    alpha: jnp.ndarray = 1.0
+    aw: jnp.ndarray = 1.0
+    bw: jnp.ndarray = 1.0
+    ae: jnp.ndarray = 1.0
+    be: jnp.ndarray = 1.0
+    lam: jnp.ndarray = 0.1
 
-    smoothness: jfloat = 100.0
+    smoothness: jnp.ndarray = 100.0
 
     num_vi_restarts: int = struct.field(pytree_node=False, default=1)
     num_vi_iters: int = struct.field(pytree_node=False, default=30)
     num_epsilon_samples: int = struct.field(pytree_node=False, default=5)
 
     def __post_init__(self):
-        """Make sure all jfloat fields follow jax_enable_x64()"""
+        """Make sure all jnp.ndarray fields follow jax_enable_x64()"""
         dtype = jnp.float64 if jax.config.jax_enable_x64 else jnp.float32
         hints = get_type_hints(type(self))
         for name, ann in hints.items():
-            if ann is jfloat:
+            if ann is jnp.ndarray:
                 value = getattr(self, name)
                 if value is not None:
                     casted_value = jnp.asarray(value, dtype=dtype)
