@@ -11,6 +11,8 @@ import numpy as np
 import scipy
 import tensorflow_probability.substrates.jax.math as tfm
 
+from utils.jax import maybe32
+
 TAU_CUTOFF = 1e-200
 
 
@@ -78,6 +80,8 @@ def gig_dkl_from_gamma(Ex, Exinv, rho, tau, a, b):
 
     Uses same parametrization as compute_gig_expectations(), and the same notes apply.
     """
+    a = maybe32(a)
+    b = maybe32(b)
 
     def gig_branch(args):
         Ex, Exinv, rho, tau, a, b = args
