@@ -54,3 +54,40 @@ def random_periodic_kernel_hyperparams(
     h = Hyperparams(Phi, **hyper_kwargs)
 
     return (h, K) if return_K else h
+
+
+def pi_kappa_hyperparameters(
+    Phi, pi: float = 0.5, s: float = 1.0, kappa: float = 1.0, **kwargs
+) -> Hyperparams:
+    """Create hyperparameters with the pi (pitchedness) and kappa (concentration) parametrization
+
+    By specifiying expected pitchedness,
+
+    Instead of the aw, bw, ae, be parameters, this uses pi and kappa to define the expected pitchedness and total power of the prior distribution.
+
+    Here `pi` constrains the expected pitchedness of the prior , `s` the expected total power, and `kappa` a concentration parameter that determines how peaked the pi and s distributions are around their expectation values.
+
+    Args:
+        Phi: Compute Mercer expansion of the K = [..., M, M] matrix using SVD. Shaped (I, M, r)
+        pi: Expected pitchedness `nu_w/(nu_w + nu_e)`
+        s: Expected total power `nu_w + nu_e`
+        kappa: Concentration parameter, higher means more peaked around pi
+
+    Returns:
+        Hyperparams: Hyperparams(Phi, ...) with the induced `aw`, `bw`, `ae`, `be` parameters
+    """
+    aw = kappa * pi
+    ae = kappa * (1 - pi)
+    bw = kappa / s
+    be = kappa / s
+
+    kwargs.update(
+        {
+            "aw": maybe32(aw),
+            "bw": maybe32(bw),
+            "ae": maybe32(ae),
+            "be": maybe32(be),
+        }
+    )
+
+    return Hyperparams(Phi, **kwargs)
