@@ -1,5 +1,3 @@
-# %%
-
 import jax
 import jax.numpy as jnp
 
@@ -98,44 +96,3 @@ def periodic_mock_data(key, f0, Phi, noise_db=-60.0):
     x = Phi[i] @ e  # (M,)
     x += jax.random.normal(k3, shape=x.shape) * 10 ** (noise_db / 20)
     return f0[i], x
-
-
-if __name__ == "__main__":
-    import matplotlib.pyplot as plt
-
-    jax.config.update("jax_enable_x64", True)
-
-    f0, K = periodic_kernel(I=10)
-    f0_2, Phi = periodic_kernel_phi(I=10, batch_size=3, noise_floor_db=-90.0)
-
-    # Test if the two methods yield the same f0s
-    assert jnp.allclose(f0, f0_2), "F0 series do not match!"
-    print("F0 series:", f0)
-
-    # Test if Phi is approximately a square root of K
-    K_approx = Phi @ jnp.swapaxes(Phi, -1, -2)
-    err = jnp.max(jnp.abs(K - K_approx))
-    print("Max absolute reconstruction error:", err)
-
-    # %%
-
-    # Plot the first kernel
-    plt.imshow(K[0], aspect="auto", cmap="coolwarm")
-    plt.colorbar()
-    plt.title(f"Periodic kernel for F0 = {f0[0]:.2f} Hz")
-    plt.show()
-
-    # Plot the last kernel
-    plt.imshow(K[-1], aspect="auto", cmap="coolwarm")
-    plt.colorbar()
-    plt.title(f"Periodic kernel for F0 = {f0[-1]:.2f} Hz")
-    plt.show()
-
-    # %%
-    f0i, x = periodic_mock_data(jax.random.PRNGKey(1234), f0, Phi)
-
-    plt.plot(x)
-    plt.title(f"Sampled data vector for F0 = {f0i:.2f} Hz")
-    plt.xlabel("Time (samples)")
-    plt.ylabel("Amplitude")
-    plt.show()

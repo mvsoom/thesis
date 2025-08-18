@@ -1,5 +1,3 @@
-# %%
-
 from __future__ import annotations
 
 import jax
@@ -8,7 +6,7 @@ from flax import struct
 from jax import random
 
 from .gig import compute_gig_expectations, sample_gig
-from .hyperparams import Hyperparams, random_periodic_kernel_hyperparams
+from .hyperparams import Hyperparams
 from .mercer_op import Data, MercerOp, build_data, build_operator, sample
 from .psi import solve_Psi
 from .util import gamma_shape_rate, gamma_shape_scale, stabilize_ar
@@ -220,51 +218,3 @@ def compute_auxiliaries(state: VIState) -> Auxiliaries:
         1 / E.nu_e_inv, 1 / (E.nu_w_inv * E.theta_inv), state.data
     )
     return Auxiliaries(E, Omega, S)
-
-
-if __name__ == "__main__":
-    jax.config.update("jax_enable_x64", True)
-
-    key = jax.random.PRNGKey(12)
-
-    def sk():
-        global key
-        key, k = jax.random.split(key)
-        return k
-
-    h = random_periodic_kernel_hyperparams(sk())
-    state = init_test_stable_state(sk(), h)
-
-    I = h.Phi.shape[0]
-
-    # Check prior
-    z = sample_z_from_prior(sk(), h)
-
-    print("Number of theta coeffs > 0.1: ", (z.theta > 0.1).sum())
-
-    print("theta mean ≈", z.theta.mean(), "should be", (h.alpha / I) / h.alpha)
-    print("nu_w mean ≈", z.nu_w, "should be", h.aw / h.bw)
-    print("nu_e mean ≈", z.nu_e, "should be", h.ae / h.be)
-
-    # Check sampling x from prior
-    x = sample_x_from_z(sk(), z, h)
-    print("x mean (prior) ≈", x.mean())
-
-    z_stable = z.replace(a=stabilize_ar(z.a))
-    x_stable = sample_x_from_z(sk(), z_stable, h)
-    print("x_stable mean (prior) ≈", x_stable.mean())
-
-    # Check sampling x from q (more stable)
-    z = sample_z_from_q(sk(), state.xi, state.data.h)
-    x = sample_x_from_z(sk(), z, h)
-    print("x mean (q) ≈", x.mean())
-
-    z_stable = z.replace(a=stabilize_ar(z.a))
-    x_stable = sample_x_from_z(sk(), z_stable, h)
-    print("x_stable mean (q) ≈", x_stable.mean())
-
-    # Check expectations
-    E = compute_expectations(state)
-
-    # Check aux
-    aux = compute_auxiliaries(state)

@@ -1,10 +1,6 @@
 """Compute Mercer expansion of a batch of PSD matrices using SVD"""
 
-# %%
-import jax
 import jax.numpy as jnp
-
-from .util import _periodic_kernel_batch
 
 
 def sqrt_clip(x):
@@ -37,25 +33,3 @@ def psd_svd(K, noise_floor_db=-jnp.inf):
     # Some of the w_r values can be ~= 0^- if they already converged well with rank r, so we zero these associated eigenvectors out
     Phi = U_r * sqrt_clip(w_r)[..., None, :]  # [..., M, r]
     return Phi
-
-
-if __name__ == "__main__":
-    jax.config.update("jax_enable_x64", True)
-
-    key = jax.random.PRNGKey(123)
-    B, M = 5, 50
-    Ts = jax.random.normal(key, (B,)) * 5 + 10  # [B]
-    K = _periodic_kernel_batch(Ts, M)
-
-    print("Ks shape:", K.shape)  # (B, M, M)
-
-    Phi = psd_svd(K, noise_floor_db=-60.0)
-    print(
-        "Phi.shape:", Phi.shape
-    )  # should be (B, M, r) with r chosen dynamically
-
-    K_approx = jnp.matmul(Phi, jnp.swapaxes(Phi, -1, -2))
-
-    # max absolute reconstruction error per batch
-    err = jnp.max(jnp.abs(K - K_approx), axis=[-2, -1])
-    print("reconstruction error:", err)

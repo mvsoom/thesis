@@ -1,20 +1,15 @@
-# %%
-
 from __future__ import annotations
 
 import jax
 import jax.numpy as jnp
 
 from .gig import gig_dkl_from_gamma
-from .hyperparams import random_periodic_kernel_hyperparams
 from .mercer_op import logdet, solve, solve_normal_eq, trinv, trinv_Ki
 from .psi import psi_matvec
 from .state import (
     Auxiliaries,
     VIState,
     compute_auxiliaries,
-    compute_expectations,
-    init_test_stable_state,
 )
 
 
@@ -221,7 +216,6 @@ def vi_step_test(state: VIState) -> VIState:
     return state
 
 
-
 def vi_step(state: VIState) -> VIState:
     # NOTE: No need for donate_argnums here.
     # vi_step() runs inside a jitted lax.scan, so the scan carry (state) is already
@@ -239,78 +233,3 @@ def vi_step(state: VIState) -> VIState:
     state = update_nu_e(state)
 
     return state
-
-
-if __name__ == "__main__":
-    jax.config.update("jax_enable_x64", True)
-    jax.config.update("jax_debug_nans", True)
-
-    key = jax.random.PRNGKey(123)
-
-    def sk():
-        global key
-        key, k = jax.random.split(key)
-        return k
-
-    # Jit stuff
-    if True:
-        update_delta_a = jax.jit(update_delta_a)
-        vi_step = jax.jit(vi_step)
-        compute_elbo_bound = jax.jit(compute_elbo_bound)
-        vi_step_test = jax.jit(vi_step_test)
-
-    # %%
-    # Test (first run very slow, then fast)
-    h = random_periodic_kernel_hyperparams(
-        sk(), I=400, M=512, hyper_kwargs={"P": 12}
-    )
-    state = init_test_stable_state(sk(), h)
-
-    import matplotlib.pyplot as plt
-
-    plt.figure()
-    cmap = plt.get_cmap("coolwarm")
-
-    # Updating q(a) = delta(a* - a) as the very first update
-    # is known to yield better convergence
-    # as it is initalized to zeroes
-    state = update_delta_a(state)
-
-    score = -jnp.inf
-    criterion = 0.0001
-    n_iter = 20
-
-    for i in range(n_iter):
-        state = vi_step(state)
-
-        E = compute_expectations(state)
-        color = cmap(i / n_iter)
-        plt.plot(E.theta, color=color, alpha=0.8, label=f"iter {i}")
-
-        lastscore = score
-        score = compute_elbo_bound(state)
-
-        if i == 0:
-            improvement = 1.0
-        else:
-            improvement = (score - lastscore) / jnp.abs(lastscore)
-
-        print(
-            "iteration {}: bound = {:.2f} ({:+.5f} improvement)".format(
-                i, score, improvement
-            )
-        )
-        if improvement < 0.0:
-            print("Diverged")
-            break
-        if improvement < criterion:
-            print("Converged")
-            break
-        if jnp.isnan(improvement) and i > 0:
-            print("NaN")
-            break
-
-    plt.legend()
-    plt.xlabel("i")
-    plt.ylabel("theta")
-    plt.yscale("log")

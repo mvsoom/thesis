@@ -1,4 +1,3 @@
-# %%
 from __future__ import annotations
 
 import jax
@@ -13,13 +12,20 @@ from .util import _periodic_kernel_batch
 
 @struct.dataclass
 class Hyperparams:
+    """VI hyperparameters
+
+    Both model and simulation hyperparameters are set here.
+      * `static_constant`s are specialized on when jitting
+      * `maybe32` is used to allow constants to become x32 when jax_enable_x64 is False
+        NOTE: Use maybe32() *again* when initializing, e.g. `h = Hyperparams(Phi, aw=maybe32(aw))`
+    """
+
     Phi: jnp.ndarray  # (I,M,r)
 
     P: int = static_constant(
         30
     )  # Must be static because determines shape of xi.delta_a
 
-    # Use maybe32() again when initializing, e.g. `h = Hyperparams(Phi, aw=maybe32(aw))`
     alpha: jnp.ndarray = maybe32(1.0)
     aw: jnp.ndarray = maybe32(1.0)
     bw: jnp.ndarray = maybe32(1.0)
@@ -48,15 +54,3 @@ def random_periodic_kernel_hyperparams(
     h = Hyperparams(Phi, **hyper_kwargs)
 
     return (h, K) if return_K else h
-
-
-if __name__ == "__main__":
-    jax.config.update("jax_enable_x64", True)
-
-    key = jax.random.PRNGKey(0)
-
-    h = random_periodic_kernel_hyperparams(key)
-    print("Phi shape:", h.Phi.shape)
-    print(h)
-
-# %%

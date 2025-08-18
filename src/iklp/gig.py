@@ -1,6 +1,6 @@
 """Generalized Inverse Gaussian (GIG) distribution"""
+
 # pip install -Uq tfp-nightly[jax]
-# %%
 
 from __future__ import annotations
 
@@ -121,6 +121,7 @@ def gig_dkl_from_gamma(Ex, Exinv, rho, tau, a, b):
         operand=(Ex, Exinv, rho, tau, a, b),
     )  # >= 0.
 
+
 def _numpy_rng_from_jax_key(key):
     """https://github.com/jax-ml/jax/discussions/8446#discussioncomment-1584247"""
     return np.random.default_rng(
@@ -137,65 +138,3 @@ def sample_gig(key, gamma, rho, tau, size=None):
     gig = scipy.stats.geninvgauss(p_val, b_scipy, scale=scale_val)
     random_state = _numpy_rng_from_jax_key(key)
     return jnp.asarray(gig.rvs(size=size, random_state=random_state))
-
-
-if __name__ == "__main__":
-    import _gap
-    import numpy as np
-
-    jax.config.update("jax_enable_x64", True)
-
-    key = jax.random.PRNGKey(486)
-
-    rho = 1 / 0.45
-    gamma = 5.7
-    b = 45.1
-
-    for tau in [0.0, 0.9]:  # Switch between gamma and GIG regimes
-        Ex_samples = sample_gig(key, gamma, rho, tau, size=1000).mean()
-        Exinv_samples = (1 / sample_gig(key, gamma, rho, tau, size=1000)).mean()
-        print("E[x] samples:", Ex_samples)
-        print("1/E[1/x] samples:", 1 / Exinv_samples)
-
-        Ex, Exinv = compute_gig_expectations(gamma, rho, tau)
-        print("E[x]:", Ex)
-        print("1/E[1/x]:", 1 / Exinv)
-
-        Ex, Exinv = _gap.yoshii_compute_gig_expectations(
-            np.array(gamma), np.array(rho), np.array(tau)
-        )
-        print("E[x]:", Ex)
-        print("1/E[1/x]:", 1 / Exinv)
-
-        print()
-
-        a = gamma
-
-        D_kl = -_gap.yoshii_gig_gamma_term(
-            Ex, Exinv, np.array(rho), np.array(tau), np.array(a), np.array(b)
-        )
-
-        print("D_kl:", D_kl)
-
-        try:
-            D_kl = _gap.kl_gig_vs_gamma(gamma, rho, tau, b)
-
-            print("D_kl:", D_kl)
-        except Exception as e:
-            print("Error in kl_gig_vs_gamma:", e)
-
-        D_kl = gig_dkl_from_gamma(Ex, Exinv, rho, tau, a, b)
-
-        print("D_kl:", D_kl)
-
-        print()
-
-    # Test vmapping over rho and tau
-    rho = jnp.array([1 / 0.45, 1 / 0.55])
-    tau = jnp.array([0.0, 0.9])
-
-    Ex, Exinv = jax.vmap(compute_gig_expectations, in_axes=(None, 0, 0))(
-        gamma, rho, tau
-    )
-    print("E[x]:", Ex)
-    print("1/E[1/x]:", 1 / Exinv)

@@ -1,8 +1,19 @@
+import time
+
 import jax
 import jax.numpy as jnp
 import numpy as np
 from flax import struct
 from jax.tree_util import DictKey, GetAttrKey, SequenceKey
+
+_KEY = jax.random.PRNGKey(int(time.time_ns()) % (2**32 - 1))
+
+
+def vk():
+    """Volatile key for testing purposes -- don't use in production"""
+    global _KEY
+    _KEY, k = jax.random.split(_KEY)
+    return k
 
 
 def static_constant(default_value):
@@ -114,11 +125,3 @@ def check_precisions(tree, return_issues=False):
 
     if return_issues:
         return issues
-
-
-if __name__ == "__main__":
-    from iklp.hyperparams import Hyperparams
-
-    h = Hyperparams()
-
-    check_precisions(h, return_issues=True)

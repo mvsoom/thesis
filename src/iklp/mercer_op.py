@@ -1,5 +1,4 @@
 """Mercer operator for the IKLP problem"""
-# %%
 
 from __future__ import annotations
 
@@ -8,7 +7,7 @@ import jax.numpy as jnp
 import jax.scipy.linalg as jla
 from flax import struct
 
-from .hyperparams import Hyperparams, random_periodic_kernel_hyperparams
+from .hyperparams import Hyperparams
 
 
 def build_X(x, P):
@@ -52,10 +51,10 @@ class MercerOp:
 
     A "Mercer Operator" is a linear operator of the form
 
-        S = nu * I + Σ_i w_i * Phi_i @ Phi_iᵀ
+        S = Σ_i w_i * Phi_i @ Phi_iᵀ + nu * I
 
     where Phi_i (M, r) are assumed to be tall and skinny (M >> r) and the Woodbury
-    implementation is efficient when `data.woodbury_ratio` is <= 2.0 (roughly).
+    implementation is efficient when the Woodbury ratio (I*r/M) is <= 2.0 (roughly).
 
     In other words this is a linear combination of SVD decompositions of the same rank r,
     plus a ridge component nu. All weights w_i must be >= 0.
@@ -146,107 +145,53 @@ def solve_normal_eq(op: MercerOp, lam):
     return a  # (P,)
 
 
-def sample(op: MercerOp, key, shape=()):
-    """Sample from MvNormal(0, op)"""
+def sample_parts(op: MercerOp, key, shape=()):
+    """Sample signal and noise parts from MvNormal(0, op)"""
     k1, k2 = jax.random.split(key)
     M, L = op.Phi_w.shape
 
-    z0 = jax.random.normal(k1, shape + (M,))
-    z1 = jax.random.normal(k2, shape + (L,))
+    z0 = jax.random.normal(k1, shape + (L,))
+    z1 = jax.random.normal(k2, shape + (M,))
 
-    eps = jnp.sqrt(op.nu) * z0 + jnp.matmul(z1, op.Phi_w.T)
-    return eps  # (..., M)
+    signal = jnp.matmul(z0, op.Phi_w.T)  # (..., M)
+    noise = jnp.sqrt(op.nu) * z1  # (..., M)
+
+    return signal, noise  # both are (..., M)
 
 
-if __name__ == "__main__":
-    from . import mercer
+def sample(op: MercerOp, key, shape=()):
+    """Sample from MvNormal(0, op)"""
+    signal, noise = sample_parts(op, key, shape)
+    return signal + noise  # (..., M)
 
-    jax.config.update("jax_enable_x64", True)
-    jax.config.update("jax_debug_nans", True)
 
-    key = jax.random.PRNGKey(0)
+def matmul_parts(op: MercerOp, v):
+    """Compute op @ v, returning the parts (signal, noise) separately"""
+    Phi = op.data.Phi_cat
+    w = op.sqrt_w * op.sqrt_w
+    s = Phi.T @ v
+    signal = Phi @ (w * s)
+    noise = op.nu * v  # (M,)
+    return signal, noise
 
-    def sk():
-        global key
-        key, k = jax.random.split(key)
-        return k
 
-    # Mock data and hyperparameters
-    I = 40
-    M = 1024
-    P = 30
-    nu = 1.56
-    lam = 0.1
+def sample_parts_given_observation(op: MercerOp, x, key) -> jnp.ndarray:
+    """Given observed data x ~ MvNormal(0, op), sample (signal, noise) | (signal + noise = x)"""
+    signal0, noise0 = sample_parts(op, key)
 
-    kernel_kwargs = {
-        "noise_floor_db": -60.0,
-    }
+    residual = x - (signal0 + noise0)
+    c = solve(op, residual)
 
-    hyper_kwargs = {
-        "P": P,
-        "lam": lam,
-    }
+    # We can do a quick shortcut here because there are only two components so get one in terms of the other...
+    c_noise = op.nu * c  # (M,)
 
-    h, K = random_periodic_kernel_hyperparams(
-        sk(), I, M, kernel_kwargs, hyper_kwargs, return_K=True
-    )
+    noise = noise0 + c_noise
+    signal = x - noise
+    return signal, noise  # both are (M,)
 
-    print("K shape:", K.shape)
+    # ... and here is the full version (tested: works!)
+    c_signal, c_noise = matmul_parts(op, c)
 
-    x = jax.random.normal(sk(), (M,))
-    coeff = jax.random.normal(sk(), (I,)) ** 2
-    v = jax.random.normal(sk(), (M,))
-
-    # Compute ground truth
-    X = build_X(x, P)
-    S = nu * jnp.eye(M)
-    for i in range(I):
-        S += coeff[i] * K[i]
-
-    Sinv_explicit = jla.inv(S)
-    logdet_exp = 2 * jnp.sum(jnp.log(jnp.diag(jla.cholesky(S, lower=True))))
-    trinv_exp = jnp.trace(Sinv_explicit)
-    trinv_Ki_exp = jnp.trace(Sinv_explicit @ K, axis1=1, axis2=2)
-
-    def compute_naieve_a(S_inv, X, P, lam):
-        """Uses Sigma^(-1) == S^(-1) -- see _compute_sigma_inv_with_upsilon()"""
-        A = X.T.dot(S_inv).dot(X) + lam * jnp.eye(P)
-        b = X.T.dot(S_inv).dot(x)
-        a = jnp.linalg.solve(A, b)
-        return a
-
-    a_exp = compute_naieve_a(Sinv_explicit, X, P, lam)
-
-    # As noise_floor_db increases, calculations become more exact while Woodbury becomes less efficient
-    errs = []
-    db = 0.0
-
-    for _ in range(5):
-        db -= 20.0
-
-        print()
-        print(f"Noise floor: {db:.0f} dB")
-
-        Phi = mercer.psd_svd(K, noise_floor_db=db)
-        h = h.replace(Phi=Phi)
-        print("Phi shape:", Phi.shape)
-
-        data = build_data(x, h)
-        print("Woodbury ratio L/M:", data.woodbury_ratio)
-
-        op = build_operator(nu, coeff, data)
-
-        err = [
-            jnp.max(jnp.abs(solve(op, v) - Sinv_explicit @ v)),
-            jnp.abs(logdet(op) - logdet_exp),
-            jnp.abs(trinv(op) - trinv_exp),
-            jnp.max(jnp.abs(trinv_Ki(op) - trinv_Ki_exp)),
-            jnp.max(jnp.abs(solve_normal_eq(op, lam) - a_exp)),
-        ]
-        errs.append(err)
-
-        print("\tmax |S⁻¹v - exact|:", err[0])
-        print("\tlogdet diff:", err[1])
-        print("\ttrinv   diff:", err[2])
-        print("\ttrinv_Ki max diff:", err[3])
-        print("\ta max diff:", err[4])
+    signal = signal0 + c_signal
+    noise = noise0 + c_noise
+    return signal, noise  # both are (M,) and sum to x

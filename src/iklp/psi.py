@@ -1,5 +1,3 @@
-# %%
-import jax
 import jax.numpy as jnp
 import jax.scipy.linalg as jla
 
@@ -56,56 +54,3 @@ def psi_matvec(
         return psi_matvec_naive(a, x)
     else:
         raise ValueError("mode must be 'shift', 'fft', or 'naive'")
-
-
-if __name__ == "__main__":
-    import jax
-    import jax.numpy as jnp
-    from jax import random
-
-    jax.config.update("jax_enable_x64", True)
-    key = random.PRNGKey(4581)
-
-    P = 30
-    M = 2048
-    lam = 0.1
-
-    key, sub = random.split(key)
-    x = random.normal(sub, (M,))
-
-    # a ~ MvNormal(0, lam * I) to avoid unstable filter
-    # If unstable, x_true and x_fast will blow up
-    key, sub = random.split(key)
-    a = jnp.sqrt(lam) * random.normal(sub, (P,))
-
-    # Check matvec
-    v_true = build_Psi(M, a) @ x
-
-    psi_shift = jax.jit(lambda a, x: psi_matvec(a, x, mode="shift"))
-    psi_fft = jax.jit(lambda a, x: psi_matvec(a, x, mode="fft"))
-    psi_naive = jax.jit(lambda a, x: psi_matvec(a, x, mode="naive"))
-
-    v_shift = psi_shift(a, x)
-    v_fft = psi_fft(a, x)
-    v_naive = psi_naive(a, x)
-
-    print("≈ v_true?                             max-diff")
-    print("------------------------------------------------")
-    print(f"shift: {jnp.max(jnp.abs(v_shift - v_true)):.3e}")
-    print(f"fft:   {jnp.max(jnp.abs(v_fft - v_true)):.3e}")
-    print(f"naive: {jnp.max(jnp.abs(v_naive - v_true)):.3e}")
-
-    # Which ones are faster?
-    # %timeit psi_shift(a, x) # fastest
-    # %timeit psi_fft(a, x,)  # fast
-    # %timeit psi_naive(a, x) # very slow
-
-    # Check solve
-    eps = random.normal(key, (M,))
-
-    x_true = jnp.linalg.solve(build_Psi(M, a), eps)
-    x_fast = solve_Psi(a, eps)
-
-    print("≈ x_true?                             max-diff")
-    print("------------------------------------------------")
-    print(f"solve: {jnp.max(jnp.abs(x_fast - x_true)):.3e}")
