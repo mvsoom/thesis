@@ -140,7 +140,7 @@ print("H(0)  ≈\n", jax.hessian(L)(jnp.zeros(P)))
 
 # %%
 
-P, N = 30, int(1e6)  # lots of uniform PACF samples
+P, N = 12, int(1e6)  # lots of uniform PACF samples
 key = jr.PRNGKey(0)
 phi = jr.uniform(key, (N, P), minval=-1, maxval=1)  # uniform in cube
 a = jax.vmap(pacf_to_ar)(phi)  # map to AR space
@@ -156,7 +156,7 @@ import matplotlib.pyplot as plt
 
 plt.plot(jnp.diag(jnp.atleast_2d(Cq)))
 plt.title("Diagonal of empirical covariance matrix")
-plt.xlabel("AR order")
+plt.xlabel("coefficient index")
 plt.ylabel("Variance")
 plt.grid()
 plt.show()
@@ -164,7 +164,9 @@ plt.show()
 # Show Cq matrix
 plt.imshow(Cq, cmap="hot", interpolation="nearest")
 plt.colorbar()
-plt.title("Empirical covariance matrix")
-plt.xlabel("AR order")
-plt.ylabel("AR order")
+plt.title("Empirical covariance matrix: natural decay")
+plt.xlabel("coefficient index")
+plt.ylabel("coefficient index")
 plt.show()
+
+# %%
