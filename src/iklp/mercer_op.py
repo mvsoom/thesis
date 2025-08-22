@@ -1,4 +1,10 @@
-"""Mercer operator for the IKLP problem"""
+"""Mercer operator for the IKLP problem
+
+TODO(optimize):
+- [Likely huge impact] Prune $I$ dimensions when $\theta$ goes under a threshold as done in `~/pro/code/bp_nmf` for the gamma process NMF (GaP-NMF) of Matt Hoffman. Requires altering jitting process, but possible. How do MoE LLMs do this?
+- In `mercer_op`: use (JAX) COLA annotations
+- In `mercer_op`: can optimize memory and possibly avoid stacking completely
+"""
 
 from __future__ import annotations
 
@@ -15,6 +21,16 @@ def build_X(x, P):
     col = jnp.concatenate([jnp.zeros(1, dtype=x.dtype), x[:-1]])
     row = jnp.zeros(P, dtype=x.dtype)
     return jla.toeplitz(col, row)  # (M, P)
+
+
+def safe_cholesky(A, lower=True, beta=1.0):
+    """Cholesky with scaled jitter per common GPyTorch practice"""
+    power = jnp.trace(A) / A.shape[0]
+    tol = 1e-4 if A.dtype == jnp.float32 else 1e-6
+    C = jla.cholesky(
+        A + beta * tol * power * jnp.eye(A.shape[0], dtype=A.dtype), lower=lower
+    )
+    return C
 
 
 @struct.dataclass
@@ -80,7 +96,7 @@ def build_operator(
     Phi_w = data.Phi_cat * sqrt_w[None, :]  # (M,I*r)
     Gram_w = sqrt_w[:, None] * data.Gram * sqrt_w[None, :]
     A = jnp.eye(Gram_w.shape[0], dtype=Gram_w.dtype) + Gram_w / nu
-    chol = jla.cholesky(A, lower=True)
+    chol = safe_cholesky(A, lower=True)
     Phi_norms = jnp.sum(data.h.Phi**2, axis=(1, 2)) / nu  # (I,)
     return MercerOp(data, nu, sqrt_w, Phi_w, chol, Phi_norms)
 
@@ -138,7 +154,7 @@ def solve_normal_eq(op: MercerOp, lam):
     r = X.T @ Sinvx  # (P,)
 
     H = G + lam * jnp.eye(X.shape[1], dtype=X.dtype)
-    L = jla.cholesky(H, lower=True)
+    L = safe_cholesky(H, lower=True)
 
     y = jla.solve_triangular(L, r, lower=True)
     a = jla.solve_triangular(L.T, y, lower=False)
