@@ -2,6 +2,7 @@ from functools import partial
 
 import jax
 import jax.numpy as jnp
+from flax import struct
 from jax import lax
 
 from iklp.mercer_op import build_data
@@ -68,7 +69,7 @@ def vi_frames_batched(key, frames, h, batch_size=None):
         key: jax.random.PRNGKey
         frames: jnp.ndarray shaped (num_frames, M) where M is number of samples per frame
         h: Hyperparams
-          *Note*: this function jit-specializes on the shape of `h.Phi`, `h.P`, `h.num_vi_restarts`, and `h.num_vi_iters`.
+          *Note*: this function jit-specializes on the shape of `h.P`, `h.num_vi_restarts`, and `h.num_vi_iters`.
         batch_size: int or None. If None, process all frames in one batch.
 
     Returns:
@@ -83,7 +84,7 @@ def vi_frames_batched(key, frames, h, batch_size=None):
 
     vi_frames_jit = jax.jit(
         vi_frames
-    )  # Specializes on batch size and h.Phi, h.P, h.num_vi_restarts, h.num_vi_iters
+    )  # Specializes on batch size, h.P, h.num_vi_restarts, h.num_vi_iters
 
     chunks = []
 
@@ -103,51 +104,71 @@ def vi_frames_batched(key, frames, h, batch_size=None):
     return metrics  # (len(frames), h.num_vi_restarts, h.num_vi_iters + 1, ...)
 
 
-@partial(jax.jit, static_argnames=("print_progress",))
-def vi_run_criterion(key, x, h, max_iters=jnp.inf, print_progress=False):
+@struct.dataclass
+class CriterionState:
+    i: jnp.ndarray  # ()
+    state: VIState
+    elbo: jnp.ndarray  # ()
+    improvement: jnp.ndarray  # ()
+
+
+def print_progress(cs: CriterionState):
+    print(
+        f"iter {cs.i}: elbo = {cs.elbo:.2f} ({cs.improvement:+.5f} improvement)"
+    )
+
+
+@partial(
+    jax.jit,
+    static_argnames=("callback",),
+)
+def vi_run_criterion(
+    key,
+    x,
+    h,
+    max_iters=jnp.inf,
+    callback=None,
+) -> CriterionState:
     """Run a single VI run with given data `x` and hyperparameters `h`, where each state is sequentially updated, until the relative improvement in ELBO is (a) below `criterion`, (b) diverges (becomes nan or 0^-)
 
-    *Note*: JAX can't compile and carry state in a while loop, so we can only return the last state. The number of iterations and final ELBO value are also returned.
+    `callback` gets called after each state update with the current `CriterionState`. See `print_progress()` for an example callback function. Use sparingly, because always expensive COPY transfer from GPU to host of the ENTIRE state (including Phi, the data, etc). If `None`, this gets compiled out as expected.
+
+    Note: this function works with vmap(); it stalls the other lanes until the last one is done, and returns the final state with a batch dimension indexing the lane. Even the callback works with vmap() -- it is called sequentially per lane for each iteration.
     """
+
+    def compute_criterion_state(i, state, last_elbo=-jnp.inf):
+        elbo = compute_elbo_bound(state)
+
+        improvement = (elbo - last_elbo) / jnp.abs(last_elbo)
+
+        cs = CriterionState(i, state, elbo, improvement)
+        return cs
+
+    def maybe_callback(cs):
+        if callback:
+            jax.debug.callback(callback, cs, ordered=True)
+
     criterion = h.vi_criterion
-    state0 = init_state(key, x, h)
+    state = init_state(key, x, h)
 
-    carry0 = (
-        jnp.array(0, jnp.int32),  # i
-        state0,  # state
-        -jnp.inf,  # last elbo
-        jnp.array(True),  # keep_going
-    )
+    cs = compute_criterion_state(0, state)
+    maybe_callback(cs)
 
-    def cond(carry):
-        i, _, _, keep_going = carry
-        return (i < max_iters) & keep_going
+    def cond(cs):
+        converged = cs.improvement < criterion
+        diverged = cs.improvement < 0.0
+        naned = jnp.isnan(cs.improvement) & (cs.i > 0)
 
-    def body(carry):
-        i, state, last_elbo, _ = carry
-        new_state = vi_step(state)
-        elbo = compute_elbo_bound(new_state)
-        improvement = jnp.where(
-            i == 0, jnp.inf, (elbo - last_elbo) / jnp.abs(last_elbo)
-        )
+        stop = converged | diverged | naned
+        keep_going = (~stop) & (cs.i < max_iters)
+        return keep_going
 
-        if print_progress:
-            jax.debug.print(
-                "iter {iter}/{max_iters}: elbo = {ELBO}, improvement = {improvement}",
-                iter=i + 1,
-                max_iters=max_iters,
-                ELBO=elbo,
-                improvement=improvement,
-            )
+    def body(cs):
+        new_state = vi_step(cs.state)
 
-        converged = improvement < criterion
-        diverged = improvement < 0.0
-        naned = jnp.isnan(improvement)
-        keep_going = ~(converged | diverged | naned)
+        cs1 = compute_criterion_state(cs.i + 1, new_state, cs.elbo)
+        maybe_callback(cs1)
+        return cs1
 
-        return (i + 1, new_state, elbo, keep_going)
-
-    final_num_iters, final_state, final_elbo, _ = lax.while_loop(
-        cond, body, carry0
-    )
-    return final_state, final_num_iters, final_elbo
+    final_cs = lax.while_loop(cond, body, cs)
+    return final_cs
