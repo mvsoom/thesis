@@ -1,7 +1,7 @@
 import jax.numpy as jnp
 from flax import struct
 
-from .state import Expectations, VIState, compute_expectations
+from .state import Expectations, LatentVars, VIState, compute_expectations
 from .vi import compute_elbo_bound
 
 
@@ -22,3 +22,15 @@ def compute_metrics(state: VIState) -> StateMetrics:
     a = state.xi.delta_a
     # epsilon_samples = compute_epsilon_samples(state)
     return StateMetrics(elbo=elbo, E=E, a=a)
+
+
+def compute_power_distibution(z):
+    """Return normalized power distribution for (noise, kernel_1, ..., kernel_I)"""
+    power = jnp.concatenate((jnp.array([z.nu_e]), z.nu_w * z.theta))
+    return power / jnp.sum(power)  # (I+1,)
+
+
+def compute_state_power_distribution(state):
+    E = compute_expectations(state)
+    z = LatentVars(E.theta, E.nu_w, E.nu_e, None)
+    return compute_power_distibution(z)

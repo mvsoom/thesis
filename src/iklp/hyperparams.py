@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import jax
 import jax.numpy as jnp
+import numpy as np
+import scipy
 from flax import struct
+from mpmath import digamma, findroot
 
 from utils.jax import maybe32, static_constant
 
@@ -37,6 +40,7 @@ class Hyperparams:
 
     num_vi_restarts: int = static_constant(1)
     num_vi_iters: int = static_constant(30)
+    vi_criterion: float = static_constant(1e-8)
     num_epsilon_samples: int = static_constant(5)
 
 
@@ -91,3 +95,46 @@ def pi_kappa_hyperparameters(
     )
 
     return Hyperparams(Phi, **kwargs)
+
+
+def expected_entropy_of_normalized_thetas(alpha, I):
+    """Exact E[H(p)] for theta/(sum theta) ~ Dirichlet(alpha/I)"""
+    return float(digamma(alpha + 1.0) - digamma(1.0 + alpha / I))
+
+
+def expected_active_components(alpha, I):
+    """I_eff_expected = exp(E[H(p)]) for p ~ Dirichlet(alpha/I)"""
+    return np.exp(expected_entropy_of_normalized_thetas(alpha, I))
+
+
+def active_components(theta):
+    """I_eff = exp(H(p)) for p = theta/(sum theta)"""
+    H = scipy.stats.entropy(theta)
+    return np.exp(H)
+
+
+def solve_for_alpha(I):
+    """Solve for alpha such that the expected number of active components under p(theta|I) is "a handful" [exp(1)]"""
+    lo, hi = 1e-12, 1.0
+    # bracket
+    while expected_entropy_of_normalized_thetas(hi, I) < 1.0:
+        hi *= 2.0
+        if hi > 1e8:
+            raise RuntimeError("Failed to bracket root for EH=1.")
+    # root
+    try:
+        return float(
+            findroot(
+                lambda x: expected_entropy_of_normalized_thetas(x, I) - 1.0,
+                (lo, hi),
+            )
+        )
+    except Exception:
+        # fallback bisection
+        for _ in range(200):
+            mid = 0.5 * (lo + hi)
+            if expected_entropy_of_normalized_thetas(mid, I) < 1.0:
+                lo = mid
+            else:
+                hi = mid
+        return 0.5 * (lo + hi)
