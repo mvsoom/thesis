@@ -1,8 +1,17 @@
+import jax
 import jax.numpy as jnp
 from flax import struct
 
-from .state import Expectations, LatentVars, VIState, compute_expectations
-from .vi import compute_elbo_bound
+from iklp.mercer_op import MercerOp, sample_parts_given_observation
+from utils.jax import maybe32
+
+from .state import (
+    Expectations,
+    LatentVars,
+    VIState,
+    compute_auxiliaries,
+)
+from .vi import compute_elbo_bound_aux
 
 
 @struct.dataclass
@@ -12,16 +21,46 @@ class StateMetrics:
     E: Expectations
     a: jnp.ndarray  # (P,)
 
-    # epsilon_samples: jnp.ndarray  # (epsilon_samples, M)
+    signals: jnp.ndarray  # (h.num_metrics_samples, M)
+
+    i: jnp.ndarray = maybe32(0)  # ()
+    improvement: jnp.ndarray = jnp.nan  # ()
 
 
-def compute_metrics(state: VIState) -> StateMetrics:
-    # TODO: we need to compute the auxes, elbo and expectations need this
-    elbo = compute_elbo_bound(state)
-    E = compute_expectations(state)
+def compute_metrics(key, state: VIState) -> StateMetrics:
+    aux = compute_auxiliaries(state)
+
+    elbo = compute_elbo_bound_aux(state, aux)
+    E = aux.E
     a = state.xi.delta_a
-    # epsilon_samples = compute_epsilon_samples(state)
-    return StateMetrics(elbo=elbo, E=E, a=a)
+
+    signals = compute_signals(
+        key, aux.Omega, state.data.x, state.data.h.num_metrics_samples
+    )
+
+    return StateMetrics(elbo=elbo, E=E, a=a, signals=signals)
+
+
+def compute_new_metrics(key, state: VIState, old: StateMetrics) -> StateMetrics:
+    metrics = compute_metrics(key, state)
+    return metrics.replace(
+        i=old.i + 1,
+        improvement=(metrics.elbo - old.elbo) / jnp.abs(old.elbo),
+    )
+
+
+def compute_signals(key, Omega: MercerOp, x, num_samples=5):
+    """Sample from p(signal | x, z = E[z|xi])
+
+    In other words, samples come from the Gaussian process which is conditioned on the **expectation values** of the latent variables `z` (thus the latter are not sampled themselves).
+    """
+    keys = jax.random.split(key, num_samples)
+
+    signals, _ = jax.vmap(
+        lambda k: sample_parts_given_observation(Omega, x, k)
+    )(keys)
+
+    return signals  # (num_samples, M)
 
 
 def compute_power_distibution(z):
@@ -30,7 +69,7 @@ def compute_power_distibution(z):
     return power / jnp.sum(power)  # (I+1,)
 
 
-def compute_state_power_distribution(state):
-    E = compute_expectations(state)
+def compute_metrics_power_distribution(metrics: StateMetrics):
+    E = metrics.E
     z = LatentVars(E.theta, E.nu_w, E.nu_e, None)
     return compute_power_distibution(z)

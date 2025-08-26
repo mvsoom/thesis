@@ -13,11 +13,13 @@ from iklp.hyperparams import (
     pi_kappa_hyperparameters,
 )
 from iklp.mercer import psd_svd
+from iklp.mercer_op import sample_parts
 from iklp.metrics import (
+    StateMetrics,
+    compute_metrics_power_distribution,
     compute_power_distibution,
-    compute_state_power_distribution,
 )
-from iklp.run import CriterionState, print_progress, vi_run_criterion
+from iklp.run import print_progress, vi_run_criterion
 from iklp.state import (
     compute_expectations,
     sample_x_from_z,
@@ -44,21 +46,18 @@ Phi = psd_svd(K)
 # Setup stuff
 CMAP = plt.get_cmap("coolwarm")
 
-# WARNING: need to jit any function used in onstate() callback, otherwise trigers recompilation at every iteration
+# WARNING: need to jit any function used in on_metrics() callback, otherwise trigers recompilation at every iteration
 compute_expectations = jax.jit(compute_expectations)
-compute_state_power_distribution = jax.jit(compute_state_power_distribution)
+compute_metrics_power_distribution = jax.jit(compute_metrics_power_distribution)
 
+collected_metrics = []
 
-def onstate(cs: CriterionState, every=1):
-    print_progress(cs)
+def on_metrics(metrics: StateMetrics):
+    print_progress(metrics)
 
-    i = cs.i
-    if i % every == 0:
-        power_distribution = compute_state_power_distribution(cs.state)
-        plt.plot(power_distribution, linewidth=1.0, color=CMAP(i / 100))
+    global collected_metrics
+    collected_metrics.append(metrics)
 
-
-vi_run_criterion = jax.jit(vi_run_criterion, static_argnames=("callback",))
 
 # %%
 # Define hyperparameters and sample from prior
@@ -75,7 +74,8 @@ print("nu_e", z.nu_e)
 print("sum(theta) = ", z.theta.sum())
 print("pitchedness = ", z.nu_w / (z.nu_w + z.nu_e))
 print("I_eff =", active_components(z.theta))
-
+power = jnp.mean(x**2)
+print("power(x)/(nu_w + nu_e) = ", power / (z.nu_w + z.nu_e))
 
 # Show sampled timeseries x
 plt.figure()
@@ -84,15 +84,23 @@ plt.xlabel("x")
 plt.title("Sampled x")
 plt.show()
 
-power = jnp.mean(x**2)
-print("power(x)/(nu_w + nu_e) = ", power / (z.nu_w + z.nu_e))
-
 
 # Show power waterfall plot
 plt.figure()
 
-# This plots on plt via onstate() function
-cs = vi_run_criterion(vk(), x, h, callback=onstate)
+# This plots on plt via on_metrics() function
+state, metrics = vi_run_criterion(vk(), x, h, callback=on_metrics)
+
+for i, ms in enumerate(collected_metrics):
+    power_distribution = compute_metrics_power_distribution(ms)
+    plt.plot(
+        power_distribution,
+        linewidth=1.0,
+        color=CMAP(i / len(collected_metrics)),
+    )
+
+
+inferred_power_distribution = compute_metrics_power_distribution(metrics)
 
 true_power_distribution = compute_power_distibution(z)
 
@@ -111,16 +119,53 @@ plt.xlabel("kernel index $i$")
 plt.ylabel("relative power")
 plt.title("Power distribution waterfall through VI and ground truth")
 plt.grid(True, which="both", linestyle="--", linewidth=0.5)
+plt.legend(loc="best")
 plt.show()
 
-
-inferred_power_distribution = compute_state_power_distribution(cs.state)
-
+# Calculate performance scores
 score = np.exp(
     scipy.stats.entropy(true_power_distribution, inferred_power_distribution)
 )
 
 print(
-    "Score of inferred power distribution (lower is better, 1.0 is perfect): ",
+    "Score(DKL) of inferred power distribution (lower is better, 1.0 is perfect): ",
     score,
 )
+
+wasserstein = scipy.stats.wasserstein_distance(
+    np.arange(I + 1),
+    np.arange(I + 1),
+    true_power_distribution,
+    inferred_power_distribution,
+)  # symmetric
+
+print(
+    "Score(Wasserstein) between true and inferred power distribution (lower is better, 0.0 is perfect): ",
+    wasserstein,
+)
+
+# %%
+
+from iklp.state import compute_auxiliaries
+
+aux = compute_auxiliaries(state)
+
+op = aux.Omega
+
+signal, noise = sample_parts(op, vk())
+
+plt.plot(x, label="x")
+plt.plot(signal, label="signal")
+plt.plot(noise, label="noise")
+plt.title("Sampled signal and noise parts | (E(z),)")
+plt.legend()
+
+# %%
+plt.plot(x, label="x")
+plt.plot(metrics.signals.T, label="signal")
+
+noises = x - metrics.signals
+
+plt.title("Sampled signal and noise parts | (E(z), x)")
+plt.legend()
+# %%

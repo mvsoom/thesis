@@ -2,17 +2,16 @@ from functools import partial
 
 import jax
 import jax.numpy as jnp
-from flax import struct
 from jax import lax
 
 from iklp.mercer_op import build_data
-from iklp.metrics import compute_metrics
+from iklp.metrics import StateMetrics, compute_metrics, compute_new_metrics
 from iklp.state import (
     VIState,
     init_state,
     init_variational_params,
 )
-from iklp.vi import compute_elbo_bound, vi_step
+from iklp.vi import vi_step
 
 
 def vi_run(key, data):
@@ -104,71 +103,60 @@ def vi_frames_batched(key, frames, h, batch_size=None):
     return metrics  # (len(frames), h.num_vi_restarts, h.num_vi_iters + 1, ...)
 
 
-@struct.dataclass
-class CriterionState:
-    i: jnp.ndarray  # ()
-    state: VIState
-    elbo: jnp.ndarray  # ()
-    improvement: jnp.ndarray  # ()
-
-
-def print_progress(cs: CriterionState):
+def print_progress(metrics: StateMetrics):
     print(
-        f"iter {cs.i}: elbo = {cs.elbo:.2f} ({cs.improvement:+.5f} improvement)"
+        f"iter {metrics.i}: elbo = {metrics.elbo:.2f} ({metrics.improvement:+.8f} improvement)"
     )
 
-
-@partial(
-    jax.jit,
-    static_argnames=("callback",),
-)
+@partial(jax.jit, static_argnames=("callback",))
 def vi_run_criterion(
     key,
     x,
     h,
     max_iters=jnp.inf,
     callback=None,
-) -> CriterionState:
+) -> tuple[VIState, StateMetrics]:
     """Run a single VI run with given data `x` and hyperparameters `h`, where each state is sequentially updated, until the relative improvement in ELBO is (a) below `criterion`, (b) diverges (becomes nan or 0^-)
 
-    `callback` gets called after each state update with the current `CriterionState`. See `print_progress()` for an example callback function. Use sparingly, because always expensive COPY transfer from GPU to host of the ENTIRE state (including Phi, the data, etc). If `None`, this gets compiled out as expected.
+    `callback` gets called after each state update with the current `StateMetrics`. See `print_progress()` for an example callback function. Use sparingly, because this always triggers an expensive COPY transfer from GPU to host of the metrics of the current state -- NOT the entire state including Phi, the data, etc. If `None`, this gets compiled out as expected.
 
     Note: this function works with vmap(); it stalls the other lanes until the last one is done, and returns the final state with a batch dimension indexing the lane. Even the callback works with vmap() -- it is called sequentially per lane for each iteration.
     """
 
-    def compute_criterion_state(i, state, last_elbo=-jnp.inf):
-        elbo = compute_elbo_bound(state)
-
-        improvement = (elbo - last_elbo) / jnp.abs(last_elbo)
-
-        cs = CriterionState(i, state, elbo, improvement)
-        return cs
-
-    def maybe_callback(cs):
+    def maybe_callback(metrics):
         if callback:
-            jax.debug.callback(callback, cs, ordered=True)
+            jax.debug.callback(callback, metrics, ordered=True)
 
-    criterion = h.vi_criterion
-    state = init_state(key, x, h)
+    key, k1, k2 = jax.random.split(key, 3)
+    state = init_state(k1, x, h)
+    metrics = compute_metrics(k2, state)
+    maybe_callback(metrics)
 
-    cs = compute_criterion_state(0, state)
-    maybe_callback(cs)
+    def cond(carry):
+        _, _, metrics = carry
 
-    def cond(cs):
-        converged = cs.improvement < criterion
-        diverged = cs.improvement < 0.0
-        naned = jnp.isnan(cs.improvement) & (cs.i > 0)
+        i = metrics.i
+        improvement = metrics.improvement
+
+        converged = improvement < h.vi_criterion
+        diverged = improvement < 0.0
+        naned = jnp.isnan(improvement) & (i > 0)
 
         stop = converged | diverged | naned
-        keep_going = (~stop) & (cs.i < max_iters)
+        keep_going = (~stop) & (i < max_iters)
         return keep_going
 
-    def body(cs):
-        new_state = vi_step(cs.state)
+    def body(carry):
+        key, state, metrics = carry
 
-        cs1 = compute_criterion_state(cs.i + 1, new_state, cs.elbo)
-        maybe_callback(cs1)
-        return cs1
+        new_key, key = jax.random.split(key)
+        new_state = vi_step(state)
+        new_metrics = compute_new_metrics(key, new_state, old=metrics)
+        maybe_callback(new_metrics)
 
-    final_cs = lax.while_loop(cond, body, cs)
-    return final_cs
+        return (new_key, new_state, new_metrics)
+
+    _, final_state, final_metrics = lax.while_loop(
+        cond, body, (key, state, metrics)
+    )
+    return final_state, final_metrics

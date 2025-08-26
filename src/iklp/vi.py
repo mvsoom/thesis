@@ -110,7 +110,10 @@ def update_delta_a(state: VIState) -> VIState:
 
 def compute_elbo_bound(state: VIState):
     aux = compute_auxiliaries(state)
+    return compute_elbo_bound_aux(state, aux)
 
+
+def compute_elbo_bound_aux(state: VIState, aux: Auxiliaries):
     # Compute likelihood terms (eq 23)
     w = solve_w(state, aux)
 

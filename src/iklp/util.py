@@ -29,6 +29,9 @@ def stabilize_ar(a: np.ndarray) -> np.ndarray:
     this returns new coeffs a_stable so that all roots of Q(z) lie
     inside the unit circle (|z|<=1), by reflecting any |root|>1 to 1/conj(root).
     """
+    if len(a) == 0:
+        return a
+
     # form the monic polynomial Q(z) = z^P - a1 z^(P-1) - … - aP
     # its coef vector (highest power first) is [1, -a1, -a2, …, -aP]
     coefs = np.concatenate(([1.0], -a))
