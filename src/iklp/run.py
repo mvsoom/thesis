@@ -1,17 +1,21 @@
+from functools import partial
+
 import jax
 import jax.numpy as jnp
+from jax import lax
 
 from iklp.mercer_op import build_data
 from iklp.metrics import compute_metrics
 from iklp.state import (
     VIState,
+    init_state,
     init_variational_params,
 )
-from iklp.vi import vi_step
+from iklp.vi import compute_elbo_bound, vi_step
 
 
 def vi_run(key, data):
-    """Run a single VI run on the given data, where each state is sequentially updated"""
+    """Do a single VI optimization on the given data, where each state is sequentially updated for a fixed number of iterations"""
     xi = init_variational_params(key, data.h)
     state = VIState(data, xi)
 
@@ -36,7 +40,7 @@ def vi_run(key, data):
 
 
 def vi_frame(key, frame, h):
-    """Run VI on a single frame"""
+    """Run VI on a single frame with multiple restarts"""
     data = build_data(frame, h)
 
     subkeys = jax.random.split(key, h.num_vi_restarts)
@@ -97,3 +101,53 @@ def vi_frames_batched(key, frames, h, batch_size=None):
     )
 
     return metrics  # (len(frames), h.num_vi_restarts, h.num_vi_iters + 1, ...)
+
+
+@partial(jax.jit, static_argnames=("print_progress",))
+def vi_run_criterion(key, x, h, max_iters=jnp.inf, print_progress=False):
+    """Run a single VI run with given data `x` and hyperparameters `h`, where each state is sequentially updated, until the relative improvement in ELBO is (a) below `criterion`, (b) diverges (becomes nan or 0^-)
+
+    *Note*: JAX can't compile and carry state in a while loop, so we can only return the last state. The number of iterations and final ELBO value are also returned.
+    """
+    criterion = h.vi_criterion
+    state0 = init_state(key, x, h)
+
+    carry0 = (
+        jnp.array(0, jnp.int32),  # i
+        state0,  # state
+        -jnp.inf,  # last elbo
+        jnp.array(True),  # keep_going
+    )
+
+    def cond(carry):
+        i, _, _, keep_going = carry
+        return (i < max_iters) & keep_going
+
+    def body(carry):
+        i, state, last_elbo, _ = carry
+        new_state = vi_step(state)
+        elbo = compute_elbo_bound(new_state)
+        improvement = jnp.where(
+            i == 0, jnp.inf, (elbo - last_elbo) / jnp.abs(last_elbo)
+        )
+
+        if print_progress:
+            jax.debug.print(
+                "iter {iter}/{max_iters}: elbo = {ELBO}, improvement = {improvement}",
+                iter=i + 1,
+                max_iters=max_iters,
+                ELBO=elbo,
+                improvement=improvement,
+            )
+
+        converged = improvement < criterion
+        diverged = improvement < 0.0
+        naned = jnp.isnan(improvement)
+        keep_going = ~(converged | diverged | naned)
+
+        return (i + 1, new_state, elbo, keep_going)
+
+    final_num_iters, final_state, final_elbo, _ = lax.while_loop(
+        cond, body, carry0
+    )
+    return final_state, final_num_iters, final_elbo
