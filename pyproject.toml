@@ -12,10 +12,7 @@ requires-python = ">=3.10"
 dependencies = [
     "jax>=0.6",
     "jaxopt>=0.8.5",
-    "cola-ml>=0.0.7",
-    "gpjax>=0.11.0",
     "distrax>=0.1.5",
-    "gnuplotlib>=0.42",
     "setuptools>=68",
     "pytest>=8.3.5",
     "nbmake>=1.5.5",
@@ -26,6 +23,7 @@ dependencies = [
     "scrapbook>=0.5.0",
     "jupyter_cache>=1.0.1",
     "mpmath>=1.3.0",
+    "sympy>=1.14.0",
 ]
 
 # [project.optional-dependencies.dev]
