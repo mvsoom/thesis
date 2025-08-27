@@ -40,6 +40,7 @@ build-backend = "hatchling.build"
 
 [tool.hatch.version]
 source = "vcs"
+fallback-version = "0.0+subtree"
 
 [tool.hatch.build.hooks.vcs]
 version-file = "src/tinygp/tinygp_version.py"
