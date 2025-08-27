@@ -4,8 +4,13 @@ Usage:
   python -m experiments.run generate  <experiment-folder>
   python -m experiments.run execute   <experiment-folder> [-- ...jcache-args]
   python -m experiments.run merge     <experiment-folder>
-  python -m experiments.run collect <experiment-folder> [--output runs.csv]
+  python -m experiments.run collect   <experiment-folder> [--output runs.csv]
   python -m experiments.run list      <experiment-folder> [-- ...jcache-args]
+
+TODO:
+  - When hyperparam takes on EXTRA values, be able to reuse old combinations
+  - On `generate`: remove all non-code cells for copies
+  - "%(variable_name)s" in config() call to generate names
 """
 
 import argparse
