@@ -4,31 +4,31 @@ import numpy as np
 from scipy import signal
 
 
-def lpc_power_spectrum(
-    a,
-    fs,
-    n_fft=4096,
-    fmax=None,
-):
+def ar_power_spectrum(a, fs, n_fft=4096, fmax=None, convention="plus"):
     """
-    Evaluate the power spectrum |A(e^{jω})|^2 of a linear predictor filter per Yoshii+ (2013).
+    Return PSD proportional to 1/|A(e^{-jω})|^2 for an AR(P) model.
 
-    a : 1D array of predictor coeffs (length P), NOT including a0 == 1
-    fs: sample rate [Hz]
+    a: length-P array of AR coefficients excluding a0.
+       convention="plus"      means A(z)=1 + a1 z^{-1} + ... + aP z^{-P}
+       convention="lpc"       means 'predictor coeffs' (Levinson): A(z)=1 - a1 z^{-1} - ... - aP z^{-P}
     """
-    a = np.asarray(a)
-    den = np.r_[1.0, -a]  # 1 - a1 z^-1 - ... - aP z^-P
+    a = np.asarray(a, float)
+    if convention == "plus":
+        den = np.r_[1.0, a]
+    elif convention == "lpc":
+        den = np.r_[1.0, -a]
+    else:
+        raise ValueError("convention must be 'plus' or 'lpc'")
 
-    f = np.fft.rfftfreq(n_fft, d=1.0 / fs)  # [0, fs/2]
+    f = np.fft.rfftfreq(int(n_fft), d=1.0 / fs)
     if fmax is not None:
         keep = f <= float(fmax)
         f = f[keep]
+    w = 2.0 * np.pi * f / float(fs)  # rad/sample
+    _, H = signal.freqz(b=[1.0], a=den, worN=w)
+    Pxx = np.abs(H) ** 2  # ∝ 1/|A|^2
 
-    w = 2 * np.pi * f / float(fs)
-    _, H = signal.freqz(b=[1.0], a=den, worN=w)  # H = 1/A(e^{jw})
-    power = np.abs(H) ** 2
-
-    return f, power
+    return f, Pxx
 
 
 def get_polyorder(width, df):
