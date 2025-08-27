@@ -99,7 +99,6 @@ for i, ms in enumerate(collected_metrics):
         color=CMAP(i / len(collected_metrics)),
     )
 
-
 inferred_power_distribution = compute_metrics_power_distribution(metrics)
 
 true_power_distribution = compute_power_distibution(z)

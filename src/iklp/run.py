@@ -15,28 +15,33 @@ from iklp.vi import vi_step
 
 
 def vi_run(key, data):
-    """Do a single VI optimization on the given data, where each state is sequentially updated for a fixed number of iterations"""
-    xi = init_variational_params(key, data.h)
+    """Do a single VI optimization with random initialization for a fixed number of iterations"""
+    key, k1, k2 = jax.random.split(key, 3)
+    xi = init_variational_params(k1, data.h)
     state = VIState(data, xi)
+    metrics = compute_metrics(k2, state)
 
-    def body(state, _):
-        metrics_item = compute_metrics(state)
-        state = vi_step(state)
-        return state, metrics_item
+    def body(carry, _):
+        key, state, metrics = carry
 
-    num_vi_iters = data.h.num_vi_iters
+        new_key, key = jax.random.split(key)
+        new_state = vi_step(state)
+        new_metrics = compute_new_metrics(key, new_state, old=metrics)
 
-    final_state, metrics = jax.lax.scan(body, state, length=num_vi_iters)
-    final_metrics = compute_metrics(final_state)
+        return (new_key, new_state, new_metrics), new_metrics
 
-    # Append final metrics to get shape [n_iter + 1, ...]
-    metrics = jax.tree_util.tree_map(
-        lambda m, fm: jnp.concatenate([m, jnp.expand_dims(fm, 0)], axis=0),
-        metrics,
-        final_metrics,
+    _, accumulated_metrics = jax.lax.scan(
+        body, (key, state, metrics), length=data.h.num_vi_iters
     )
 
-    return metrics  # leaves now have leading time axis T = n_iter + 1
+    # Preprend first metrics to get shape [n_iter + 1, ...]
+    all_metrics = jax.tree_util.tree_map(
+        lambda m, am: jnp.concatenate([jnp.expand_dims(m, 0), am], axis=0),
+        metrics,
+        accumulated_metrics,
+    )
+
+    return all_metrics  # leaves now have leading time axis T = n_iter + 1
 
 
 def vi_frame(key, frame, h):
