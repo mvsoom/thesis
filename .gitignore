@@ -1,0 +1,11 @@
+*_version.py
+.coverage
+.nox
+.tox
+.coverage*
+/*.ipynb
+*.DAT
+docs/api/summary
+__pycache__
+*.egg-info
+uv.lock
