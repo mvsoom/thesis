@@ -24,6 +24,7 @@ dependencies = [
     "jupyter_cache>=1.0.1",
     "mpmath>=1.3.0",
     "sympy>=1.14.0",
+    "tinygp>=0.3.0",
 ]
 
 # [project.optional-dependencies.dev]
