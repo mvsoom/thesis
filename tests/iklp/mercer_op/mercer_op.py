@@ -1,9 +1,15 @@
 # %%
-from iklp import mercer
-from iklp.hyperparams import random_periodic_kernel_hyperparams
+import jax
+
+from iklp.mercer_op import build_data, build_X
+
+# Turn off compilation logging
+jax.config.update("jax_log_compiles", False)
+
+from iklp.hyperparams import Hyperparams
 from iklp.mercer_op import *
 
-master_key = jax.random.PRNGKey(10)
+master_key = jax.random.PRNGKey(0)
 
 
 def vk():
@@ -13,24 +19,23 @@ def vk():
 
 
 # Mock data and hyperparameters
-I = 50
-M = 500
+I = 400
+M = 1048
+r = 10
 P = 30
-nu = 1.56
+nu = 0.5
 lam = 0.1
-
-kernel_kwargs = {
-    "noise_floor_db": -jnp.inf,
-}
 
 hyper_kwargs = {
     "P": P,
     "lam": lam,
 }
 
-h, K = random_periodic_kernel_hyperparams(
-    vk(), I, M, kernel_kwargs, hyper_kwargs, return_K=True
-)
+# Generate I random posdef matrices
+Phi = jax.random.normal(vk(), (I, M, r))
+K = Phi @ jnp.swapaxes(Phi, -1, -2)  # (I,M,M)
+
+h = Hyperparams(Phi, **hyper_kwargs)
 
 print("K shape:", K.shape)
 
@@ -60,36 +65,46 @@ def compute_naieve_a(S_inv, X, P, lam):
 
 a_exp = compute_naieve_a(Sinv_explicit, X, P, lam)
 
+
 # %%
-# As noise_floor_db increases, calculations become more exact while Woodbury becomes less efficient
-errs = []
-db = 0.0
+mercer_backends = ["krylov"]  # ["cholesky", "woodbury", "krylov"]
 
-for _ in range(4):
-    db -= 20.0
-
-    print()
-    print(f"Noise floor: {db:.0f} dB")
-
-    Phi = mercer.psd_svd(K, noise_floor_db=db)
-    h = h.replace(Phi=Phi)
-    print("Phi shape:", Phi.shape)
-
+for backend in mercer_backends:
+    h = h.replace(mercer_backend=backend, krylov=h.krylov.replace(key=vk()))
+    data = build_data(x, h)
     op = build_operator(nu, coeff, data)
 
-    err = [
+    abs_errs = [
         jnp.max(jnp.abs(solve(op, v) - Sinv_explicit @ v)),
         jnp.abs(logdet(op) - logdet_exp),
         jnp.abs(trinv(op) - trinv_exp),
         jnp.max(jnp.abs(trinv_Ki(op) - trinv_Ki_exp)),
         jnp.max(jnp.abs(solve_normal_eq(op, lam) - a_exp)),
     ]
-    errs.append(err)
 
-    print("\tmax |S⁻¹v - exact|:", err[0])
-    print("\tlogdet diff:", err[1])
-    print("\ttrinv   diff:", err[2])
-    print("\ttrinv_Ki max diff:", err[3])
-    print("\ta max diff:", err[4])
+    ref_vals = [
+        jnp.max(jnp.abs(Sinv_explicit @ v)),
+        jnp.abs(logdet_exp),
+        jnp.abs(trinv_exp),
+        jnp.max(jnp.abs(trinv_Ki_exp)),
+        jnp.max(jnp.abs(a_exp)),
+    ]
+
+    rel_errs = [
+        (ae / rv * 100.0) if rv != 0 else jnp.nan
+        for ae, rv in zip(abs_errs, ref_vals)
+    ]
+
+    labels = [
+        "max |S⁻¹v - exact|",
+        "logdet diff",
+        "trinv diff",
+        "trinv_Ki max diff",
+        "a max diff",
+    ]
+
+    print(f"\nBackend: {backend}")
+    for lbl, ae, re in zip(labels, abs_errs, rel_errs):
+        print(f"  {lbl:<22s} abs: {float(ae):.3e}   rel: {float(re):6.3f}%")
 
 # %%

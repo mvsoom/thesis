@@ -76,23 +76,26 @@ def _prec_apply(op: MercerKrylovOp, v):
     return v / op.pc.diag
 
 
-def solve(op: MercerKrylovOp, b, tol=None, maxiter=512):
+def solve(op: MercerKrylov, b, tol=None, maxiter=512, x0=None):
     if tol is None:
         tol = _default_cg_tol(b.dtype)
     Aop = lambda x: matvec(op, x)
     Mop = lambda x: _prec_apply(op, x)
-    x, info = jax_cg(Aop, b, tol=tol, maxiter=maxiter, M=Mop)
+    x, info = jax_cg(Aop, b, tol=tol, maxiter=maxiter, M=Mop, x0=x0)
     return x
 
 
-def solve_mat(op: MercerKrylovOp, B, tol=None, maxiter=512):
+def solve_mat(op: MercerKrylov, B, tol=None, maxiter=512, X0=None):
     if tol is None:
         tol = _default_cg_tol(B.dtype)
+    if X0 is None:
+        # zeros like B, but column-major vmap
+        X0 = jnp.zeros_like(B)
     return jax.vmap(
-        lambda col: solve(op, col, tol=tol, maxiter=maxiter),
-        in_axes=1,
+        lambda col, x0: solve(op, col, tol=tol, maxiter=maxiter, x0=x0),
+        in_axes=(1, 1),
         out_axes=1,
-    )(B)
+    )(B, X0)
 
 
 def _lanczos_coeffs_and_basis(op: MercerKrylovOp, q0, m: int):
@@ -120,9 +123,8 @@ def build_operator(
     w: jnp.ndarray,
     data: Data,
 ) -> MercerKrylovOp:
-    """Precompute Krylov subspace sketch"""
+    """Precompute Krylov subspace sketch with orthogonal Gaussian probes."""
     h = data.h
-
     Phi = h.Phi
     I, M, r = Phi.shape
 
@@ -130,35 +132,35 @@ def build_operator(
     m = h.krylov.lanczos_iter
     key = h.krylov.key
 
-    # Jacobi preconditioner diag(S) = nu + sum_i w_i * row_norms_sq(Phi_i)
+    # Jacobi preconditioner
     rn = _row_norms_sq(Phi)  # (I,M)
     diag = nu + jnp.sum(w[:, None] * rn, axis=0)
-
     pc = Precond(diag=diag)
 
-    # Probes and Lanczos sketch (always cached)
-    idx = jnp.arange(nprobe)
-    keys = jax.vmap(lambda i: jax.random.fold_in(key, i))(idx)  # (p,2)
-    Zt = jax.vmap(lambda k: jax.random.rademacher(k, (M,), dtype=Phi.dtype))(
-        keys
-    )  # (p,M)
-    Z = Zt.T  # (M,p)
-    Q = _normalize_cols(Z)
+    # Orthogonal Gaussian probes
+    G = jax.random.normal(key, (M, nprobe), dtype=Phi.dtype)  # (M,p)
+    Q_ortho, _ = jnp.linalg.qr(G, mode="reduced")  # (M,p), Q^T Q = I_p
+    Z = (
+        jnp.sqrt(jnp.asarray(M, dtype=Phi.dtype)) * Q_ortho
+    )  # (M,p) for Hutchinson
+    Q = Q_ortho  # unit columns for Lanczos
 
-    # temp op only for matvec in Lanczos
+    # Temporary op for matvecs during Lanczos
     tmp_op = MercerKrylovOp(
         data=data, nu=nu, w=w, r=r, I=I, M=M, pc=pc, sketch=None, m=m
     )
 
-    # vmap over probes, get coeffs and bases; Qs_j has shape (m, M)
+    # Lanczos per probe; Qs_j has shape (m, M)
     al, be, Qs = jax.vmap(
         lambda q: _lanczos_coeffs_and_basis(tmp_op, q, m),
         in_axes=1,
         out_axes=(0, 0, 0),
-    )(Q)  # al:(p,m) be:(p,m-1) Qs:(p,m,M)
+    )(Q)  # al:(p,m), be:(p,m-1), Qs:(p,m,M)
     V = jnp.transpose(Qs, (2, 1, 0))  # (M, m, p)
 
+    # Eigen-decomp of small tridiagonals
     ev, w0 = jax.vmap(_eigs_T, in_axes=(0, 0), out_axes=(0, 0))(al, be)
+
     sketch = Sketch(alphas=al, betas=be, evals=ev, w0=w0, Z=Z, V=V)
     return MercerKrylovOp(
         data=data, nu=nu, w=w, r=r, I=I, M=M, pc=pc, sketch=sketch, m=m
@@ -180,33 +182,59 @@ def trinv(op: MercerKrylovOp):
     return _trace_f_from_sketch(op, lambda x: 1.0 / x)
 
 
-def trinv_Ki(op: MercerKrylovOp):
-    Phi, I = op.data.h.Phi, op.I
-    Z = op.sketch.Z  # (M,p)
+def trinv_Ki(op: MercerKrylovOp, maxiter=128):
+    """Control-variate (CV) estimator for tr(S^{-1} K_i).
 
-    # per-probe tiny solves: T_j^{-1} e1
+    CV uses D^{-1} with D = diag(S). Unbiased:
+      E[ z^T S^{-1} K_i z - z^T D^{-1} K_i z ] + tr(D^{-1} K_i)
+
+    Reuses cached probes Z and stored Lanczos bases V to warm-start solves.
+    """
+    Phi = op.data.h.Phi  # (I,M,r)
+    I, M, r = Phi.shape
+    Z = op.sketch.Z  # (M,p), orthogonal probes scaled by sqrt(M)
     p, m = op.sketch.alphas.shape
+
+    # diag(S) and its inverse
+    Dinv = 1.0 / op.pc.diag  # (M,)
+
+    # build warm start Y0 ≈ S^{-1} Z from the stored Lanczos bases (no CG yet)
+    V = op.sketch.V  # (M,m,p)
     e1 = jnp.zeros((m,), dtype=Phi.dtype).at[0].set(1.0)
 
-    def solve_small(j):
+    def _solve_small(j):
         a = op.sketch.alphas[j]
         b = op.sketch.betas[j]
         T = jnp.diag(a) + jnp.diag(b, 1) + jnp.diag(b, -1)
         return jnp.linalg.solve(T, e1)  # (m,)
 
-    t_inv_e1 = jax.vmap(solve_small)(jnp.arange(p))  # (p,m)
+    t_inv_e1 = jax.vmap(_solve_small)(jnp.arange(p))  # (p,m)
     z_norms = jnp.linalg.norm(Z, axis=0)  # (p,)
+    Y0 = jnp.einsum("akp,pk,p->ap", V, t_inv_e1, z_norms)  # (M,p)
 
-    # V: (M, m, p), t_inv_e1: (p, m), z_norms: (p,)
-    # Y = sum_k V[:,k,:] * t_inv_e1[:,k] * ||z||
-    Y = jnp.einsum("akp,pk,p->ap", op.sketch.V, t_inv_e1, z_norms)  # (M,p)
+    # refine with a few CG iterations (keeps estimator near-unbiased, but fast)
+    tol = op.data.h.krylov.cg_tol
+    if tol is None:
+        # looser on purpose; warm start does most of the work
+        tol = _default_cg_tol(Phi.dtype)
+    maxiter = op.data.h.krylov.cg_maxiter
+    Y = solve_mat(op, Z, tol=tol, maxiter=maxiter, X0=Y0)  # (M,p)
 
-    def one_i(i):
-        P = jnp.matmul(Phi[i].T, Z)  # (r,p)
-        Q = jnp.matmul(Phi[i].T, Y)  # (r,p)
-        return jnp.mean(jnp.sum(P * Q, axis=0))
+    # control variate pieces, fully vectorized over i and probes
+    # P_i = Phi_i^T Z, Q_i = Phi_i^T Y, R_i = Phi_i^T (D^{-1} Z)
+    DZ = Dinv[:, None] * Z  # (M,p)
+    P = jnp.einsum("imr,mp->irp", Phi, Z)  # (I,r,p)
+    Q = jnp.einsum("imr,mp->irp", Phi, Y)  # (I,r,p)
+    R = jnp.einsum("imr,mp->irp", Phi, DZ)  # (I,r,p)
 
-    return jax.vmap(one_i)(jnp.arange(I))
+    # per-i probe averages of z^T S^{-1} K_i z - z^T D^{-1} K_i z
+    resid = jnp.mean(jnp.sum(P * (Q - R), axis=1), axis=1)  # (I,)
+
+    # add closed-form tr(D^{-1} K_i) = tr(Phi_i^T D^{-1} Phi_i)
+    rn = jnp.sum(Phi * Phi, axis=2)  # (I,M) = row_norms_sq
+    base = jnp.sum(rn * Dinv[None, :], axis=1)  # (I,)
+
+    return base + resid
 
 
 def solve_normal_eq(op: MercerKrylovOp, lam):

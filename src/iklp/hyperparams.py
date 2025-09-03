@@ -19,7 +19,7 @@ class KrylovParams:
     """Configuration for Krylov Mercer operator"""
 
     nprobe: int = static_constant(16)
-    lanczos_iter: int = static_constant(64)
+    lanczos_iter: int = static_constant(32)
 
     cg_tol: int | None = static_constant(None)
     cg_maxiter: int = static_constant(512)
@@ -58,7 +58,7 @@ class Hyperparams:
     num_metrics_samples: int = static_constant(5)
 
     mercer_backend: str = static_constant(
-        "auto"
+        "woodbury"
     )  # "cholesky" (exact method), "woodbury" (exact method), "krylov" (approximate method), "auto" (auto-select based on shape of Phi)
 
     krylov: KrylovParams = struct.field(default_factory=KrylovParams)

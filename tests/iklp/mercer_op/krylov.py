@@ -1,5 +1,6 @@
 # %%
 import jax
+from matplotlib import pyplot as plt
 
 from iklp.hyperparams import Hyperparams, KrylovParams
 from iklp.mercer_op import build_X, build_data
@@ -21,9 +22,9 @@ def vk():
 
 
 # Mock data and hyperparameters
-I = 20
+I = 400
 M = 1048
-r = 8
+r = 10
 P = 30
 nu = 1.56
 lam = 0.1
@@ -37,7 +38,7 @@ hyper_kwargs = {
 Phi = jax.random.normal(vk(), (I, M, r))
 K = Phi @ jnp.swapaxes(Phi, -1, -2)  # (I,M,M)
 
-h = Hyperparams(Phi, **hyper_kwargs)
+h = Hyperparams(Phi, **hyper_kwargs, krylov=KrylovParams(nprobe=16, lanczos_iter=32, key=vk()))
 
 print("K shape:", K.shape)
 
@@ -68,96 +69,55 @@ def compute_naieve_a(S_inv, X, P, lam):
 a_exp = compute_naieve_a(Sinv_explicit, X, P, lam)
 
 # %%
-build_operator = jax.jit(build_operator)
-solve = jax.jit(solve)
-logdet = jax.jit(logdet)
-trinv = jax.jit(trinv)
-trinv_Ki = jax.jit(trinv_Ki)
-solve_normal_eq = jax.jit(solve_normal_eq)
+mercer_backends = ["krylov"]
 
-# %%
-print("Phi shape:", Phi.shape)
+for backend in mercer_backends:
+	h = h.replace(mercer_backend=backend, krylov=h.krylov.replace(key=vk()))
+	data = build_data(x, h)
+	op = build_operator(nu, coeff, data)
 
-h = h.replace(krylov=h.krylov.replace(key=vk()))
+	abs_errs = [
+		jnp.max(jnp.abs(solve(op, v) - Sinv_explicit @ v)),
+		jnp.abs(logdet(op) - logdet_exp),
+		jnp.abs(trinv(op) - trinv_exp),
+		jnp.max(jnp.abs(trinv_Ki(op) - trinv_Ki_exp)),
+		jnp.max(jnp.abs(solve_normal_eq(op, lam) - a_exp)),
+	]
 
-data = build_data(x, h)
+	ref_vals = [
+		jnp.max(jnp.abs(Sinv_explicit @ v)),
+		jnp.abs(logdet_exp),
+		jnp.abs(trinv_exp),
+		jnp.max(jnp.abs(trinv_Ki_exp)),
+		jnp.max(jnp.abs(a_exp)),
+	]
 
-op = build_operator(nu, coeff, data)
+	rel_errs = [
+		(ae / rv * 100.0) if rv != 0 else jnp.nan
+		for ae, rv in zip(abs_errs, ref_vals)
+	]
 
-err = [
-    jnp.max(jnp.abs(solve(op, v) - Sinv_explicit @ v)),
-    jnp.abs(logdet(op) - logdet_exp),
-    jnp.abs(trinv(op) - trinv_exp),
-    jnp.max(jnp.abs(trinv_Ki(op) - trinv_Ki_exp)),
-    jnp.max(jnp.abs(solve_normal_eq(op, lam) - a_exp)),
-]
+	labels = [
+		"max |S⁻¹v - exact|",
+		"logdet diff",
+		"trinv diff",
+		"trinv_Ki max diff",
+		"a max diff",
+	]
 
-print("\tmax |S⁻¹v - exact|:", err[0])
-print("\tlogdet diff:", err[1])
-print("\ttrinv   diff:", err[2])
-print("\ttrinv_Ki max diff:", err[3])
-print("\ta max diff:", err[4])
+	print(f"\nBackend: {backend}")
+	for lbl, ae, re in zip(labels, abs_errs, rel_errs):
+		print(f"  {lbl:<22s} abs: {float(ae):.3e}   rel: {float(re):6.3f}%")
 
+	plt.hist(trinv_Ki(op)/trinv_Ki_exp)
+	plt.title("Relative performance of trinv_Ki estimates ~ within 20\% of true value")
+	plt.show()
 # %%
 
 # %%
 %timeit build_operator(nu, coeff, data).sketch.Z.block_until_ready()
 # %%
 %timeit trinv_Ki(op).block_until_ready()
+
 # %%
 %timeit solve_normal_eq(op, lam).block_until_ready()
-
-#%%
-
-## latest
-
-	max |S⁻¹v - exact|: 3.60208371377041e-11
-	logdet diff: 15.389114149628767
-	trinv   diff: 0.020679429636852653
-	trinv_Ki max diff: 24.099367365230364
-	a max diff: 5.357124802899023e-10
-
-## default op
-
-	max |S⁻¹v - exact|: 3.60208371377041e-11
-	logdet diff: 3.6236310242120453
-	trinv   diff: 0.008811100214131562
-	trinv_Ki max diff: 43.68383465613579
-	a max diff: 5.357124802899023e-10
-
-## p = 64, m = 256
-
-max |S⁻¹v - exact|: 3.60208371377041e-11
-	logdet diff: 3.676238342738543
-	trinv   diff: 0.004758805568240154
-	trinv_Ki max diff: 9.539404530139564
-	a max diff: 5.357124802899023e-10
-
-
-## p = 128, m = 96
-
-	max |S⁻¹v - exact|: 3.60208371377041e-11
-	logdet diff: 0.6411150439344055
-	trinv   diff: 0.0003794705239485996
-	trinv_Ki max diff: 22.33945765773933
-	a max diff: 5.357124802899023e-10
-
-
-fallbacks:
-	logdet SLQ diff: 2.847686300348869
-	trinv SLQ   diff: 0.012258553174772091
-	trinv_Ki Hutch max diff: 30.37643268118586
-
-## +preconditioner
-
-max |S⁻¹v - exact|: 3.60208371377041e-11
-	logdet diff: 1.9018406250579574
-	trinv   diff: 0.0018062686416380203
-	trinv_Ki max diff: 9.495849500129452
-	a max diff: 5.357124802899023e-10
-
-
-fallbacks:
-	logdet SLQ diff: 3.789614495322894
-	trinv SLQ   diff: 0.02112541232290499
-	trinv_Ki Hutch max diff: 11.306138940150959
