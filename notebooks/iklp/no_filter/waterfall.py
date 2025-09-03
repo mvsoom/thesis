@@ -1,12 +1,12 @@
 """Show theta waterfall plot during VI optimization for a (P=0) model"""
 
 # %%
-import gpjax as gpx
 import jax
 import jax.numpy as jnp
 import numpy as np
 import scipy
 from matplotlib import pyplot as plt
+from tinygp.kernels import Exp, ExpSquared, Matern32, Matern52
 
 from iklp.hyperparams import (
     active_components,
@@ -29,17 +29,19 @@ from utils.jax import maybe32, vk
 
 # %%
 # Get some kernels
+Matern12 = Exp
+
 kernels = [
-    gpx.kernels.Matern12(),
-    gpx.kernels.Matern32(),
-    gpx.kernels.Matern52(),
-    gpx.kernels.RBF(),
+    Matern12(),
+    Matern32(),
+    Matern52(),
+    ExpSquared(),
 ]
 
 t = jnp.linspace(-3.0, 3.0, num=200).reshape(-1, 1)
 
 I = len(kernels)
-K = jnp.stack([k.gram(t).to_dense() for k in kernels], axis=0)
+K = jnp.stack([k(t, t) for k in kernels], axis=0)
 Phi = psd_svd(K)
 
 # %%
