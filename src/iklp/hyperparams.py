@@ -15,6 +15,19 @@ from .util import _periodic_kernel_batch
 X64 = jax.config.jax_enable_x64
 
 @struct.dataclass
+class KrylovParams:
+    """Configuration for Krylov Mercer operator"""
+
+    nprobe: int = static_constant(16)
+    lanczos_iter: int = static_constant(64)
+
+    cg_tol: int | None = static_constant(None)
+    cg_maxiter: int = static_constant(512)
+
+    key: jnp.ndarray = jax.random.PRNGKey(0)  # non-static
+
+
+@struct.dataclass
 class Hyperparams:
     """VI hyperparameters
 
@@ -43,6 +56,12 @@ class Hyperparams:
     num_vi_iters: int = static_constant(30)
     vi_criterion: float = static_constant(1e-8 if X64 else 1e-4)
     num_metrics_samples: int = static_constant(5)
+
+    mercer_backend: str = static_constant(
+        "auto"
+    )  # "cholesky" (exact method), "woodbury" (exact method), "krylov" (approximate method), "auto" (auto-select based on shape of Phi)
+
+    krylov: KrylovParams = struct.field(default_factory=KrylovParams)
 
 
 def random_periodic_kernel_hyperparams(

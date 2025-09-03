@@ -16,7 +16,8 @@ from iklp.vi import vi_step
 
 def vi_run(key, data):
     """Do a single VI optimization with random initialization for a fixed number of iterations"""
-    key, k1, k2 = jax.random.split(key, 3)
+    key, k0, k1, k2 = jax.random.split(key, 4)
+    data = data.replace(h=data.h.replace(krylov=data.h.krylov.replace(key=k0)))
     xi = init_variational_params(k1, data.h)
     state = VIState(data, xi)
     metrics = compute_metrics(k2, state)
@@ -132,7 +133,8 @@ def vi_run_criterion(
         if callback:
             jax.debug.callback(callback, metrics, ordered=True)
 
-    key, k1, k2 = jax.random.split(key, 3)
+    key, k0, k1, k2 = jax.random.split(key, 4)
+    h = h.replace(krylov=h.krylov.replace(key=k0))
     state = init_state(k1, x, h)
     metrics = compute_metrics(k2, state)
     maybe_callback(metrics)

@@ -2,17 +2,25 @@
 from iklp import mercer
 from iklp.hyperparams import random_periodic_kernel_hyperparams
 from iklp.mercer_op import *
-from utils.jax import vk
+
+master_key = jax.random.PRNGKey(10)
+
+
+def vk():
+    global master_key
+    master_key, subkey = jax.random.split(master_key)
+    return subkey
+
 
 # Mock data and hyperparameters
-I = 40
-M = 1024
+I = 50
+M = 500
 P = 30
 nu = 1.56
 lam = 0.1
 
 kernel_kwargs = {
-    "noise_floor_db": -60.0,
+    "noise_floor_db": -jnp.inf,
 }
 
 hyper_kwargs = {
@@ -52,11 +60,12 @@ def compute_naieve_a(S_inv, X, P, lam):
 
 a_exp = compute_naieve_a(Sinv_explicit, X, P, lam)
 
+# %%
 # As noise_floor_db increases, calculations become more exact while Woodbury becomes less efficient
 errs = []
 db = 0.0
 
-for _ in range(5):
+for _ in range(4):
     db -= 20.0
 
     print()
@@ -65,8 +74,6 @@ for _ in range(5):
     Phi = mercer.psd_svd(K, noise_floor_db=db)
     h = h.replace(Phi=Phi)
     print("Phi shape:", Phi.shape)
-
-    data = build_data(x, h)
 
     op = build_operator(nu, coeff, data)
 
@@ -84,3 +91,5 @@ for _ in range(5):
     print("\ttrinv   diff:", err[2])
     print("\ttrinv_Ki max diff:", err[3])
     print("\ta max diff:", err[4])
+
+# %%
