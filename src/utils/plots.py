@@ -83,6 +83,7 @@ def retain(
     col=None,  # '1col'|'2col'|'3col'
     width=None,  # explicit width in inches
     height=None,  # explicit height in inches
+    transparent=True,
 ):
     """Save to PROJECT_FIGURES_PATH/<ext>/<stem>.<ext> (+ pkl/<stem>.pkl)
 
@@ -103,7 +104,7 @@ def retain(
     for ext in formats:
         (_FIGDIR / ext).mkdir(parents=True, exist_ok=True)
         path = _FIGDIR / ext / f"{base}.{ext}"
-        fig.savefig(path)
+        fig.savefig(path, transparent=transparent)
         out[ext] = str(path)
 
     if keep_pickle:
