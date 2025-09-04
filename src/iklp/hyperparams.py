@@ -12,7 +12,6 @@ from utils.jax import maybe32, static_constant
 from .mercer import psd_svd
 from .util import _periodic_kernel_batch
 
-X64 = jax.config.jax_enable_x64
 
 @struct.dataclass
 class KrylovParams:
@@ -54,11 +53,11 @@ class Hyperparams:
 
     num_vi_restarts: int = static_constant(1)
     num_vi_iters: int = static_constant(30)
-    vi_criterion: float = static_constant(1e-7 if X64 else 1e-4)
+    vi_criterion: float = static_constant(1e-4)
     num_metrics_samples: int = static_constant(5)
 
     mercer_backend: str = static_constant(
-        "woodbury"
+        "auto"
     )  # "cholesky" (exact method), "woodbury" (exact method), "krylov" (approximate method), "auto" (auto-select based on shape of Phi)
 
     krylov: KrylovParams = struct.field(default_factory=KrylovParams)
