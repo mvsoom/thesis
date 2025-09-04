@@ -4,6 +4,7 @@ from pathlib import Path
 
 import dill as pickle
 import matplotlib as mpl
+from IPython.display import display
 
 # Enforce PGF globally (must happen before importing pyplot)
 mpl.use("pgf")
@@ -117,7 +118,7 @@ def retain(
     if links:
         _show_links(out)
     if show:
-        plt.show()
+        display(fig)
 
     return out
 
