@@ -1,13 +1,24 @@
 # %%
-from itertools import product
 from random import Random
 
-rng = Random(1560050)
+rng = Random(687891)
 
 
 def configurations():
-    for (i,) in product(range(0, 2)):
+    configs = [
+        {"N_kernels": 1, "N_ell": 5, "N_data": 1024},
+        {"N_kernels": 1, "N_ell": 20, "N_data": 1024},
+        {"N_kernels": 1, "N_ell": 50, "N_data": 1024},
+        {"N_kernels": 4, "N_ell": 1, "N_data": 1024},
+        {"N_kernels": 4, "N_ell": 10, "N_data": 1024},
+        {"N_kernels": 4, "N_ell": 20, "N_data": 1024},
+        {"N_kernels": 4, "N_ell": 50, "N_data": 512},
+        {"N_kernels": 4, "N_ell": 100, "N_data": 512},
+    ]
+
+    for config in configs:
         yield {
             "seed": rng.randint(0, 2**32 - 1),
-            "i": i,
+            "name": f"{config['N_kernels']}-{config['N_ell']}-{config['N_data']}",
+            **config,
         }
