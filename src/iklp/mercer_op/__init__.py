@@ -128,7 +128,7 @@ def backend(h: Hyperparams):
     elif h.mercer_backend == "auto":
         I, M, r = h.Phi.shape
         L = I * r
-        if M < L and M < 512:
+        if M < L and M < 5000:
             return cholesky
         elif L / M <= 2.0:
             return woodbury
