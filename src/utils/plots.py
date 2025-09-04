@@ -15,7 +15,7 @@ set_matplotlib_formats("png")  # notebook display as PNG
 import matplotlib.pyplot as _plt
 import matplotlib.style as _style
 
-_style.use("utils.plots")  # loads fonts/preamble/size/etc.
+_style.use("utils.plots_sans")  # loads fonts/preamble/size/etc.
 plt = _plt
 
 _FIGDIR = Path(os.environ.get("PROJECT_FIGURES_PATH", ".")).resolve()
@@ -64,6 +64,14 @@ def _show_links(paths):
         display(HTML("<ul>%s</ul>" % "".join(items)))
 
 
+# size presets (width, height) in inches
+_FIG_SIZES = {
+    "1col": (5.8, 3.0),  # paragraph width, ~20% shorter height
+    "2col": (3.0, 1.8),  # half width
+    "3col": (2.0, 1.3),  # third width
+}
+
+
 def retain(
     fig,
     stem=None,
@@ -72,11 +80,23 @@ def retain(
     keep_pickle=True,
     show=True,
     links=True,
+    col=None,  # '1col'|'2col'|'3col'
+    width=None,  # explicit width in inches
+    height=None,  # explicit height in inches
 ):
+    """Save to PROJECT_FIGURES_PATH/<ext>/<stem>.<ext> (+ pkl/<stem>.pkl)
+
+    Args:
+      col: choose a preset size ('1col','2col','3col').
+      width, height: explicit overrides (in inches).
     """
-    Save to PROJECT_FIGURES_PATH/<ext>/<stem>.<ext> (+ pkl/<stem>.pkl).
-    PGF + XeLaTeX/LuaLaTeX is global; fonts/preamble live in utils.plots style.
-    """
+    # adjust figure size if requested
+    if col in _FIG_SIZES:
+        fig.set_size_inches(*_FIG_SIZES[col])
+    if width or height:
+        w, h = fig.get_size_inches()
+        fig.set_size_inches(width or w, height or h)
+
     base = _uniq_stem(stem or _ts_stem(), formats)
     out = {}
 

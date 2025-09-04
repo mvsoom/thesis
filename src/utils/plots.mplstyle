@@ -1,29 +1,10 @@
-#### MATPLOTLIBRC FORMAT
-# TeX engine + extras (XeLaTeX/LuaLaTeX + fonts, packages)
-# sudo apt update
-# sudo apt install texlive-xetex texlive-luatex texlive-latex-extra texlive-fonts-extra
-
-# DejaVu (mono)
-# sudo apt install fonts-dejavu
-
-# Libertinus (if your distro doesn’t ship fonts-libertinus)
-# install from upstream release:
-# cd /tmp
-# wget https://github.com/alerque/libertinus/releases/download/v7.051/Libertinus-7.051.zip
-# unzip Libertinus-7.051.zip
-# mkdir -p ~/.local/share/fonts/libertinus
-# cp Libertinus-7.051/static/OTF/*.otf ~/.local/share/fonts/libertinus/
-# fc-cache -f -v
-
-# Sanity checks
-# fc-list | grep -i libertinus           # should list Serif/Sans/Mono
-# kpsewhich NewCMMath-Book.otf           # should print a TeXLive path
+# plots.mplstyle  (Serif + Libertinus + NewCM Math)
 
 #### PGF / LaTeX / Fonts (Typst-matching)
 text.usetex            : True
-pgf.texsystem          : xelatex         # or lualatex
+pgf.texsystem          : xelatex
 pgf.rcfonts            : False
-pgf.preamble           : \usepackage{fontspec} \usepackage{unicode-math} \setmainfont{Libertinus Serif} \setsansfont{Libertinus Sans} \setmonofont{DejaVu Sans Mono} \setmathfont{NewCMMath-Book.otf} \usepackage{bm}
+pgf.preamble           : \usepackage{fontspec} \usepackage{unicode-math} \usepackage{amsmath} \usepackage{mathtools} \usepackage{bm} \setmainfont{Libertinus Serif} \setsansfont{Libertinus Sans} \setmonofont{DejaVu Sans Mono} \setmathfont{NewCMMath-Book.otf}
 pdf.fonttype           : 42
 ps.fonttype            : 42
 
@@ -34,42 +15,34 @@ lines.dash_capstyle    : round
 lines.markeredgecolor  : black
 lines.markeredgewidth  : 0.75
 
-#### FONT
+#### FONT (title 12 pt; others proportionally smaller)
 font.family            : serif
-font.size              : 16.0
-
+font.size              : 10.0         # base text in axes; ~12pt title below
 #### AXES
 axes.edgecolor         : black
 axes.linewidth         : 1.25
-axes.titlesize         : 18
-axes.labelsize         : 16
+axes.titlesize         : 12           # title
+axes.labelsize         : 10           # x/y labels
 axes.labelcolor        : black
 axes.prop_cycle        : cycler('color', ['107D79', 'FF9933', '1F77B4', 'D62728', '9467BD', '8C564B', 'E377C2', '7F7F7F', 'BCBD22', '17BECF'])   ## custom probnum colors swapped in
 
-#### TICKS
+#### TICKS / LEGEND (slightly smaller than labels)
+xtick.labelsize        : 9
+ytick.labelsize        : 9
 xtick.major.size       : 6
 xtick.minor.size       : 4
 xtick.major.width      : 1.25
 xtick.minor.width      : 1.0
-xtick.labelsize        : 14
-
-ytick.major.size       : 6
-ytick.minor.size       : 4
-ytick.major.width      : 1.25
-ytick.minor.width      : 1.0
-ytick.labelsize        : 14
-
-#### LEGEND
-legend.fontsize        : 14
+legend.fontsize        : 10
 legend.framealpha      : 0.8
 legend.edgecolor       : black
 legend.fancybox        : False
 
-#### FIGURE
-figure.figsize         : 8, 4.5
+#### FIGURE (default: single-column width, ~20% shorter height)
+figure.figsize         : 5.8, 3.0     # ~paragraph width; shorter aspect
 figure.dpi             : 300
 
 #### SAVING FIGURES
 savefig.dpi            : 300
 savefig.bbox           : tight
-savefig.pad_inches     : 0.1
+savefig.pad_inches     : 0.08
