@@ -4,15 +4,18 @@ from pathlib import Path
 
 import dill as pickle
 import matplotlib as mpl
+
+# Enforce PGF globally (must happen before importing pyplot)
+mpl.use("pgf")
+
 from matplotlib_inline.backend_inline import set_matplotlib_formats
 
-set_matplotlib_formats("png")  # display in notebook as PNG
+set_matplotlib_formats("png")  # notebook display as PNG
 
 import matplotlib.pyplot as _plt
 import matplotlib.style as _style
 
-_style.use("utils.plots")
-
+_style.use("utils.plots")  # loads fonts/preamble/size/etc.
 plt = _plt
 
 _FIGDIR = Path(os.environ.get("PROJECT_FIGURES_PATH", ".")).resolve()
@@ -28,9 +31,9 @@ def _ts_stem():
 
 def _any_exists(stem, exts):
     for ext in exts:
-        if (_FIGDIR / f"{stem}.{ext}").exists():
+        if (_FIGDIR / ext / f"{stem}.{ext}").exists():
             return True
-    if (_FIGDIR / f"{stem}.pkl").exists():
+    if (_FIGDIR / "pkl" / f"{stem}.pkl").exists():
         return True
     return False
 
@@ -71,10 +74,8 @@ def retain(
     links=True,
 ):
     """
-    Save to PROJECT_FIGURES_PATH with identical stem across {pdf,png,svg} (+ .pkl).
-    - pdf/png: render with LaTeX (text.usetex=True).
-    - svg: no usetex, keep text as text (svg.fonttype='none') for Typst to substitute.
-    - DPI/tight/etc. come from your style (plots.mplstyle).
+    Save to PROJECT_FIGURES_PATH/<ext>/<stem>.<ext> (+ pkl/<stem>.pkl).
+    PGF + XeLaTeX/LuaLaTeX is global; fonts/preamble live in utils.plots style.
     """
     base = _uniq_stem(stem or _ts_stem(), formats)
     out = {}
@@ -82,22 +83,7 @@ def retain(
     for ext in formats:
         (_FIGDIR / ext).mkdir(parents=True, exist_ok=True)
         path = _FIGDIR / ext / f"{base}.{ext}"
-        if ext in ("pdf", "png"):
-            with mpl.rc_context(
-                {"text.usetex": True, "text.parse_math": False}
-            ):
-                fig.savefig(path)
-        elif ext == "svg":
-            with mpl.rc_context(
-                {
-                    "text.usetex": False,
-                    "text.parse_math": False,  # disable mathtext so text stays text
-                    "svg.fonttype": "none",
-                }
-            ):
-                fig.savefig(path)
-        else:
-            fig.savefig(path)
+        fig.savefig(path)
         out[ext] = str(path)
 
     if keep_pickle:
@@ -117,8 +103,10 @@ def retain(
 
 def reopen(stem_or_path):
     p = Path(stem_or_path)
-    if p.suffix != ".pkl":
-        p = _FIGDIR / (p.stem + ".pkl")
-    with p.open("rb") as f:
+    if p.suffix == ".pkl" and p.exists():
+        target = p
+    else:
+        target = _FIGDIR / "pkl" / (p.stem + ".pkl")
+    with target.open("rb") as f:
         fig = pickle.load(f)
     return fig
