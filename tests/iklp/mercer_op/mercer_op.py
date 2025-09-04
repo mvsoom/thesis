@@ -1,13 +1,13 @@
 # %%
 import jax
 
-from iklp.mercer_op import build_data, build_X
-
 # Turn off compilation logging
 jax.config.update("jax_log_compiles", False)
+jax.config.update("jax_enable_x64", True)
 
 from iklp.hyperparams import Hyperparams
 from iklp.mercer_op import *
+from iklp.mercer_op import build_data, build_X
 
 master_key = jax.random.PRNGKey(0)
 
@@ -19,7 +19,7 @@ def vk():
 
 
 # Mock data and hyperparameters
-I = 400
+I = 100
 M = 1048
 r = 10
 P = 30
@@ -67,7 +67,7 @@ a_exp = compute_naieve_a(Sinv_explicit, X, P, lam)
 
 
 # %%
-mercer_backends = ["krylov"]  # ["cholesky", "woodbury", "krylov"]
+mercer_backends = ["cholesky", "woodbury", "krylov"]
 
 for backend in mercer_backends:
     h = h.replace(mercer_backend=backend, krylov=h.krylov.replace(key=vk()))
@@ -106,5 +106,3 @@ for backend in mercer_backends:
     print(f"\nBackend: {backend}")
     for lbl, ae, re in zip(labels, abs_errs, rel_errs):
         print(f"  {lbl:<22s} abs: {float(ae):.3e}   rel: {float(re):6.3f}%")
-
-# %%

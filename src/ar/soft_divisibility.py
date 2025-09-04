@@ -269,9 +269,10 @@ def gaussian_condition_on_divisibility(
 # -----------------
 
 if __name__ == "__main__":
-    from matplotlib import pyplot as plt
+    from IPython.display import display
 
     from ar import spectrum
+    from utils.plots import plt
 
     Pdeg = 6
     lam = 0.1
@@ -291,6 +292,15 @@ if __name__ == "__main__":
     C, d = constraints_from_features(Pdeg, features)
     mu_star, Sigma_star = me_soft_divisibility(mu0, Sigma0, Pdeg, features)
 
+    def get_power_spectrum_samples(mu, Sigma, n=5):
+        a = np.random.default_rng().multivariate_normal(mu, Sigma, size=n)
+
+        def power_spectrum(a):
+            f, p = spectrum.ar_power_spectrum(a, fs)
+            return 10 * np.log10(p)
+
+        return np.array([power_spectrum(ai) for ai in a])
+
     np.set_printoptions(precision=4, suppress=True)
     print("M (lcm) =", lcm_of_features(features))
     print(
@@ -304,7 +314,33 @@ if __name__ == "__main__":
 
     f, power0 = spectrum.ar_power_spectrum(mu0, fs)
     f, power_star = spectrum.ar_power_spectrum(mu_star, fs)
-    plt.plot(f, 10 * np.log10(power0), label="Initial")
-    plt.plot(f, 10 * np.log10(power_star), label="After ME update")
-    plt.ylabel("Power (dB)")
-    plt.legend()
+
+    def plot_samples(ax, f, S, color, label="Samples"):
+        lines = ax.plot(f, S.T, color=color, alpha=0.3)
+        lines[0].set_label(label)
+        for ln in lines[1:]:
+            ln.set_label("_nolegend_")
+        return lines
+
+    fig, (ax0, ax1) = plt.subplots(1, 2, sharey=True, figsize=(10, 4))
+
+    # left: initial
+    ax0.plot(f, 10 * np.log10(power0), color="C0", lw=2, label="Mean")
+    s0 = get_power_spectrum_samples(mu0, Sigma0, n=5)
+    plot_samples(ax0, f, s0, color="C0")
+    ax0.set_title("Initial: $a \sim \mathcal{N}(0, \lambda I_P)$")
+    ax0.set_xlabel("Frequency (Hz)")
+    ax0.set_ylabel("Power (dB)")
+    ax0.legend(loc="upper right")
+
+    # right: after ME update
+    ax1.plot(f, 10 * np.log10(power_star), color="C1", lw=2, label="Mean")
+    s_star = get_power_spectrum_samples(mu_star, Sigma_star, n=10)
+    plot_samples(ax1, f, s_star, color="C1")
+    ax1.set_title("After ME update: $a \sim \mathcal{N}(\\mu^*, \\Sigma^*)$")
+    ax1.set_xlabel("Frequency (Hz)")
+    ax1.legend(loc="upper right")
+
+    fig.suptitle(f"Prior spectra ($P={Pdeg}$)")
+    fig.tight_layout(rect=[0, 0, 1, 0.95])
+    display(fig)
