@@ -10,7 +10,8 @@ requires-python = ">=3.10"
 
 # Modules will be installed with `pip install -e .`
 dependencies = [
-    "matplotlib>=3.10.6",
+    "matplotlib==3.10.6", # pinned because we pickle plot objects (see next line)
+    "dill==0.4.0",
     "jax>=0.6",
     "jaxopt>=0.8.5",
     "distrax>=0.1.5",
@@ -36,7 +37,3 @@ package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-addopts = ["--nbmake"]
