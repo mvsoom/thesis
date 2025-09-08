@@ -18,6 +18,7 @@ from iklp.periodic import f0_series
 from iklp.psi import psi_matvec
 from utils.audio import frame_signal, resample
 from utils.jax import maybe32
+from utils.openglot import OpenGlotI
 from utils.plots import plt
 
 # %%
@@ -29,27 +30,10 @@ wav_file = (
     "/home/marnix/thesis/data/OPENGLOT/RepositoryI/Vowel_O/O_normal_320Hz.wav"
 )
 
-
 # %%
-# From OPENGLOT paper Table 1
-true_resonance_frequencies = {
-    "a": [730, 1090, 2440, 3500],
-    "e": [530, 1840, 2480, 3500],
-    "i": [390, 1990, 2550, 3500],
-    "o": [570, 840, 2410, 3500],
-    "u": [440, 1020, 2240, 3500],
-    "ae": [660, 1720, 2410, 3500],
-}
+vowel, modality, true_pitch = OpenGlotI.parse_wav(wav_file)
 
-# %%
-vowel, modality, true_pitch = (
-    wav_file.split("/")[-1].split(".")[-2].split("_")[:3]
-)
-vowel = vowel.lower()
-modality = modality.lower()
-true_pitch = int(true_pitch.lower()[:-2])  # Remove 'Hz' from the pitch string
-
-f1, f2, f3, f4 = true_resonance_frequencies[vowel]
+f1, f2, f3, f4 = OpenGlotI.true_resonance_frequencies[vowel]
 
 # %%
 vi_runs = 1

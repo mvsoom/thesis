@@ -1,3 +1,5 @@
+**UPDATE**: Setting $r=1 \rightarrow r=0.5$ in the SqExpPeriodic kernel fixed the issues.
+
 # OPENGLOT-I
 Noise part O(1e-1) picks up everything and is then shaped moderately by spectrum
 * nu_e/nu_w = O(20)! => low pitchedness
