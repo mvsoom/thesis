@@ -2,6 +2,7 @@ from warnings import warn
 
 import numpy as np
 from scipy import signal
+from scipy.optimize import linear_sum_assignment
 
 
 def ar_power_spectrum(a, fs, n_fft=4096, fmax=None, db=False):
@@ -111,3 +112,98 @@ def estimate_formants(
     bandwidths = get_bandwidths_at_FWHM(envelope_up, peaks)
 
     return centers, bandwidths
+
+
+def match_formants(est_f, true_f, est_bw=None, max_dev_hz=None, miss_cost=None):
+    """
+    Assign estimated formants to ground-truth F1..Fk (k=len(true_f)) by
+    minimizing sum_j |f_est(i_j) - f_true(j)| over a one-to-one matching.
+    Unmatched truths get NaN. Bandwidths are not used in the cost, but are
+    aligned and returned.
+
+    Inputs
+    ------
+    est_f : array_like, shape (m,)
+        Estimated formant frequencies [Hz].
+    true_f : array_like, shape (k,)
+        Ground-truth formants [Hz], ordered (F1..Fk).
+    est_bw : array_like or None, shape (m,)
+        Estimated bandwidths [Hz] (optional; only aligned on output).
+    max_dev_hz : float or None
+        If set, disallow matches with |f_est - f_true| > max_dev_hz.
+    miss_cost : float or None
+        Penalty to leave a true formant unmatched. Defaults to
+        (max_dev_hz or max(true_f, default=1.0))*10.
+
+    Returns
+    -------
+    out : dict
+        {
+          "matched_freqs": np.ndarray (k,), estimates aligned to F1..Fk (NaN if unmatched),
+          "matched_bws":   np.ndarray (k,), aligned bandwidths (NaN if unmatched),
+          "assign_idx":    np.ndarray (k,), index into est_f for each true (or -1),
+          "total_cost":    float, sum of assignment costs,
+        }
+    """
+    est_f = np.asarray(est_f, dtype=float)
+    true_f = np.asarray(true_f, dtype=float)
+    m, k = len(est_f), len(true_f)
+
+    if est_bw is None:
+        est_bw = np.full(m, np.nan)
+    else:
+        est_bw = np.asarray(est_bw, dtype=float)
+
+    if miss_cost is None:
+        base = (
+            max_dev_hz
+            if max_dev_hz is not None
+            else (float(true_f.max()) if k else 1.0)
+        )
+        miss_cost = 10.0 * base
+
+    # Cost matrix: rows = truths, cols = estimates plus k dummy "miss" columns
+    C = np.full((k, m + k), miss_cost, dtype=float)
+    for j in range(k):
+        for i in range(m):
+            df = abs(est_f[i] - true_f[j])
+            if (max_dev_hz is not None) and (df > max_dev_hz):
+                C[j, i] = miss_cost
+            else:
+                C[j, i] = df  # frequency-only cost
+
+    row_ind, col_ind = linear_sum_assignment(C)
+
+    assign_idx = np.full(k, -1, dtype=int)
+    matched_freqs = np.full(k, np.nan)
+    matched_bws = np.full(k, np.nan)
+    total_cost = 0.0
+
+    for r, c in zip(row_ind, col_ind):
+        cost = C[r, c]
+        total_cost += cost
+        if c < m and cost < miss_cost:
+            assign_idx[r] = c
+            matched_freqs[r] = est_f[c]
+            matched_bws[r] = est_bw[c]
+
+    return {
+        "matched_freqs": matched_freqs,
+        "matched_bws": matched_bws,
+        "assign_idx": assign_idx,
+        "total_cost": float(total_cost),
+    }
+
+
+def ar_stat_score(a):
+    """
+    Stationarity score in [0,1] for AR: x[t] = sum_k a[k]*x[t-k] + e[t].
+    s = max(0, 1 - rho), where rho is the max pole radius of 1 - sum_k a z^{-k}.
+    1.0 => comfortably stationary; 0.0 => pole on/outside unit circle.
+    """
+    a = np.asarray(a, dtype=float)
+    if a.size == 0:
+        return 1.0
+    roots = np.roots(np.r_[1.0, -a])
+    rho = 0.0 if roots.size == 0 else float(np.max(np.abs(roots)))
+    return float(np.clip(1.0 - rho, 0.0, 1.0))
