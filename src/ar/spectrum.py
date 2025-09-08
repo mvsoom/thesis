@@ -4,30 +4,17 @@ import numpy as np
 from scipy import signal
 
 
-def ar_power_spectrum(a, fs, n_fft=4096, fmax=None, convention="plus"):
-    """
-    Return PSD proportional to 1/|A(e^{-jω})|^2 for an AR(P) model.
-
-    a: length-P array of AR coefficients excluding a0.
-       convention="plus"      means A(z)=1 + a1 z^{-1} + ... + aP z^{-P}
-       convention="lpc"       means 'predictor coeffs' (Levinson): A(z)=1 - a1 z^{-1} - ... - aP z^{-P}
-    """
-    a = np.asarray(a, float)
-    if convention == "plus":
-        den = np.r_[1.0, a]
-    elif convention == "lpc":
-        den = np.r_[1.0, -a]
-    else:
-        raise ValueError("convention must be 'plus' or 'lpc'")
-
+def ar_power_spectrum(a, fs, n_fft=4096, fmax=None, db=False):
     f = np.fft.rfftfreq(int(n_fft), d=1.0 / fs)
     if fmax is not None:
         keep = f <= float(fmax)
         f = f[keep]
-    w = 2.0 * np.pi * f / float(fs)  # rad/sample
-    _, H = signal.freqz(b=[1.0], a=den, worN=w)
-    Pxx = np.abs(H) ** 2  # ∝ 1/|A|^2
-
+    w = 2.0 * np.pi * f / float(fs)
+    k = np.arange(1, a.size + 1)
+    A = 1.0 - np.exp(-1j * np.outer(w, k)).dot(a)
+    Pxx = 1.0 / (np.abs(A) ** 2)
+    if db:
+        Pxx = 10.0 * np.log10(Pxx)
     return f, Pxx
 
 
