@@ -12,9 +12,9 @@ manuscript/figures
 
 data/
 
-experiments/*/.jupyter_cache/
-experiments/*/runs/
-experiments/*/runs.csv
+experiments/**/.jupyter_cache/
+experiments/**/runs/
+experiments/**/runs.csv
 
 # Python packaging artefacts
 *.egg-info/
