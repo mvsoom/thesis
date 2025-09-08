@@ -30,7 +30,7 @@ def sample_z_from_prior(key, h: Hyperparams) -> LatentVars:
     theta = gamma_shape_rate(k1, h.alpha / I, h.alpha, (I,))
     nu_w = gamma_shape_rate(k2, h.aw, h.bw)
     nu_e = gamma_shape_rate(k3, h.ae, h.be)
-    a = jnp.sqrt(h.lam) * random.normal(k4, (h.P,))
+    a = h.arprior.sample(k4)  # (P,)
 
     return LatentVars(theta, nu_w, nu_e, a)
 
@@ -141,7 +141,8 @@ def init_variational_params(key, h: Hyperparams) -> VariationalParams:
     tau_e = 1e4 * gamma_shape_scale(k6, s, 1 / s)
 
     # E(a)_prior = 0
-    delta_a = jnp.zeros((h.P,))
+    P = h.arprior.mean.shape[0]
+    delta_a = jnp.zeros((P,))
 
     return VariationalParams(
         rho_theta, tau_theta, rho_w, tau_w, rho_e, tau_e, delta_a

@@ -72,17 +72,3 @@ def trinv_Ki(op: MercerCholeskyOp) -> jnp.ndarray:
         return jnp.trace(solve_mat(op, Ki))
 
     return jax.vmap(one)(jnp.arange(I))
-
-
-def solve_normal_eq(op: MercerCholeskyOp, lam: float) -> jnp.ndarray:
-    """Solve for a that minimises ||x - X a||_S^2 + lam||a||^2."""
-    X, x = op.data.X, op.data.x
-    SinvX = solve_mat(op, X)
-    Sinvx = solve(op, x)
-    G = X.T @ SinvX
-    r = X.T @ Sinvx
-    H = G + lam * jnp.eye(X.shape[1], dtype=X.dtype)
-    L = safe_cholesky(H, lower=True)
-    y = jla.solve_triangular(L, r, lower=True)
-    a = jla.solve_triangular(L.T, y, lower=False)
-    return a

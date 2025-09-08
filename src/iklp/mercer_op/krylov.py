@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import jax
 import jax.numpy as jnp
-import jax.scipy.linalg as jla
 from flax import struct
 from jax.scipy.sparse.linalg import cg as jax_cg
 
@@ -235,19 +234,3 @@ def trinv_Ki(op: MercerKrylovOp, maxiter=128):
     base = jnp.sum(rn * Dinv[None, :], axis=1)  # (I,)
 
     return base + resid
-
-
-def solve_normal_eq(op: MercerKrylovOp, lam):
-    tol = op.data.h.krylov.cg_tol
-    maxiter = op.data.h.krylov.cg_maxiter
-
-    X, x = op.data.X, op.data.x
-    SinvX = solve_mat(op, X, tol=tol, maxiter=maxiter)
-    Sinvx = solve(op, x, tol=tol, maxiter=maxiter)
-    G = jnp.matmul(X.T, SinvX)
-    rvec = jnp.matmul(X.T, Sinvx)
-    H = G + lam * jnp.eye(X.shape[1], dtype=X.dtype)
-    L = jla.cholesky(H, lower=True)
-    y = jla.solve_triangular(L, rvec, lower=True)
-    a = jla.solve_triangular(L.T, y, lower=False)
-    return a

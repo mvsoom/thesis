@@ -50,7 +50,7 @@ import jax.numpy as jnp
 import jax.scipy.linalg as jla
 from flax import struct
 
-from ..hyperparams import Hyperparams
+from ..hyperparams import ARPrior, Hyperparams
 
 
 @struct.dataclass
@@ -74,7 +74,8 @@ def build_X(x, P):
 
 def build_data(x, h: Hyperparams) -> Data:
     x = jnp.asarray(x, dtype=h.Phi.dtype)  # Convert data to chosen precision
-    X = build_X(x, h.P)
+    P = h.arprior.mean.shape[0]
+    X = build_X(x, P)
     return Data(h, X, x)
 
 
@@ -162,8 +163,37 @@ def trinv_Ki(op: MercerOp):
     return backend(op.data.h).trinv_Ki(op)
 
 
-def solve_normal_eq(op: MercerOp, lam):
-    return backend(op.data.h).solve_normal_eq(op, lam)
+def solve_normal_eq(op: MercerOp, arprior: ARPrior):
+    """
+    Solve the generalized ridge / Gaussian-prior normal equations.
+
+    Minimizes
+        (x - X a)^T S^{-1} (x - X a) + (a - mu)^T Q (a - mu),
+
+    which is the MAP estimator under a Gaussian prior a ~ N(mu, Q^{-1}).
+    The normal equations are:
+        (X^T S^{-1} X + Q) a = X^T S^{-1} x + Q mu.
+
+    Note on lambda conventions: Yoshii & Goto (2013) use lambda for prior covariance; their regularized normal equation is wrong, replace lambda -> 1/lambda
+
+    Returns the minimizer a.
+    """
+    X, x = op.data.X, op.data.x
+    SinvX = solve_mat(op, X)
+    Sinvx = solve(op, x)
+    G = X.T @ SinvX  # X^T S^{-1} X
+    r = X.T @ Sinvx  # X^T S^{-1} x
+
+    Q = arprior.precision
+    mu = arprior.mean
+
+    H = G + Q
+    b = r + Q @ mu
+
+    L = safe_cholesky(H, lower=True)
+    y = jla.solve_triangular(L, b, lower=True)
+    a = jla.solve_triangular(L.T, y, lower=False)
+    return a
 
 
 def _phi_t_v(Phi, v):

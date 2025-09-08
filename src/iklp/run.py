@@ -74,7 +74,7 @@ def vi_frames_batched(key, frames, h, batch_size=None):
         key: jax.random.PRNGKey
         frames: jnp.ndarray shaped (num_frames, M) where M is number of samples per frame
         h: Hyperparams
-          *Note*: this function jit-specializes on the shape of `h.P`, `h.num_vi_restarts`, and `h.num_vi_iters`.
+          *Note*: this function jit-specializes on `h.arprior`, `h.num_vi_restarts`, and `h.num_vi_iters`.
         batch_size: int or None. If None, process all frames in one batch.
 
     Returns:
@@ -89,7 +89,7 @@ def vi_frames_batched(key, frames, h, batch_size=None):
 
     vi_frames_jit = jax.jit(
         vi_frames
-    )  # Specializes on batch size, h.P, h.num_vi_restarts, h.num_vi_iters
+    )  # Specializes on batch size, h.arprior, h.num_vi_restarts, h.num_vi_iters
 
     chunks = []
 

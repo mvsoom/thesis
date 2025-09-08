@@ -95,11 +95,8 @@ def update_nu_e(state: VIState) -> VIState:
 def update_delta_a(state: VIState) -> VIState:
     aux = compute_auxiliaries(state)
 
-    lam = state.data.h.lam
-    lam = jnp.asarray(lam, dtype=state.data.h.Phi.dtype)
-
     # Solve normal equation with S operator, as Sigma^(-1) == S^(-1)
-    new_delta_a = solve_normal_eq(aux.S, lam)
+    new_delta_a = solve_normal_eq(aux.S, state.data.h.arprior)
 
     new_xi = state.xi.replace(
         delta_a=new_delta_a,
@@ -174,11 +171,9 @@ def compute_elbo_bound_aux(state: VIState, aux: Auxiliaries):
     # It doesnt affect optimization of delta_a per se, but it does reflect the regularization normal equation (function of lambda) used for solving for a
     # plus it affects the bound convergence, so indirectly the number of iterations etc.
     # Note: MacKay (2005) does the same, and the D_KL term *is* included in Yoshii, and it is a common VI strategy, so we do the same
-    delta_a_term = (
-        0.5
-        * (1 / state.data.h.lam)
-        * jnp.dot(state.xi.delta_a, state.xi.delta_a)
-    )
+    arprior = state.data.h.arprior
+    d = state.xi.delta_a - arprior.mean
+    delta_a_term = 0.5 * d @ (arprior.precision @ d)
 
     kl_terms = jnp.asarray(
         [

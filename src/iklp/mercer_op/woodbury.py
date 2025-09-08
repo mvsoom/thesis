@@ -167,17 +167,3 @@ def trinv_Ki(op: MercerWoodburyOp):
         return op.Phi_norms[i] - corr / (op.nu * op.nu)
 
     return jax.vmap(one_i)(jnp.arange(I))  # (I,)
-
-
-def solve_normal_eq(op: MercerWoodburyOp, lam):
-    """Solve for a that minimises ‖x - X a‖_op² + λ‖a‖²"""
-    X, x = op.data.X, op.data.x  # (M,P), (M,)
-    SinvX = solve_mat(op, X)
-    Sinvx = solve(op, x)
-    G = jnp.matmul(X.T, SinvX)  # (P,P)
-    rvec = jnp.matmul(X.T, Sinvx)
-    H = G + lam * jnp.eye(X.shape[1], dtype=X.dtype)
-    L = safe_cholesky(H, lower=True)
-    y = jla.solve_triangular(L, rvec, lower=True)
-    a = jla.solve_triangular(L.T, y, lower=False)
-    return a  # (P,)

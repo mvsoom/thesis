@@ -7,6 +7,7 @@ from iklp.psi import psi_matvec
 from utils.jax import maybe32
 
 from .state import (
+    Auxiliaries,
     Expectations,
     LatentVars,
     VIState,
@@ -50,12 +51,12 @@ def compute_new_metrics(key, state: VIState, old: StateMetrics) -> StateMetrics:
     )
 
 
-def compute_signals(key, state, num_samples=5):
+def compute_signals(key, state: VIState, num_samples=5):
     aux = compute_auxiliaries(state)
     return compute_signals_aux(key, state, aux, num_samples=num_samples)
 
 
-def compute_signals_aux(key, state, aux, num_samples=5):
+def compute_signals_aux(key, state: VIState, aux: Auxiliaries, num_samples=5):
     """Sample from p(signal | x, z = E[z|xi])
 
     In other words, samples come from the Gaussian process which is conditioned on the **expectation values** of the latent variables `z` (thus the latter are not sampled themselves).

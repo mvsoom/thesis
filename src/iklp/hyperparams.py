@@ -14,6 +14,30 @@ from .util import _periodic_kernel_batch
 
 
 @struct.dataclass
+class ARPrior:
+    mean: jnp.ndarray = static_constant(jnp.zeros(30))  # (P,)
+    precision: jnp.ndarray = static_constant((1 / 0.1) * jnp.eye(30))  # (P,P)
+
+    @staticmethod
+    def yoshii_lambda(P, lam=0.1):
+        lam = 0.1
+        mu = np.zeros(P)
+        Sigma = lam * np.eye(P)
+        return ARPrior(mean=mu, precision=jnp.linalg.inv(Sigma))
+
+    def sample(self, key, shape=(), jitter=1e-6):
+        Q = self.precision + jitter * jnp.eye(
+            self.P, dtype=self.precision.dtype
+        )
+        L = jnp.linalg.cholesky(Q)
+        z = jax.random.normal(
+            key, shape + (self.P,), dtype=self.precision.dtype
+        )
+        y = jnp.linalg.solve_triangular(L, z.T, lower=True).T
+        return self.mean + y  # (*shape, P)
+
+
+@struct.dataclass
 class KrylovParams:
     """Configuration for Krylov Mercer operator"""
 
@@ -38,16 +62,13 @@ class Hyperparams:
 
     Phi: jnp.ndarray  # (I,M,r)
 
-    P: int = static_constant(
-        30
-    )  # Must be static because determines shape of xi.delta_a
-
     alpha: jnp.ndarray = maybe32(1.0)
     aw: jnp.ndarray = maybe32(1.0)
     bw: jnp.ndarray = maybe32(1.0)
     ae: jnp.ndarray = maybe32(1.0)
     be: jnp.ndarray = maybe32(1.0)
-    lam: jnp.ndarray = maybe32(0.1)
+
+    arprior: ARPrior = struct.field(default_factory=ARPrior)
 
     smoothness: float = static_constant(100.0)
 
