@@ -119,10 +119,10 @@ def vi_run_criterion(
     key,
     x,
     h,
-    max_iters=jnp.inf,
+    max_iters=10_000,
     callback=None,
 ) -> tuple[VIState, StateMetrics]:
-    """Run a single VI run with given data `x` and hyperparameters `h`, where each state is sequentially updated, until the relative improvement in ELBO is (a) below `criterion`, (b) diverges (becomes nan or 0^-)
+    """Run a single VI run with given data `x` and hyperparameters `h`, where each state is sequentially updated, until the relative improvement in ELBO is (a) below `criterion`, (b) diverges (becomes nan or 0^-) or (c) `max_iters` is reached.
 
     `callback` gets called after each state update with the current `StateMetrics`. See `print_progress()` for an example callback function. Use sparingly, because this always triggers an expensive COPY transfer from GPU to host of the metrics of the current state -- NOT the entire state including Phi, the data, etc. If `None`, this gets compiled out as expected.
 
@@ -167,3 +167,45 @@ def vi_run_criterion(
         cond, body, (key, state, metrics)
     )
     return final_state, final_metrics
+
+
+def vi_criterion_frames_batched(key, frames, h, batch_size=None):
+    """Batch version of `vi_run_criterion()`
+
+    Args:
+        key: jax.random.PRNGKey
+        frames: jnp.ndarray shaped (num_frames, M) where M is number of samples per frame
+        h: Hyperparams
+          *Note*: this function jit-specializes on `h.arprior`, `h.num_vi_restarts`, and `h.num_vi_iters`.
+        batch_size: int or None. If None, process all frames in one batch.
+
+    Returns:
+        metrics: pytree with leaves shaped (num_frames, h.num_vi_restarts, h.num_vi_iters + 1, ...)
+          Number of total VI iterations done is `num_frames * h.num_vi_restarts * h.num_vi_iters`.
+    """
+    n = frames.shape[0]
+    batch_size = batch_size or n
+
+    n_batches = (n + batch_size - 1) // batch_size
+    keys = jax.random.split(key, n_batches)
+
+    vi_frames_jit = jax.jit(
+        vi_frames
+    )  # Specializes on batch size, h.arprior, h.num_vi_restarts, h.num_vi_iters
+
+    chunks = []
+
+    for i in range(n_batches):
+        start = i * batch_size
+        chunk_metrics = vi_frames_jit(
+            keys[i], frames[start : start + batch_size], h
+        )
+
+        chunks.append(chunk_metrics)
+
+    # Concatenate along the frames axis (axis=0) for every leaf.
+    metrics = jax.tree_util.tree_map(
+        lambda *parts: jnp.concatenate(parts, axis=0), *chunks
+    )
+
+    return metrics  # (len(frames), h.num_vi_restarts, h.num_vi_iters + 1, ...)
