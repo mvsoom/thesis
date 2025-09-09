@@ -1,3 +1,6 @@
+import os
+
+import jax
 import numpy as np
 import soundfile as sf
 
@@ -27,7 +30,11 @@ class OpenGlotI:
 
     @staticmethod
     def read_wav(wav_file, target_fs, verbose=True):
-        audio, original_fs = sf.read(wav_file, always_2d=False, dtype="float64")
+        audio, original_fs = sf.read(
+            wav_file,
+            always_2d=False,
+            dtype="float64" if jax.config.jax_enable_x64 else "float32",
+        )
 
         # Split channels
         x = audio[:, 0]
@@ -47,3 +54,38 @@ class OpenGlotI:
             )
 
         return x, gf, original_fs
+
+
+class OpenGlotII:
+    true_resonance_frequencies = {
+        "male": {
+            "a": [752, 1095, 2616, 3169],
+            "i": [340, 2237, 2439, 3668],
+            "u": [367, 1180, 2395, 3945],
+            "ae": [693, 1521, 2435, 3252],
+        },
+        "female": {
+            "a": [848, 1210, 2923, 3637],
+            "i": [379, 2634, 4256, 5395],
+            "u": [420, 1264, 2714, 4532],
+            "ae": [795, 1700, 2692, 3740],
+        },
+    }
+
+    @staticmethod
+    def parse_wav(wav_file):
+        base = os.path.splitext(os.path.basename(wav_file))[0]
+
+        gender, vowel, p, adduction = base.split("_")
+        gender, vowel, true_pitch, adduction = (
+            gender.lower(),
+            vowel.lower(),
+            int(p.rstrip("Hz").lower()),
+            adduction.lower(),
+        )
+
+        return gender, vowel, true_pitch, adduction
+
+    @staticmethod
+    def read_wav(wav_file, target_fs, verbose=True):
+        return OpenGlotI.read_wav(wav_file, target_fs, verbose)  # same
