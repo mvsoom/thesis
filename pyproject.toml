@@ -28,6 +28,7 @@ dependencies = [
     "sympy>=1.14.0",
     "tinygp>=0.3.0",
     "dynesty>=2.1.5",
+    "tqdm>=4.67.1",
 ]
 
 # [project.optional-dependencies.dev]
