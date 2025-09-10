@@ -1,4 +1,5 @@
 import os
+from glob import glob
 
 import jax
 import numpy as np
@@ -17,6 +18,13 @@ class OpenGlotI:
         "u": [440, 1020, 2240, 3500],
         "ae": [660, 1720, 2410, 3500],
     }
+
+    @staticmethod
+    def wav_files():
+        PROJECT_DATA_PATH = os.environ["PROJECT_DATA_PATH"]
+        root_path = f"{PROJECT_DATA_PATH}/OPENGLOT/RepositoryI"
+        paths = glob(f"{root_path}/**/*.wav", recursive=True)
+        return paths
 
     @staticmethod
     def parse_wav(wav_file):
@@ -71,6 +79,13 @@ class OpenGlotII:
             "ae": [795, 1700, 2692, 3740],
         },
     }
+
+    @staticmethod
+    def wav_files():
+        PROJECT_DATA_PATH = os.environ["PROJECT_DATA_PATH"]
+        root_path = f"{PROJECT_DATA_PATH}/OPENGLOT/RepositoryII_*"
+        paths = glob.glob(f"{root_path}/**/*.wav", recursive=True)
+        return paths
 
     @staticmethod
     def parse_wav(wav_file):
