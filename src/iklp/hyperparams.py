@@ -72,9 +72,12 @@ class Hyperparams:
 
     smoothness: float = static_constant(100.0)
 
-    num_vi_restarts: int = static_constant(1)
-    num_vi_iters: int = static_constant(30)
     vi_criterion: float = static_constant(1e-4)
+    num_vi_iters: int = static_constant(
+        50
+    )  # Maximum number of VI iterations in case of VI criterion
+
+    num_vi_restarts: int = static_constant(1)
     num_metrics_samples: int = static_constant(5)
 
     mercer_backend: str = static_constant(

@@ -4,8 +4,19 @@ from glob import glob
 import jax
 import numpy as np
 import soundfile as sf
+from IPython.display import display
 
-from utils.audio import resample
+from ar.spectrum import (
+    ar_power_spectrum,
+    ar_stat_score,
+    estimate_formants,
+    match_formants,
+)
+from iklp.hyperparams import active_components
+from iklp.psi import psi_matvec
+from utils.audio import fit_affine_lag_nrmse, power_spectrum_db, resample
+from utils.plots import plt, retain
+from utils.stats import weighted_pitch_error
 
 
 class OpenGlotI:
@@ -62,6 +73,150 @@ class OpenGlotI:
             )
 
         return x, gf, original_fs
+
+    @staticmethod
+    def post_process_run(run, metrics, f0):
+        posterior_pi = metrics.E.nu_w / (metrics.E.nu_w + metrics.E.nu_e)
+        I_eff = active_components(metrics.E.theta)
+        stationary_score = ar_stat_score(metrics.a)
+        pitch_wrmse, pitch_wmae = weighted_pitch_error(
+            f0, metrics.E.theta, run["true_pitch"]
+        )
+
+        inferred_gf = metrics.signals[0]
+
+        dt = 1.0 / float(run["target_fs"])
+        maxlag = int(1 / run["true_pitch"] / dt)  # one pitch period
+        fit = fit_affine_lag_nrmse(inferred_gf, run["gf"], maxlag=maxlag)
+        nrmse = fit["nrmse"]
+
+        f, power_db = ar_power_spectrum(metrics.a, run["target_fs"], db=True)
+        centers, bandwidths = estimate_formants(
+            f, power_db, peak_prominence=1.0
+        )
+
+        pairing = match_formants(
+            centers, run["true_formants"], est_bw=bandwidths
+        )
+        estimated_formants = pairing["matched_freqs"]
+
+        formant_rmse = np.sqrt(
+            np.mean((run["true_formants"] - estimated_formants) ** 2)
+        )
+
+        formant_mae = np.mean(np.abs(run["true_formants"] - estimated_formants))
+
+        f1_true, f2_true, f3_true, f4_true = run["true_formants"]
+        f1_est, f2_est, f3_est, f4_est = estimated_formants
+
+        return {
+            "wav_file": run["wav_file"],
+            "vowel": run["vowel"],
+            "modality": run["modality"],
+            "true_pitch": run["true_pitch"],
+            "posterior_pi": posterior_pi,
+            "I_eff": I_eff,
+            "stationary_score": stationary_score,
+            "pitch_wrmse": pitch_wrmse,
+            "pitch_wmae": pitch_wmae,
+            "formant_rmse": formant_rmse,
+            "formant_mae": formant_mae,
+            "nrmse": nrmse,
+            "f1_true": f1_true,
+            "f2_true": f2_true,
+            "f3_true": f3_true,
+            "f4_true": f4_true,
+            "f1_est": f1_est,
+            "f2_est": f2_est,
+            "f3_est": f3_est,
+            "f4_est": f4_est,
+        }
+
+    @staticmethod
+    def plot_run(run, metrics, f0, retain_plots=False):
+        x = run["x"]
+        gf = run["gf"]
+        true_formants = run["true_formants"]
+        true_pitch = run["true_pitch"]
+        target_fs = run["target_fs"]
+
+        dt = 1.0 / float(target_fs)
+        t_ms = np.arange(x.shape[0]) * (1000.0 * dt)
+
+        inferred_gf = metrics.signals[0]
+        e = psi_matvec(metrics.a, x)
+        noise = e - inferred_gf
+
+        maxlag = int(1 / run["true_pitch"] / dt)  # one pitch period
+        fit = fit_affine_lag_nrmse(inferred_gf, gf, maxlag=maxlag)
+
+        figs = []
+
+        # 1) true vs inferred glottal flow + noise (time domain)
+        fig1, ax = plt.subplots()
+        ax.plot(t_ms, gf, label="True $u(t)$")
+        ax.plot(t_ms, inferred_gf, label="Inferred $u(t)$")
+        ax.plot(t_ms, fit["aligned"], ls="--", label="Aligned inferred $u(t)$")
+        ax.plot(t_ms, noise, label="Inferred noise")
+        ax.set_xlabel("Time (ms)")
+        ax.set_ylabel("Amplitude")
+        ax.legend()
+        mid = 0.5 * (len(x) * dt * 1000.0)
+        sides = 2000.0 / float(true_pitch)
+        ax.set_xlim(mid - sides, mid + sides)
+        figs.append(fig1)
+        (retain(fig1) if retain_plots else display(fig1))
+
+        # 2) raw frame view (x and gf with offsets)
+        fig2, ax = plt.subplots()
+        ax.plot(t_ms, x + 3.0, label="Data $x(t)$")
+        ax.plot(t_ms, gf - 3.0, label="Glottal flow $u(t)$")
+        ax.set_xlabel("Time (ms)")
+        ax.set_ylabel("Amplitude")
+        ax.legend()
+        ax.set_yticks([])
+        ax.set_yticklabels([])
+        figs.append(fig2)
+        (retain(fig2) if retain_plots else display(fig2))
+
+        # 3) AR power spectrum with formants
+        f_ar, p_ar_db = ar_power_spectrum(metrics.a, target_fs, db=True)
+        centers, bws = estimate_formants(f_ar, p_ar_db, peak_prominence=1.0)
+
+        fig3, ax = plt.subplots()
+        ax.plot(f_ar, p_ar_db, lw=2)
+        for f in true_formants:
+            ax.axvline(f, color="C1", ls="--", alpha=0.8, label=None)
+        for c in centers:
+            ax.axvline(c, color="C2", ls=":", alpha=0.8, label=None)
+        ax.set_xlabel("Frequency (Hz)")
+        ax.set_ylabel("Power (dB)")
+        ax.set_title("Inferred AR power spectrum")
+        figs.append(fig3)
+        (retain(fig3) if retain_plots else display(fig3))
+
+        # 4) noise spectrum
+        f_n, p_n_db = power_spectrum_db(noise, target_fs)
+
+        fig4, ax = plt.subplots()
+        ax.plot(f_n, p_n_db)
+        ax.set_title("Inferred noise power spectrum")
+        ax.set_xlabel("Frequency (Hz)")
+        ax.set_ylabel("Power (dB)")
+        figs.append(fig4)
+        (retain(fig4) if retain_plots else display(fig4))
+
+        # 5) pitch posterior (if available)
+        fig5, ax = plt.subplots()
+        theta = metrics.E.theta
+        ax.plot(f0, theta)
+        ax.set_xlabel("Fundamental frequency $F_0$ (Hz)")
+        ax.set_ylabel("Power")
+        ax.set_title("Pitch posterior")
+        figs.append(fig5)
+        (retain(fig5) if retain_plots else display(fig5))
+
+        return figs
 
 
 class OpenGlotII:

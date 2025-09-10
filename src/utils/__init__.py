@@ -1,3 +1,5 @@
+import time
+
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -80,3 +82,14 @@ def top_p_indices(prob, p=0.95):
     cumsum = np.cumsum(prob[sorted_idx])
     cutoff = np.searchsorted(cumsum, p)
     return sorted_idx[: cutoff + 1]
+
+
+class time_this:
+    def __enter__(self):
+        self.start = time.perf_counter()
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        self.end = time.perf_counter()
+        self.walltime = self.end - self.start
+        print(f"Walltime: {self.walltime:.3f} s")

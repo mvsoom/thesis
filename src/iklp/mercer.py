@@ -1,6 +1,7 @@
 """Compute Mercer expansion of a batch of PSD matrices using SVD"""
 
 import jax.numpy as jnp
+import numpy as np
 
 
 def sqrt_clip(x):
@@ -33,3 +34,39 @@ def psd_svd(K, noise_floor_db=-jnp.inf):
     # Some of the w_r values can be ~= 0^- if they already converged well with rank r, so we zero these associated eigenvectors out
     Phi = U_r * sqrt_clip(w_r)[..., None, :]  # [..., M, r]
     return Phi
+
+
+def psd_svd_fixed(K, rank):
+    """
+    Compute Mercer expansion of PSD matrices with fixed rank.
+
+    Args:
+    K : ndarray, shape (..., M, M)
+        Batch of PSD kernel matrices.
+    rank : int
+        Fixed rank to truncate to. Must be <= M.
+
+    Returns:
+    Phi : ndarray, shape (..., M, rank)
+        Reduced-rank approximation factor such that
+        K_i ≈ Phi_i @ Phi_i.T for each K_i.
+    energy : ndarray, shape (...)
+        Fraction of spectral energy captured by the top-`rank` eigenvalues.
+    """
+    w, U = np.linalg.eigh(K)  # w: [..., M], U: [..., M, M]
+    w = np.flip(w, axis=-1)  # sort descending
+    U = np.flip(U, axis=-1)
+
+    w = np.clip(w, 0.0, None)  # clip negative eigenvalues
+
+    U_r = U[..., :, :rank]  # [..., M, rank]
+    w_r = w[..., :rank]  # [..., rank]
+
+    Phi = U_r * np.sqrt(w_r)[..., None, :]  # [..., M, rank]
+
+    # normalized energy coverage
+    total = np.sum(w, axis=-1)
+    covered = np.sum(w_r, axis=-1)
+    energy = covered / (total + 1e-15)  # avoid div by 0
+
+    return Phi, energy
