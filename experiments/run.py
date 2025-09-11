@@ -11,6 +11,11 @@ TODO:
   - When hyperparam takes on EXTRA values, be able to reuse old combinations
   - On `generate`: remove all non-code cells for copies
   - "%(variable_name)s" in config() call to generate names
+  - Can't move experiment locations because runs/ notebooks have absolute paths to cache
+  - jupyter-cache always uses os.cpu_count() workers in parallel execution -- fork project?
+    * still need raw jcache interface to inspect eg notebooks that errored (jcache notebook info [id])
+    * [-- ...jcache-args] doesn't seem to work
+  - multiple command specification: python -m experiments.run generate+execute ...
 """
 
 import argparse
