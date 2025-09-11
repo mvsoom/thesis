@@ -84,7 +84,7 @@ def safe_cholesky(A, lower=True, beta=1.0):
 
     WARNING: disabled this for now because beta=1 (recommended case) causes quite big descrepancies with for trinv_Ki() and trinv() functions
     """
-    return jla.cholesky(A, lower=lower)
+    # return jla.cholesky(A, lower=lower)
 
     power = jnp.trace(A) / A.shape[0]
     tol = 1e-4 if A.dtype == jnp.float32 else 1e-6
@@ -190,7 +190,7 @@ def solve_normal_eq(op: MercerOp, arprior: ARPrior):
     H = G + Q
     b = r + Q @ mu
 
-    L = safe_cholesky(H, lower=True)
+    L = safe_cholesky(H, lower=True, beta=op.data.h.beta)
     y = jla.solve_triangular(L, b, lower=True)
     a = jla.solve_triangular(L.T, y, lower=False)
     return a

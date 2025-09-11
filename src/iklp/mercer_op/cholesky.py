@@ -33,7 +33,7 @@ def build_operator(
     S = nu * jnp.eye(M, dtype=data.h.Phi.dtype) + jnp.tensordot(
         weights, K, axes=1
     )
-    chol = safe_cholesky(S, lower=True)
+    chol = safe_cholesky(S, lower=True, beta=data.h.beta)
     return MercerCholeskyOp(data=data, nu=nu, w=weights, chol=chol, S=S)
 
 

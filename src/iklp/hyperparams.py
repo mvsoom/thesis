@@ -70,6 +70,7 @@ class Hyperparams:
 
     arprior: ARPrior = struct.field(default_factory=ARPrior)
 
+    beta: float = static_constant(0.0)  # # jitter for safe_cholesky
     smoothness: float = static_constant(100.0)
 
     vi_criterion: float = static_constant(1e-4)

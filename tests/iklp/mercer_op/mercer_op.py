@@ -69,6 +69,10 @@ a_exp = compute_naieve_a(Sinv_explicit, X, P, lam)
 # %%
 mercer_backends = ["cholesky", "woodbury", "krylov"]
 
+print(
+    "IMPORTANT: beefing up the diagonal in safe_cholesky() will cause numerical discrepancies! This is set by Hyperparams.beta"
+)
+
 for backend in mercer_backends:
     h = h.replace(mercer_backend=backend, krylov=h.krylov.replace(key=vk()))
     data = build_data(x, h)

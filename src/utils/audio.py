@@ -44,6 +44,7 @@ def fit_affine_lag_nrmse(x, y, maxlag):
     x = np.asarray(x)
     y = np.asarray(y)
     n = len(x)
+    original = None
     best = None
 
     for k in range(-maxlag, maxlag + 1):
@@ -68,6 +69,11 @@ def fit_affine_lag_nrmse(x, y, maxlag):
         sy = np.sqrt(np.dot(yc, yc) / m)  # std of overlapping y
         nrmse = np.inf if sy == 0.0 else rmse / sy
 
+        if k == 0:
+            original = dict(
+                lag=k, a=a, b=b, rmse=rmse, nrmse=nrmse, aligned=aligned
+            )
+
         if (best is None) or (nrmse < best["nrmse"]):
             aligned = np.full(n, np.nan)
             if k >= 0:
@@ -77,7 +83,7 @@ def fit_affine_lag_nrmse(x, y, maxlag):
             best = dict(
                 lag=k, a=a, b=b, rmse=rmse, nrmse=nrmse, aligned=aligned
             )
-    return best
+    return best, original
 
 
 def power_spectrum_db(x, fs):

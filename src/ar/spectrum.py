@@ -202,6 +202,8 @@ def ar_stat_score(a):
     1.0 => comfortably stationary; 0.0 => pole on/outside unit circle.
     """
     a = np.asarray(a, dtype=float)
+    if np.isnan(a).any():
+        return np.nan
     if a.size == 0:
         return 1.0
     roots = np.roots(np.r_[1.0, -a])

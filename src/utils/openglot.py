@@ -87,8 +87,11 @@ class OpenGlotI:
 
         dt = 1.0 / float(run["target_fs"])
         maxlag = int(1 / run["true_pitch"] / dt)  # one pitch period
-        fit = fit_affine_lag_nrmse(inferred_gf, run["gf"], maxlag=maxlag)
-        nrmse = fit["nrmse"]
+        best, original = fit_affine_lag_nrmse(
+            inferred_gf, run["gf"], maxlag=maxlag
+        )
+        gf_nrmse = original["nrmse"]
+        gf_aligned_nrmse = best["nrmse"]
 
         f, power_db = ar_power_spectrum(metrics.a, run["target_fs"], db=True)
         centers, bandwidths = estimate_formants(
@@ -114,6 +117,10 @@ class OpenGlotI:
             "vowel": run["vowel"],
             "modality": run["modality"],
             "true_pitch": run["true_pitch"],
+            "frame_index": run["frame_index"],
+            "restart_index": run["restart_index"],
+            "elbo": metrics.elbo,
+            "num_iterations": metrics.i,
             "posterior_pi": posterior_pi,
             "I_eff": I_eff,
             "stationary_score": stationary_score,
@@ -121,7 +128,8 @@ class OpenGlotI:
             "pitch_wmae": pitch_wmae,
             "formant_rmse": formant_rmse,
             "formant_mae": formant_mae,
-            "nrmse": nrmse,
+            "gf_nrmse": gf_nrmse,
+            "gf_aligned_nrmse": gf_aligned_nrmse,
             "f1_true": f1_true,
             "f2_true": f2_true,
             "f3_true": f3_true,
@@ -148,7 +156,7 @@ class OpenGlotI:
         noise = e - inferred_gf
 
         maxlag = int(1 / run["true_pitch"] / dt)  # one pitch period
-        fit = fit_affine_lag_nrmse(inferred_gf, gf, maxlag=maxlag)
+        best, _ = fit_affine_lag_nrmse(inferred_gf, run["gf"], maxlag=maxlag)
 
         figs = []
 
@@ -156,7 +164,7 @@ class OpenGlotI:
         fig1, ax = plt.subplots()
         ax.plot(t_ms, gf, label="True $u(t)$")
         ax.plot(t_ms, inferred_gf, label="Inferred $u(t)$")
-        ax.plot(t_ms, fit["aligned"], ls="--", label="Aligned inferred $u(t)$")
+        ax.plot(t_ms, best["aligned"], ls="--", label="Aligned inferred $u(t)$")
         ax.plot(t_ms, noise, label="Inferred noise")
         ax.set_xlabel("Time (ms)")
         ax.set_ylabel("Amplitude")

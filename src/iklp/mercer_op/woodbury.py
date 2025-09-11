@@ -33,7 +33,7 @@ def _unflatten_vec(v, I, r):
     return jnp.reshape(v, (I, r))
 
 
-def _assemble_core_chol(Phi, w, nu):
+def _assemble_core_chol(Phi, w, nu, beta):
     # Phi: (I, M, r), w: (I,)
     # Build G_ij = Phi_i^T Phi_j in one shot: G in (I, I, r, r)
     # Then scale each (i,j) block by sqrt(w_i w_j)/nu and reshape to (L, L).
@@ -56,7 +56,7 @@ def _assemble_core_chol(Phi, w, nu):
     # Add identity
     A = jnp.eye(L, dtype=Phi.dtype) + A_mat
 
-    chol = safe_cholesky(A, lower=True)
+    chol = safe_cholesky(A, lower=True, beta=beta)
     return chol, L, r
 
 
@@ -65,7 +65,7 @@ def build_operator(
 ) -> MercerWoodburyOp:
     """Precompute Woodbury core for the Mercer operator which is reused by all ops"""
     Phi = data.h.Phi  # (I,M,r)
-    chol_core, L, r = _assemble_core_chol(Phi, weights, nu)
+    chol_core, L, r = _assemble_core_chol(Phi, weights, nu, data.h.beta)
     Phi_norms = jnp.sum(Phi * Phi, axis=(1, 2)) / nu  # (I,)
     return MercerWoodburyOp(
         data=data,
