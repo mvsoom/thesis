@@ -2,7 +2,9 @@ from warnings import warn
 
 import numpy as np
 from scipy import signal
+from scipy.integrate import simpson
 from scipy.optimize import linear_sum_assignment
+from scipy.signal import freqz
 
 
 def ar_power_spectrum(a, fs, n_fft=4096, fmax=None, db=False):
@@ -17,6 +19,35 @@ def ar_power_spectrum(a, fs, n_fft=4096, fmax=None, db=False):
     if db:
         Pxx = 10.0 * np.log10(Pxx)
     return f, Pxx
+
+
+def ar_gain_energy(a, n_w=16384):
+    """Impulse response energy"""
+    if not ar_stat_score(a) > 0.0:
+        return np.inf
+    # freqz uses H(z)=B(z)/A(z); we want B=1, A=1 - sum a_k z^-k
+    w = np.linspace(0.0, np.pi, int(n_w), endpoint=True)
+    # freqz expects A as [1, -a1, -a2, ...]
+    _, H = freqz(b=[1.0], a=np.r_[1.0, -a], worN=w)
+    H2 = (H.conj() * H).real
+    # (1/π) ∫_0^π |H|^2 dω  ≈  (1/π) * simpson(H2, w)
+    return float(simpson(H2, w) / np.pi)
+
+
+def ar_stat_score(a):
+    """
+    Stationarity score in [0,1] for AR: x[t] = sum_k a[k]*x[t-k] + e[t].
+    s = max(0, 1 - rho), where rho is the max pole radius of 1 - sum_k a z^{-k}.
+    1.0 => comfortably stationary; 0.0 => pole on/outside unit circle.
+    """
+    a = np.asarray(a, dtype=float)
+    if np.isnan(a).any():
+        return np.nan
+    if a.size == 0:
+        return 1.0
+    roots = np.roots(np.r_[1.0, -a])
+    rho = 0.0 if roots.size == 0 else float(np.max(np.abs(roots)))
+    return float(np.clip(1.0 - rho, 0.0, 1.0))
 
 
 def get_polyorder(width, df):
@@ -194,18 +225,3 @@ def match_formants(est_f, true_f, est_bw=None, max_dev_hz=None, miss_cost=None):
         "total_cost": float(total_cost),
     }
 
-
-def ar_stat_score(a):
-    """
-    Stationarity score in [0,1] for AR: x[t] = sum_k a[k]*x[t-k] + e[t].
-    s = max(0, 1 - rho), where rho is the max pole radius of 1 - sum_k a z^{-k}.
-    1.0 => comfortably stationary; 0.0 => pole on/outside unit circle.
-    """
-    a = np.asarray(a, dtype=float)
-    if np.isnan(a).any():
-        return np.nan
-    if a.size == 0:
-        return 1.0
-    roots = np.roots(np.r_[1.0, -a])
-    rho = 0.0 if roots.size == 0 else float(np.max(np.abs(roots)))
-    return float(np.clip(1.0 - rho, 0.0, 1.0))

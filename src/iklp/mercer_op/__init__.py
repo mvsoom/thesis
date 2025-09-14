@@ -74,6 +74,7 @@ def build_X(x, P):
 
 def build_data(x, h: Hyperparams) -> Data:
     x = jnp.asarray(x, dtype=h.Phi.dtype)  # Convert data to chosen precision
+    x = x - jnp.mean(x)  # Zero-mean
     P = h.arprior.mean.shape[0]
     X = build_X(x, P)
     return Data(h, X, x)

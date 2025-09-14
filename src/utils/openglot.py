@@ -7,6 +7,7 @@ import soundfile as sf
 from IPython.display import display
 
 from ar.spectrum import (
+    ar_gain_energy,
     ar_power_spectrum,
     ar_stat_score,
     estimate_formants,
@@ -29,6 +30,9 @@ class OpenGlotI:
         "u": [440, 1020, 2240, 3500],
         "ae": [660, 1720, 2410, 3500],
     }
+
+    # From data/OPENGLOT/RepositoryI/Generation_codes/makeVT.m
+    true_formant_bandwidths = [60, 100, 120, 175]
 
     @staticmethod
     def wav_files():
@@ -62,36 +66,45 @@ class OpenGlotI:
         x = resample(x, original_fs, target_fs)
         gf = resample(gf, original_fs, target_fs)
 
-        # Normalize data to unit power
+        dt = 1.0 / target_fs
+        dgf = np.gradient(gf, dt, edge_order=2)  # This has very large spikes
+
+        # Normalize data to unit data x power
+        # NOTE: normalizing wrt DGF confuses model compeletely
         scale = 1 / np.sqrt(np.mean(x**2))
         x = x * scale
-        gf = gf * scale
+        dgf = dgf * scale
 
         if verbose:
             print(
                 f"Loaded {wav_file} ({len(x)} samples, {original_fs} Hz resampled to {target_fs} Hz); rescaled to unit power by {scale:.3f}"
             )
 
-        return x, gf, original_fs
+        return x, dgf, original_fs
 
     @staticmethod
     def post_process_run(run, metrics, f0):
         posterior_pi = metrics.E.nu_w / (metrics.E.nu_w + metrics.E.nu_e)
+        sum_theta = (metrics.E.theta).sum()
+
+        a = np.asarray(metrics.a)
+        filter_gain_energy = ar_gain_energy(a)
+        filter_stationary_score = ar_stat_score(a)
+
         I_eff = active_components(metrics.E.theta)
-        stationary_score = ar_stat_score(metrics.a)
         pitch_wrmse, pitch_wmae = weighted_pitch_error(
             f0, metrics.E.theta, run["true_pitch"]
         )
 
-        inferred_gf = metrics.signals[0]
+        inferred_dgf = metrics.signals[0]
 
         dt = 1.0 / float(run["target_fs"])
         maxlag = int(1 / run["true_pitch"] / dt)  # one pitch period
         best, original = fit_affine_lag_nrmse(
-            inferred_gf, run["gf"], maxlag=maxlag
+            inferred_dgf, run["dgf"], maxlag=maxlag
         )
-        gf_nrmse = original["nrmse"]
-        gf_aligned_nrmse = best["nrmse"]
+        dgf_nrmse = original["nrmse"]
+        dgf_aligned_nrmse = best["nrmse"]
 
         f, power_db = ar_power_spectrum(metrics.a, run["target_fs"], db=True)
         centers, bandwidths = estimate_formants(
@@ -121,15 +134,19 @@ class OpenGlotI:
             "restart_index": run["restart_index"],
             "elbo": metrics.elbo,
             "num_iterations": metrics.i,
+            "E_nu_w": metrics.E.nu_w,
+            "E_nu_e": metrics.E.nu_e,
+            "sum_theta": sum_theta,
             "posterior_pi": posterior_pi,
+            "filter_gain_energy": filter_gain_energy,
+            "filter_stationary_score": filter_stationary_score,
             "I_eff": I_eff,
-            "stationary_score": stationary_score,
             "pitch_wrmse": pitch_wrmse,
             "pitch_wmae": pitch_wmae,
             "formant_rmse": formant_rmse,
             "formant_mae": formant_mae,
-            "gf_nrmse": gf_nrmse,
-            "gf_aligned_nrmse": gf_aligned_nrmse,
+            "dgf_nrmse": dgf_nrmse,
+            "dgf_aligned_nrmse": dgf_aligned_nrmse,
             "f1_true": f1_true,
             "f2_true": f2_true,
             "f3_true": f3_true,
@@ -143,7 +160,7 @@ class OpenGlotI:
     @staticmethod
     def plot_run(run, metrics, f0, retain_plots=False):
         x = run["x"]
-        gf = run["gf"]
+        dgf = run["dgf"]
         true_formants = run["true_formants"]
         true_pitch = run["true_pitch"]
         target_fs = run["target_fs"]
@@ -151,23 +168,34 @@ class OpenGlotI:
         dt = 1.0 / float(target_fs)
         t_ms = np.arange(x.shape[0]) * (1000.0 * dt)
 
-        inferred_gf = metrics.signals[0]
+        inferred_dgf = metrics.signals[0]
         e = psi_matvec(metrics.a, x)
-        noise = e - inferred_gf
+        noise = e - inferred_dgf
 
         maxlag = int(1 / run["true_pitch"] / dt)  # one pitch period
-        best, _ = fit_affine_lag_nrmse(inferred_gf, run["gf"], maxlag=maxlag)
+        best, _ = fit_affine_lag_nrmse(inferred_dgf, run["dgf"], maxlag=maxlag)
+        a = np.abs(best["a"])
 
         figs = []
 
         # 1) true vs inferred glottal flow + noise (time domain)
         fig1, ax = plt.subplots()
-        ax.plot(t_ms, gf, label="True $u(t)$")
-        ax.plot(t_ms, inferred_gf, label="Inferred $u(t)$")
-        ax.plot(t_ms, best["aligned"], ls="--", label="Aligned inferred $u(t)$")
+
+        ax.plot(t_ms, (1 / a) * dgf, label="True $u'(t)$ (rescaled)")
+        ax.plot(
+            t_ms,
+            inferred_dgf,
+            label="Inferred $u'(t)$",
+        )
+        ax.plot(
+            t_ms,
+            (1 / a) * best["aligned"],
+            ls="--",
+            label="Inferred $u'(t)$ (aligned)",
+        )
         ax.plot(t_ms, noise, label="Inferred noise")
-        ax.set_xlabel("Time (ms)")
-        ax.set_ylabel("Amplitude")
+        ax.set_xlabel("time (ms)")
+        ax.set_ylabel("amplitude")
         ax.legend()
         mid = 0.5 * (len(x) * dt * 1000.0)
         sides = 2000.0 / float(true_pitch)
@@ -175,15 +203,13 @@ class OpenGlotI:
         figs.append(fig1)
         (retain(fig1) if retain_plots else display(fig1))
 
-        # 2) raw frame view (x and gf with offsets)
+        # 2) raw frame view (x and dgf with offsets)
         fig2, ax = plt.subplots()
-        ax.plot(t_ms, x + 3.0, label="Data $x(t)$")
-        ax.plot(t_ms, gf - 3.0, label="Glottal flow $u(t)$")
-        ax.set_xlabel("Time (ms)")
-        ax.set_ylabel("Amplitude")
+        ax.plot(t_ms, a * x + 3.0, label="Data $x(t)$ (rescaled)")
+        ax.plot(t_ms, dgf - 3.0, label="True $u(t)$ (to scale)")
+        ax.set_xlabel("time (ms)")
+        ax.set_ylabel("amplitude")
         ax.legend()
-        ax.set_yticks([])
-        ax.set_yticklabels([])
         figs.append(fig2)
         (retain(fig2) if retain_plots else display(fig2))
 
@@ -197,8 +223,8 @@ class OpenGlotI:
             ax.axvline(f, color="C1", ls="--", alpha=0.8, label=None)
         for c in centers:
             ax.axvline(c, color="C2", ls=":", alpha=0.8, label=None)
-        ax.set_xlabel("Frequency (Hz)")
-        ax.set_ylabel("Power (dB)")
+        ax.set_xlabel("frequency (Hz)")
+        ax.set_ylabel("power (dB)")
         ax.set_title("Inferred AR power spectrum")
         figs.append(fig3)
         (retain(fig3) if retain_plots else display(fig3))
@@ -209,8 +235,8 @@ class OpenGlotI:
         fig4, ax = plt.subplots()
         ax.plot(f_n, p_n_db)
         ax.set_title("Inferred noise power spectrum")
-        ax.set_xlabel("Frequency (Hz)")
-        ax.set_ylabel("Power (dB)")
+        ax.set_xlabel("frequency (Hz)")
+        ax.set_ylabel("power (dB)")
         figs.append(fig4)
         (retain(fig4) if retain_plots else display(fig4))
 
@@ -218,8 +244,8 @@ class OpenGlotI:
         fig5, ax = plt.subplots()
         theta = metrics.E.theta
         ax.plot(f0, theta)
-        ax.set_xlabel("Fundamental frequency $F_0$ (Hz)")
-        ax.set_ylabel("Power")
+        ax.set_xlabel("fundamental frequency $F_0$ (Hz)")
+        ax.set_ylabel("power")
         ax.set_title("Pitch posterior")
         figs.append(fig5)
         (retain(fig5) if retain_plots else display(fig5))
