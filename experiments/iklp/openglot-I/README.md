@@ -31,7 +31,9 @@ Some preliminary observations before looking at the run results:
 
 - In general, however, ExpSqPeriodic is way too smooth for the GF, even for small `ell`. Because its spectrum decays very fast, it models most of the low frequency content; alongside which a very specific AR filter is inferred to shape the higher frequencies. The inferred GF is not convincing; specifically the polarity is not picked up (ie positive or negative) and the DC is zero (we want pos or neg).
 
-- Sometimes we get very good (perfect) AR filter inference; this happens when the noise is modeling the very sharp transients at GCI. So getting those right is the key to good AR inference.
+- Sometimes we get very good (perfect) AR filter inference; this happens when the noise is modeling the very sharp transients at GCI. **So getting those right is the key to good AR inference.** [This is already one of the main conclusions of this experiment.]
+
+- (Continuing from the previous point.) In fact, it seems that for the best AR filter fits the inferred noise signal actually tracks the DGF. So the model recovers classic inverse filtering solutions (QCP, ... see Alku+ 2019) which assume white noise priors.
 
 - Preliminary tests with our ARPrior do not show any real influence of it; the AR prior is overwhelmed by the kernel behavior. Only when we have our GF model more realistic can this be expected to influence the fine details.
 
@@ -62,3 +64,5 @@ Option 2 is controlled by `s` and `kappa` hyperparams. We set `s = 1` (uninforma
 Option 3 is controlled by `alpha`: smaller `alpha` means smaller `I_eff` **and** larger variance of the sum of $\theta_i$. So this can be a nice knob.
 
 This is essentially an empirical tradeoff, so we try out some combinations.
+
+It is expected that EITHER `kappa` XOR `alpha` can be made small -- as the magnitude of ONE OF $\nu_w$ XOR $\theta_i$ is constrained, the model can make a compromise. If both are a priori small, then the AR filter suffers. If both are priori large (unconstrained), either the optimizer will choose or both meet in the middle.
