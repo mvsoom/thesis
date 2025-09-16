@@ -1,3 +1,8 @@
+"""Tools for plotting
+
+For inspiration checkout:
+https://github.com/wesselb/wbml/blob/master/wbml/plot.py
+"""
 import os
 import time
 from pathlib import Path
