@@ -148,7 +148,7 @@ if __name__ == "__main__":
     elapsed = time.perf_counter() - timer
     print(
         f"Time taken for numerical integration: {elapsed:.2f} seconds"
-    )  # Takes very long with "IntegrationWarning: The integral is probably divergent, or slowly convergent." warnings for large omega (ie. k)
+    )  # Takes very long (2hrs) with "IntegrationWarning: The integral is probably divergent, or slowly convergent." warnings for large omega (ie. k)
 
     # Test recurrence formula against numerical result
     diff = np.abs(_H_FULL - H_test)

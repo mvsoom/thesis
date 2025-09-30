@@ -4,11 +4,8 @@
 figures/
 cache/
 
-manuscript/library.bib
-manuscript/thesis.pdf
-manuscript/template/
-manuscript/misc/
-manuscript/figures
+writing/latex/
+typst/
 
 data/
 
