@@ -85,11 +85,7 @@
   ],
 )
 
-= Introduction
-This is the actual body of your thesis. You can write it here, but it is
-recommended to write each chapter in a separate file and include them using the
-`include "./path/to/chapter.typ"` keyword.
+#show heading: set block(above: 1.4em, below: 1em)
 
-Like @Jaynes2003 said: #lorem(15)
-
-And some more text to see how paragraphs are separated. #lorem(15)
+#include "./chapters/rkhs.typ"
+#include "./chapters/arccos/main.typ"
