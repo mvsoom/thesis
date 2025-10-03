@@ -1,13 +1,25 @@
 #import "@preview/bye-ubc:0.2.2": thesis
 
+#import "@preview/diagraph:0.3.6"
+#show raw.where(lang: "dot"): it => diagraph.render(it.text)
+
+#show heading: set block(above: 1.4em, below: 1em)
+#show heading.where(level: 1): it => [
+  #pagebreak()
+  #it
+]
+
+#set outline(depth: 2)
+
+#set cite(style: "american-psychological-association")
+
 #show: thesis.with(
   // Avoid using scientific symbols or Greek letters; spell out the words.
   title: [
-    Advanced Studies on the Optimization of Thesis Title Generation Algorithms
-    for Maximum Perceived Depth and Minimum Reviewer Scrutiny
+    Bayesian Nonparametric Glottal Inverse Filtering
   ],
   // Should be the name under which you are registered at UBC.
-  author: "Daniel Duque",
+  author: "Marnix Van Soom",
   // Optional to list these. If listed, must have a degree (abbreviated, e.g.
   // MSc, BSc), institution and graduation year.
   previous-degrees: (
@@ -33,7 +45,7 @@
   // Vancouver or Okanagan.
   campus: "Vancouver",
   // The month and year in which your thesis is accepted.
-  month: "October",
+  month: "February",
   year: "2026",
   // Include all committee members. For supervisory committee members who were
   // not part of the examining committee, include them below under
@@ -77,15 +89,15 @@
   // Same as all other sections, you can just include the content here from a
   // separate file.
   appendices: [
-    = First
-    #lorem(100)
-
-    = Second
-    #lorem(100)
+    #include "./appendix/lf.typ"
   ],
 )
 
-#show heading: set block(above: 1.4em, below: 1em)
+#set heading(numbering: "1.1")
+#set math.equation(numbering: "(1)")
+#show ref.where(target: heading.where(level: 1)): it => [
+  Chapter #it.counter.display()
+] // TODO: doesn't work
 
-#include "./chapters/rkhs.typ"
-#include "./chapters/arccos/main.typ"
+#include "./chapter/gif.typ"
+#include "./chapter/parametric/main.typ"

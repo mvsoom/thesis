@@ -12,7 +12,7 @@ $ p(w) = cal(N)(0, Sigma) $
 
 to the implied density on $f = Phi w$:
 
-$ p(f) prop exp(-1/2 f^top K^(-1) f) := exp(-1/2 ||f||^2_S)  $
+$ p(f) prop exp(-1/2 f^top K^(-1) f) := exp(-1/2 ||f||^2_S) $
 
 where
 
@@ -21,6 +21,10 @@ $ K = Phi Sigma Phi^top $
 and we assumed $K$ is full rank.
 
 But you can show that both prior and posterior functions live in the span of the _kernel columns_ (the "Gram span"), which projects out the details of the basis functions -- that $K$ is all you need, and maximum entropy can always reconstruct a basis if you want one.
+
+*We should begin with the simplest nondegenerate GP possible*: analogous to the N(0,I) prior. What is its RKHS?
+
+Nice way of starting because this is the classic LPC starting point and all other GPs can generated from it.
 
 == Why start from spans (not operators)
 A Gaussian process is a prior over functions. Nonparametric should not
@@ -59,7 +63,9 @@ $ w tilde.op cal(N) \( 0 \, I_d \) \, #h(2em) f \( x \) = phi.alt \( x \)^top w 
 and observe noisy data
 $ y = Phi w + epsilon.alt \, #h(2em) epsilon.alt tilde.op cal(N) \( 0 \, sigma^2 I_n \) . $
 Classical algebra gives the posterior mean in weight space
-$ hat(w) = \( Phi^top Phi + sigma^2 I_d \)^(- 1) Phi^top y \, #h(2em) m_(upright("post")) \( x \) = phi.alt \( x \)^top hat(w) . $
+$
+  hat(w) = \( Phi^top Phi + sigma^2 I_d \)^(- 1) Phi^top y \, #h(2em) m_(upright("post")) \( x \) = phi.alt \( x \)^top hat(w) .
+$
 
 === Why the #emph[prior] already lives in the Gram span
 
@@ -87,7 +93,7 @@ $f = L z = U_r Lambda_r^(1 \/ 2) z$, define
 $ c := U_r Lambda_r^(- 1 \/ 2) z . $ Then
 $ K c = U_r Lambda_r U_r^top thin U_r Lambda_r^(- 1 \/ 2) z = U_r Lambda_r^(1 \/ 2) z = f . $
 Thus every draw $f tilde.op cal(N) \( 0 \, K \)$ can be #emph[written
-as] $f = K c$ with the explicit $c$ above (and more generally
+  as] $f = K c$ with the explicit $c$ above (and more generally
 $c = K^(+) f$ is the minimum-norm solution of $K c = f$).
 
 === Moving from weights to Gram span: the kernel trick, stated plainly
@@ -122,7 +128,9 @@ $bb(R)^d$ or in $bb(R)^n$, whichever is smaller or more accessible.
 === Posterior also lives in the Gram span
 
 From the previous line,
-$ m_(upright("post")) \( dot.op \) = sum_(i = 1)^n beta_i thin k \( x_i \, dot.op \) \, #h(2em) beta = \( K + sigma^2 I \)^(- 1) y . $
+$
+  m_(upright("post")) \( dot.op \) = sum_(i = 1)^n beta_i thin k \( x_i \, dot.op \) \, #h(2em) beta = \( K + sigma^2 I \)^(- 1) y .
+$
 The posterior mean is a linear combination of the kernel sections at the
 observed inputs. This is exactly the "span viewpoint": predictions are
 built from the Gram columns.
@@ -143,7 +151,9 @@ So for large $d$ the Gram span way of thinking commends itself; we get Gaussian 
 === A tiny worked example
 
 Let
-$ phi.alt \( x_1 \) = mat(delim: "[", 1; 0) \, quad phi.alt \( x_2 \) = mat(delim: "[", 0; 1) \, quad phi.alt \( x_3 \) = mat(delim: "[", 1; 1) \, quad sigma^2 = 0.25 \, quad y = mat(delim: "[", 1; - 1; 0) . $
+$
+  phi.alt \( x_1 \) = mat(delim: "[", 1; 0) \, quad phi.alt \( x_2 \) = mat(delim: "[", 0; 1) \, quad phi.alt \( x_3 \) = mat(delim: "[", 1; 1) \, quad sigma^2 = 0.25 \, quad y = mat(delim: "[", 1; - 1; 0) .
+$
 Then
 $ Phi = mat(delim: "[", 1, 0; 0, 1; 1, 1) \, #h(2em) K = Phi Phi^top = mat(delim: "[", 1, 0, 1; 0, 1, 1; 1, 1, 2) . $
 Weight-space posterior mean: $hat(w) = \[ 0.8 \, thin - 0.8 \]^top$,
@@ -151,7 +161,9 @@ hence
 $m_(upright("post")) \( x \) = 0.8 thin \[ phi.alt_1 \( x \) - phi.alt_2 \( x \) \]$.
 Gram-space: solve $\( K + sigma^2 I \) z = y$ to get
 $z = \[ 0.8 \, thin - 0.8 \, thin 0 \]^top$ and then
-$ m_(upright("post")) \( x \) = k \( x \, X \)^top z = \[ phi.alt_1 \( x \) \, thin phi.alt_2 \( x \) \, thin phi.alt_1 \( x \) + phi.alt_2 \( x \) \] dot.op \[ 0.8 \, - 0.8 \, 0 \] = 0.8 thin \[ phi.alt_1 \( x \) - phi.alt_2 \( x \) \] . $
+$
+  m_(upright("post")) \( x \) = k \( x \, X \)^top z = \[ phi.alt_1 \( x \) \, thin phi.alt_2 \( x \) \, thin phi.alt_1 \( x \) + phi.alt_2 \( x \) \] dot.op \[ 0.8 \, - 0.8 \, 0 \] = 0.8 thin \[ phi.alt_1 \( x \) - phi.alt_2 \( x \) \] .
+$
 Same function; two coordinate systems.
 
 == Infinite case: kernel span $arrow.r$ RKHS $arrow.r$ operators $arrow.r$ spectra
@@ -162,7 +174,9 @@ Take the span
 $ cal(F)_0 := { thin sum_(i = 1)^n alpha_i thin k \( x_i \, dot.op \) #h(0em) : #h(0em) n < oo thin } . $
 Declare the inner product on $cal(F)_0$ by
 
-$ angle.l sum_i alpha_i k \( x_i \, dot.op \) \, #h(0em) sum_j beta_j k \( x_j \, dot.op \) angle.r := sum_(i \, j) alpha_i beta_j thin k \( x_i \, x_j \) . $
+$
+  angle.l sum_i alpha_i k \( x_i \, dot.op \) \, #h(0em) sum_j beta_j k \( x_j \, dot.op \) angle.r := sum_(i \, j) alpha_i beta_j thin k \( x_i \, x_j \) .
+$
 
 Complete to obtain the Hilbert space $cal(H)_k$ (the RKHS). This is
 Moore--Aronszajn in constructive form: we #emph[start] from the kernel
@@ -206,12 +220,16 @@ spectral density $d mu$. Gaussian/RBF corresponds to a Gaussian $mu$.
 === Bayesian reading: prior cost and representer
 
 Informally (Cameron--Martin),
-$ p \( f \) prop exp #h(-1em) #scale(x: 180%, y: 180%)[\(] - 1 / 2 parallel f parallel_(cal(H)_k)^2 #scale(x: 180%, y: 180%)[\)] . $
+$
+  p \( f \) prop exp #h(-1em) #scale(x: 180%, y: 180%)[\(] - 1 / 2 parallel f parallel_(cal(H)_k)^2 #scale(x: 180%, y: 180%)[\)] .
+$
 The RKHS norm is the negative log prior: it is the cost. With Gaussian
 noise the posterior mean solves
 $ min_(f in cal(H)_k) #h(0em) parallel f parallel_(cal(H)_k)^2 + 1 / sigma^2 sum_(i = 1)^n \( y_i - f \( x_i \) \)^2 . $
 By the representer theorem the minimizer has the Gram-form
-$ f_star.op \( dot.op \) = sum_(i = 1)^n beta_i thin k \( x_i \, dot.op \) \, #h(2em) beta = \( K + sigma^2 I \)^(- 1) y \, $
+$
+  f_star.op \( dot.op \) = sum_(i = 1)^n beta_i thin k \( x_i \, dot.op \) \, #h(2em) beta = \( K + sigma^2 I \)^(- 1) y \,
+$
 exactly as in the finite case. The "dual" sufficient statistics are
 $\( K + sigma^2 I \)^(- 1) y$ and $y^top \( K + sigma^2 I \)^(- 1) y$.
 
@@ -238,15 +256,21 @@ inexpensive vs expensive:
 
 From the joint Gaussian of $\( f \( X \) \, f \( x_star.op \) \)$ we
 obtain
-$ m_(upright("post")) \( x_star.op \) = m \( x_star.op \) + k_star.op^top \( K + sigma^2 I \)^(- 1) #scale(x: 120%, y: 120%)[\(] y - m \( X \) #scale(x: 120%, y: 120%)[\)] \, $
-$ "cov"_(upright("post")) \( x_star.op \, x_star.op \) = k_(star.op star.op) - k_star.op^top \( K + sigma^2 I \)^(- 1) k_star.op \, $
+$
+  m_(upright("post")) \( x_star.op \) = m \( x_star.op \) + k_star.op^top \( K + sigma^2 I \)^(- 1) #scale(x: 120%, y: 120%)[\(] y - m \( X \) #scale(x: 120%, y: 120%)[\)] \,
+$
+$
+  "cov"_(upright("post")) \( x_star.op \, x_star.op \) = k_(star.op star.op) - k_star.op^top \( K + sigma^2 I \)^(- 1) k_star.op \,
+$
 with the usual block notations. These are the central GP equations in
 their most economical form: they live entirely in the Gram span.
 
 === Interpretation from the RKHS
 
 If $K = U Lambda U^top$, then the mean operator is
-$ K \( K + sigma^2 I \)^(- 1) = U thin upright(d i a g) #h(-1em) #scale(x: 180%, y: 180%)[\(] frac(lambda_m, lambda_m + sigma^2) #scale(x: 180%, y: 180%)[\)] U^top . $
+$
+  K \( K + sigma^2 I \)^(- 1) = U thin upright(d i a g) #h(-1em) #scale(x: 180%, y: 180%)[\(] frac(lambda_m, lambda_m + sigma^2) #scale(x: 180%, y: 180%)[\)] U^top .
+$
 Each direction is shrunk by $lambda \/ \( lambda + sigma^2 \)$.
 Large-eigenvalue directions are learned quickly; small ones remain close
 to prior. The posterior covariance subtracts exactly what the data
@@ -255,12 +279,16 @@ explain along the Gram span.
 === Evidence and the role of the log determinant
 
 The marginal likelihood
-$ log p \( y divides X \, theta \) = - 1 / 2 y^top \( K_theta + sigma^2 I \)^(- 1) y - 1 / 2 log det \( K_theta + sigma^2 I \) - n / 2 log 2 pi $
+$
+  log p \( y divides X \, theta \) = - 1 / 2 y^top \( K_theta + sigma^2 I \)^(- 1) y - 1 / 2 log det \( K_theta + sigma^2 I \) - n / 2 log 2 pi
+$
 balances fit (the quadratic term) against complexity (the log
 determinant). In eigenvalues,
 $ log det \( K_theta + sigma^2 I \) = sum_(m = 1)^n log \( lambda_m \( theta \) + sigma^2 \) . $
 A useful summary is the effective degrees of freedom
-$ gamma \( theta \) := upright(t r) #scale(x: 120%, y: 120%)[\(] K_theta \( K_theta + sigma^2 I \)^(- 1) #scale(x: 120%, y: 120%)[\)] = sum_m frac(lambda_m \( theta \), lambda_m \( theta \) + sigma^2) \, $
+$
+  gamma \( theta \) := upright(t r) #scale(x: 120%, y: 120%)[\(] K_theta \( K_theta + sigma^2 I \)^(- 1) #scale(x: 120%, y: 120%)[\)] = sum_m frac(lambda_m \( theta \), lambda_m \( theta \) + sigma^2) \,
+$
 which counts how many Gram directions are effectively used by the
 posterior.
 
@@ -272,7 +300,9 @@ $k \( x \, x' \)$ alone. Posterior means and covariances depend on
 ${ phi.alt \( x_i \) }$ only through $K$ and $k \( x \, X \)$.
 
 #emph[Finite, as a formula.]
-$ m_(upright("post")) \( x \) = phi.alt \( x \)^top \( Phi^top Phi + sigma^2 I \)^(- 1) Phi^top y = k \( x \, X \)^top \( K + sigma^2 I \)^(- 1) y . $
+$
+  m_(upright("post")) \( x \) = phi.alt \( x \)^top \( Phi^top Phi + sigma^2 I \)^(- 1) Phi^top y = k \( x \, X \)^top \( K + sigma^2 I \)^(- 1) y .
+$
 
 #emph[Infinite, in words.] Build the function space from the kernel
 span, equip it with the RKHS norm, and compute entirely in the Gram span
@@ -280,7 +310,9 @@ at the observed points. The operator/spectral view explains the
 weighting; the Gram view does the work.
 
 #emph[Infinite, as a formula.] For Gaussian likelihood,
-$ f_star.op \( dot.op \) = sum_(i = 1)^n beta_i thin k \( x_i \, dot.op \) \, #h(2em) beta = \( K + sigma^2 I \)^(- 1) y \, $
+$
+  f_star.op \( dot.op \) = sum_(i = 1)^n beta_i thin k \( x_i \, dot.op \) \, #h(2em) beta = \( K + sigma^2 I \)^(- 1) y \,
+$
 regardless of whether the basis is finite, countable, or continuous.
 
 == Closing
