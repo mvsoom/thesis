@@ -62,10 +62,9 @@ The modern-day revival of piecewise functions (linear, quadratic, ...) puts thes
 
 There are conventially several changepoints in the glottal cycle to be modeled: the primary changepoints are opening onset and closure instant, with optional landmarks like max flow (maximum of $u(t)$) and closing phase onset (minimum of $u'(t)$) used to quantify shape. The simplest and arguably most succesful polynomial model is the triangular pulse model proposed in #cite(<Alku2002>, form: "prose") which is asserts $u(t)$ $n = 1$ piecewise linear in GF and $u'(t)$ $n = 0$ piecewise constant. It is used mainly as a more robust way to estimate OQ (a time domain parameter) from the amplitude domain and not as a GF model in itself, but we can use it as a starting point for our generalization from parametric to nonparametric models.
 
-// TODO: show a figure of the glottal cycle as fotographed, to show the changepoints, possibly next to Alku
 #figure(
-  image("./fig/alku2002.png", width: 60%),
-  placement: auto,
+  gnuplot(read("./fig/alku2002.gp")),
+  placement: top,
   caption: [
     The triangular pulse model proposed in #cite(<Alku2002>, form: "prose").
   ],

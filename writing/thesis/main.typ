@@ -5,8 +5,6 @@
 
 #import "lib/gnuplot.typ": gnuplot
 
-#let bm(x) = math.bold(math.upright(x))
-
 #show heading: set block(above: 1.4em, below: 1em)
 #show heading.where(level: 1): it => [
   #pagebreak()
