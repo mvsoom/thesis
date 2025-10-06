@@ -192,24 +192,25 @@ To summarize what we did: we formulated all classic polynomial DGF models as lin
 
 == Nonparametric polynomial models
 
-After having generalized $n$, now we generalize $K -> oo$.
+After having generalized $n$, now we generalize $H -> oo$. Let $phi(t) = (t)_+^n$ with $n$ given, then the covariance matrix $K$ is given as
+$
+  K_(i,j) & = sigma_a^2 sum_(h=1)^H phi_h (t_i) phi_h (t_j) \
+  & = sigma_a^2 sum_(h=1)^H phi(w_(h 2) t_i + w_(h 1)) phi(w_(h 2) t_j + w_(h 1)) \
+  &prop sigma_a^2 integral phi(w_(2) t_i + w_(1)) phi(w_(2) t_j + w_(1)) cal(N)(w_1 divides 0, sigma_1^2) cal(N)(w_2 divides 0,sigma_2^2) dif w_1 dif w_2 "as" H -> oo \
+  &= arccos_n {bm(Sigma)^(1/2) vec(1, t_i), bm(Sigma)^(1/2) vec(1, t_j) }
+$
+where $Sigma = "diag"(sigma_1^2, sigma_2^2)$ and the weights are defined in @fig:nn-polynomial. This is the generalized "covariance" arc cosine kernel from @Cho2009 @Pandey2014.
 
+We can absorb $sigma_a$ into $Sigma$, as $arccos$ is homogenous for global rescaling, which is equivalent to rescaling $Sigma -> alpha Sigma$. What is excellent: we managed to push one layer of hyperparameters into the amplitudes! Since we marginalized them away, we end up with a nonparametric polynomial DGF model. We have only three hyperparameters: $sigma$, $sigma_1$, $sigma_2$ instead of $O(H)$ amount. This is the key to fast multiple kernel learning.
+
+/*
 $
   k_n(t, t') = bb(E)_(w ~ cal(N)(0, I))[phi(w^top x) phi(w^top y)]
 $
+*/
 
-What is excellent: we managed to push one layer of hyperparameters into the amplitudes! Since we marginalized them away, we end up with a nonparametric polynomial DGF model.
-
-
-
-
-///
-
-We can integrate out both $a$ and $t$ with our two priors and arrive at arccos kernel.
 
 Here the closure constraint becomes analytically "intractable" at first sight, but can be done for SqExp model analytically, and Matern models via Matern expansion trick @Tronarp2018
-
-Arccos is homogenous for global rescaling, which is equivalent to rescaling $Sigma -> alpha Sigma$.
 
 But we can allow $Sigma = mat(sigma_b^2, 0; 0, sigma_t^2)$ as this is important to model behavior of kernel. Introducing a third parameter $rho$ (correlation in $Sigma$) breaks our FT derivation (the $tan "/" arctan$ trick), which assumes no correlation between bias and $t$. So individual rescaling is as far as we can go and probably more than enough. So we can proceed with the $N(0,I)$ case as in @Cho2009. // https://chatgpt.com/s/t_68dfa3181bf88191a3183a8138bf2969
 

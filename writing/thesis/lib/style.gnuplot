@@ -23,6 +23,11 @@ set auto fix
 # offsets
 set offsets graph .1, graph .1, graph .1, graph .1
 
+set key samplen 2
+
+set xlabel "time" offset 0, 1
+set ylabel "amplitude" offset 1,0
+
 set tics in scale 0.5,0.3
 set xtics offset 0,0.3 autofreq
 set ytics offset 0.1,0 autofreq
