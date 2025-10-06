@@ -9,7 +9,7 @@ Things that should be mentioned (refer to it in other Chapters):
 - Distinction between parametric, nonparametric (signal processing), nonparametric (Bayesian -- this approach) solutions
 - Applications: scientific, medical, forensic. Related problem, formant estimation expected to be positively influenced if this works
 - Radiation modeling: do the canonical derivative operation (small tweeter). This can be sidestepped in IBIF: radiation transfer function is replaced by neck tissue transfer function: more stable for a calibration on a single person
-- Importance of null integral constraint
+- Importance of closure condition (null integral constraint)
 
 Good introduction to GIF is in @Alku2002
 

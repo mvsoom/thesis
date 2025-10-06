@@ -3,6 +3,10 @@
 #import "@preview/diagraph:0.3.6"
 #show raw.where(lang: "dot"): it => diagraph.render(it.text)
 
+#import "lib/gnuplot.typ": gnuplot
+
+#let bm(x) = math.bold(math.upright(x))
+
 #show heading: set block(above: 1.4em, below: 1em)
 #show heading.where(level: 1): it => [
   #pagebreak()
@@ -94,10 +98,24 @@
 )
 
 #set heading(numbering: "1.1")
-#set math.equation(numbering: "(1)")
 #show ref.where(target: heading.where(level: 1)): it => [
   Chapter #it.counter.display()
 ] // TODO: doesn't work
+
+#set math.equation(
+  numbering: "(1)",
+  supplement: none,
+)
+#show ref: it => {
+  // provide custom reference for equations
+  if it.element != none and it.element.func() == math.equation {
+    // optional: wrap inside link, so whole label is linked
+    link(it.target)[(#it)]
+  } else {
+    it
+  }
+}
+
 
 #include "./chapter/gif.typ"
 #include "./chapter/parametric/main.typ"

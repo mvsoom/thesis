@@ -1,4 +1,7 @@
 = Gaussian Processes via Span, Weighting, and Woodbury
+<appendix:gp>
+
+*@MacKay1998 shows for linear models that given hyperparameters*
 
 This is a presentation of GPs specifically geared towards basis function use (low dim case).
 

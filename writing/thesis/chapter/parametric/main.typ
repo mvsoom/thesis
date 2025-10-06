@@ -1,3 +1,6 @@
+#import "/writing/thesis/lib/prelude.typ": bm
+#import "/writing/thesis/lib/gnuplot.typ": gnuplot
+
 = From parametric to nonparametric glottal flow models
 
 In this chapter, we motivate the use of $arccos(n)$ kernel @Cho2009  to describe the glottal flow during the open phase.
@@ -30,6 +33,7 @@ For a GF model to be useful, it should have the following properties: @Doval2006
 It does however allow for very sharp GCI events, which are of utmost importance in joint inverse filtering setting. We will use it as a base model due to its popularity.
 
 == Classic polynomial models
+<sec:classic-polynomial-models>
 
 We make a case for the old "forgotten" family of polynomial GF models such as @Alku2002 @Verdolini1995 @Doval2006:
 - Computationally fast, analytical null flow condition
@@ -67,7 +71,7 @@ There are conventially several changepoints in the glottal cycle to be modeled: 
   ],
 ) <fig:alku>
 
-=== The triangular pulse model
+=== The rectangular pulse model as a linear model
 
 @fig:alku shows the triangular pulse model. Its derivative is a piecewise constant function:
 $
@@ -78,11 +82,9 @@ $
     0 quad quad & t in (t_c, +oo),
   )
 $ <eq:dgf-piece>
-This function is parametrized by the time domain constants ${T, T_1, T_2}$ (or equivalently: ${t_o = T - T_1, t_m = T - T_2, t_e = T}$) and the amplitudes ${f_"ac", d_"peak"}$. Note that the latter does not appear in @eq:dgf-piece because the null integral constraint $integral_0^T u'(t) dif t = 0$ removes one degree of freedom, so any single one of these can be expressed in terms of the others. Thus $d_"peak" = f_"ac"/T_2$ or $T_2 = f_"ac"/d_"peak"$. #cite(<Alku2002>, form: "prose") point out that this last relation expresses a difficult-to-measure time domain quantity as the ratio of two easy-to-measure quantities in the amplitude domain and exploit this fact to measure the open quotient (OQ) more robustly.
+This function is parametrized by the time domain constants ${T, T_1, T_2}$ (or equivalently: ${t_o = T - T_1, t_m = T - T_2, t_e = T}$) and the amplitudes ${f_"ac", d_"peak"}$. Note that the latter does not appear in @eq:dgf-piece because the closure constraint $integral_(t_o)^(t_e) u'(t) dif t = 0$ removes one degree of freedom, so any single one of these can be expressed in terms of the others. Thus $d_"peak" = f_"ac"/T_2$ or $T_2 = f_"ac"/d_"peak"$. #cite(<Alku2002>, form: "prose") point out that this last relation expresses a difficult-to-measure time domain quantity as the ratio of two easy-to-measure quantities in the amplitude domain and exploit this fact to measure the open quotient (OQ) more robustly.
 
-
-
-This model contains two jumps in the derivative domain so we can write it conveniently as a linear combination of two Heaviside functions during the open phase:
+The pulse model contains two jumps in the derivative domain so we can write it conveniently as a linear combination of two Heaviside functions during the open phase:
 $
   u'(t) = a_1 H(t - t_o) + a_2 H(t - t_m) quad (t_o <= t <= t_c)
 $
@@ -95,34 +97,54 @@ $
   )
 $
 
-*Generalizing the model.* For increased resolution, we can generalize this to a linear combination of $K$ arbitrarily scaled Heaviside jumps centered at change points $t_(1:K) in [t_o, t_e]$:
+*Generalizing to a linear model.* But we needn't stop here. We now restate the rectangular pulse model @eq:dgf-piece during the open phase as a probabilistic standard linear model @MacKay1998, in which Gaussian amplitudes modulate fixed basis functions (assume hyperparameters $bold(t)$ fixed). For increased resolution (extra changepoints), we can generalize this to a linear combination of $K$ arbitrarily scaled Heaviside jumps centered at change points $t_(1:K) in [t_o, t_e]$:
 $
   u'(t) = sum_(k=1)^K a_k H(t - t_k) quad (t_o <= t, t_k <= t_c)
 $
-If we assume the $t_(1:K)$ given for now and let $a_k ~ N(0, sigma^2_a)$, then using $integral_(-oo)^t H(tau - c) dif tau = H(t - c)(t - c)$ we get the null integral condition for free in expectation:
+If we assume the $t_(1:K)$ given for now and let $a_k ~ N(0, sigma^2_a)$, then using $integral_(-oo)^t H(tau - c) dif tau = H(t - c)(t - c)$ we get the closure condition for free in expectation:
 $
   bb(E)_a [integral_0^T u'(t) dif t] = sum_(k=1)^K bb(E)[a_k] H(T-t_k) (T-t_k) = 0.
 $
-This motivates setting the mean of the $a$ to zero, otherwise than symmetry of ignorance around $a=$.
-We can also enforce it: set $b_k = H(T-t_k) (T-t_k)$ then
+This motivates setting the mean of the $a$ to zero, otherwise than symmetry of ignorance around $a = 0$.
+We can also enforce it: set $b_k = H(T-t_k) (T-t_k) = T - t_k$ then
 $
-  sum_(k=1)^K a_k b_k = 0 ==> "Gaussian of rank" K - 1
+  sum_(k=1)^K a_k b_k = 0 ==> a divides b^top a = 0 ~ cal(N)(0, sigma_a^2 (I - q q^top))
 $
-This is a linear constraint on the $a$, so we can update the prior to always respect the constraint.
+where $q = b/(||b||)$. Equivalently,
 $
-  Sigma, mu
+  a = (q q^top) z + (I - q q^top) z, quad z ~ cal(N)(0, sigma_a^2 I). \
+  => a = (I - q q^top) z
 $
-This shows how prior of $a$ can encode properties we care about. This is a central theme in what follows: we will find that our priors for the linear amplitude can encode a host of features such as differentiability, null integral, ... in other words, the gross features of the expected spectrum of the DGF.
+This is a linear constraint on the $a$, so we can update the prior to always respect the constraint. A single constraint projects out the component of $a$ along $b$, so the resulting covariance matrix is degenerate and has rank $K - 1$. A Bayesian way to derive this would make use updating the prior via $D_"KL"$.
 
-/* picture of triangular pulse model with K=2 ... K = 5 with t_k chosen uniformly */
+This shows how prior of $a$ can encode properties we care about. This is a central theme in what follows: we will find that our priors for the linear amplitude can encode a host of features such as differentiability, closure, ... in other words, the gross features of the expected spectrum of the DGF.
+
+/* picture of triangular pulse model with K=2 ... K = 5 with t_k chosen uniformly and respecting the closure constraint */
 
 == Parametric polynomial models
 
-Generalize $n = 0 -> n <= 3$ from previous example
+In the previous example, we proposed to increase resolution by increasing $K$; we now can add more expressivity by allowing the degree $n$ to be $>= 0$ as well. In this way we also include the higher order classic polynomial models in @sec:classic-polynomial-models.
 
-The integrated flow conditions also suggest to write $H(t)$ as a RePU (rectified power unit) function:
+#figure(
+  grid(
+    align: center,
+    row-gutter: { 10pt },
+    column-gutter: { 1pt },
+    columns: 4,
+    $(t)_+^0$, $(t)_+^1$, $(t)_+^2$, $(t)_+^3$,
+    [Heaviside], [ReLU], [ReQU], [ReCU],
+    gnuplot(read("./fig/repu0.gp")),
+    gnuplot(read("./fig/repu1.gp")),
+    gnuplot(read("./fig/repu2.gp")),
+    gnuplot(read("./fig/repu3.gp")),
+  ),
+  placement: auto,
+  caption: [Activation functions. After @Cho2009.],
+) <fig:repu>
+
+The need to access both $u(t)$ and $u'(t)$ also suggest to write $H(t)$ as a RePU (rectified power unit, aka thresholded monomials) function:
 $
-  (t)_+^n = cases(
+  (t)_+^n = H(t) t^n = cases(
     0 quad & t < 0,
     t^n quad & t >= 0,
   )
@@ -133,9 +155,15 @@ $
                      dif/(dif t) (t - c)_+^n & = n (t - c)_+^(n-1) quad quad (n >= 1, c in bb(R))
 $
 allowing us to quickly go from DGF to GF and vice versa.
-#footnote[These relations can be made precise by using distribution theory @Lighthill1958 rather than functions, but they will do for our purpose here.]
+#footnote[These relations can be made precise by using distribution theory @Lighthill1958 rather than functions, but they will do for our purpose here.] $t_+^n$ includes Heaviside for $n = 0$ ($t_+^0 = H(t)$); ReLU for $n = 1$ (linear), ReQU for $n = 2$ (quadratic) and ReCU for $n = 3$ (cubic) -- see @fig:repu.
 
-and thus includes Heaviside for $n = 0$ ($t_+^0 = H(t)$); ReLU for $n = 1$ (linear), ReQU for $n = 2$ (quadratic) and ReCU for $n = 3$ (cubic).
+The general parametric polynomial model of degree $n$ and order $K$ is now
+$
+      u'(t) & = sum_(k=1)^K a_k (t-t_k)_+^n \
+  "where" a & ~ cal(N)(0, sigma_a^2 (I - q q^top)", " t_k in [t_o, t_e] "are given," \
+  "and" q_k & = 1/(n+1) (T - t_k)_+^(n+1) = 1/(n+1) (T - t_k)^(n+1)
+$
+which expresses the DGF as a of changepoints $t_k$ followed by changes of direction according to the amplitude $a_k$. All polynomial models of @sec:classic-polynomial-models can be expressed in this way, with the constraint on $a$ taking into account the closure constraint automatically rather than deriving it for each model (as e.g. in @Doval2006).
 
 #figure(
   grid(
@@ -150,18 +178,18 @@ and thus includes Heaviside for $n = 0$ ($t_+^0 = H(t)$); ReLU for $n = 1$ (line
   kind: image,
   caption: [
     (a) The triangular pulse model as a tiny neural network with a single hidden layer, linear readout and $t^0_+ = H(t)$ activation.
-    (b) The general parametric polynomial model of degree $n$ with order $K$ with weights $w in bb(R)^(K times 2), a in bb(R)^K$ and RePU activation function $t_+^n$.
+    (b) The general parametric polynomial model of degree $n$ with order $K$ with weights $w in bb(R)^(K times 2), a in bb(R)^K$ and RePU activation function $t_+^n = H(t) t^n$.
   ],
   gap: 1em,
 ) <fig:nn-polynomial>
 
 
-*Connection to neural networks.* In a modern lens, these models can be seen as a neural net with a single hidden layer in the regression setting. $H(t) t$ is a ReLU, etc. This is good, because already a single hidden layer h+as the universality property. Encouraged, this also suggests the prior $t_k ~ N(0, sigma_t^2)$ truncated to $t_k in [t_0, t_e]$: these are biases in the neural net picture, and we truncate to remain in the open phase.
+*Connection to neural networks.* In a modern lens, these models can be seen as a neural net with a single hidden layer in the regression setting. $H(t) t$ is a ReLU, etc. This is good, because already a single hidden layer has the universality property. Encouraged, this also suggests the prior $t_k ~ N(0, sigma_t^2)$ truncated to $t_k in [t_0, t_e]$: these are biases in the neural net picture, and we truncate to remain in the open phase.
+
+To summarize what we did: we formulated all classic polynomial DGF models as linear polynomial changepoint models, where the $bold(t)$ changepoints were given hyperparameters. Changepoints are encoded as RePU functions; the closure constraint can be imposed analytically. Next we will bring the $bold(t)$ from hyperparameters to ordinary parameters.
 
 /* now we got a prior for t_k: we can show samples */
 /* K, n picture */
-
-
 
 == Nonparametric polynomial models
 
@@ -171,6 +199,7 @@ $
   k_n(t, t') = bb(E)_(w ~ cal(N)(0, I))[phi(w^top x) phi(w^top y)]
 $
 
+What is excellent: we managed to push one layer of hyperparameters into the amplitudes! Since we marginalized them away, we end up with a nonparametric polynomial DGF model.
 
 
 
@@ -179,7 +208,7 @@ $
 
 We can integrate out both $a$ and $t$ with our two priors and arrive at arccos kernel.
 
-Here the null integral constraint becomes analytically "intractable" at first sight, but can be done for SqExp model analytically, and Matern models via Matern expansion trick @Tronarp2018
+Here the closure constraint becomes analytically "intractable" at first sight, but can be done for SqExp model analytically, and Matern models via Matern expansion trick @Tronarp2018
 
 Arccos is homogenous for global rescaling, which is equivalent to rescaling $Sigma -> alpha Sigma$.
 
@@ -191,7 +220,7 @@ But we can allow $Sigma = mat(sigma_b^2, 0; 0, sigma_t^2)$ as this is important 
 
 
 /*
-Kernel support for various GF models without null integral constraint
+Kernel support for various GF models without closure constraint
 
 Calculate p(D|k) for k in (arccos, matern, spline) <= nonparametric
 Perhaps also a Bayesian network <= parametric

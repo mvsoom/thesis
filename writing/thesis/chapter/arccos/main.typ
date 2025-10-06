@@ -1,10 +1,10 @@
-= The $arccos$ glottal flow model
+= The $arccos$ glottal flow model in the spectral domain
 
-We will characterize the $arccos$ glottal flow model (AGFM) in the spectral domain, as these models are best described there. Plus, at DC frequency we can already impose the null integral constraint.
+We will characterize the $arccos$ glottal flow model (AGFM) in the spectral domain, as these models are best described there. Plus, at DC frequency we can already impose the closure constraint.
 
 In principle we can go any depth in the calculation I think.
 
-Can we do arbitrary covariance $Sigma$ then?
+Can we do arbitrary covariance $Sigma$ then? NO, only diagonal one with possibly different covariances. // https://chatgpt.com/s/t_68dfa3181bf88191a3183a8138bf2969
 
 == FT of an affine warp $g(t) = f(a t + b)$
 

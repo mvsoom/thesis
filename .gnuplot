@@ -1,0 +1,1 @@
+# You can load ".gnuplot" if gnuplot can see the $GNUPLOT_LIB variable set in .envrc. Must be done manually
