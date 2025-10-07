@@ -1,46 +1,12 @@
-eval set_plot_size(550, 260)
-
-set key bottom left Left reverse box spacing 1. outside
-
-set lmargin at screen 0.3
-
-set format y ""
-set format x ""
-
-set xtics nomirror
-set ytics nomirror
-unset xtics
-unset ytics
-unset mxtics
-unset mytics
-
-# only these three x tics, short marks, no mirror, outside
-set xtics ("0" 0, "t_{o}" 1, "t_{m}" 4.5, "t_{e}" 6.5, "t_{c}" 8) out nomirror scale 0.5
-
-set xtics offset 0,0.5
-
-set xlabel "time"
-set ylabel "amplitude"
-
-set xzeroaxis lc rgb "black"
-
-set style arrow 1 heads filled size screen 0.01,15,45 lc rgb "black
-
-set arrow from 0,1.7 to 1,1.7 as 1
-set label "C" at 0.5, 1.9 center
-
-set arrow from 1,1.7 to 6.5,1.7 as 1
-set label "O" at 4, 1.9 center
-
-set arrow from 6.5,1.7 to 8,1.7 as 1
-set label "R" at 7.25, 1.9 center
-
-set arrow from 0,-1.3 to 8,-1.3 as 1
-set label "T" at 4, -1.1 center
-
-set yrange [-1.5:2.2]
-
-plot '-'   using 1:2 title "du" with lines lw 1.3,'-'   using 1:2 title "u" with lines lw 1.3
+set output
+set grid
+set xrange [*:*] noreverse
+set x2range [*:*] noreverse
+set yrange [*:*] noreverse
+set y2range [*:*] noreverse
+set zrange [*:*] noreverse
+set cbrange [*:*] noreverse
+plot '-'   using 1:2 title "du" with lines ,'-'   using 1:2 title "u" with lines 
 0.0 0.0
 0.008008008008008008 0.0
 0.016016016016016016 0.0
@@ -2043,3 +2009,7 @@ e
 7.991991991991992 6.30030271025827e-06
 8.0 6.30030271025827e-06
 e
+
+
+
+

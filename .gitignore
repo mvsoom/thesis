@@ -13,6 +13,8 @@ experiments/**/.jupyter_cache/
 experiments/**/runs/
 experiments/**/runs.csv
 
+**/main.pdf
+
 # Python packaging artefacts
 *.egg-info/
 *.egg

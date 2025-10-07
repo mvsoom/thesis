@@ -2,6 +2,7 @@
 #import "/writing/thesis/lib/gnuplot.typ": gnuplot
 
 = From parametric to nonparametric glottal flow models
+<chapter:parametric>
 
 In this chapter, we motivate the use of $arccos(n)$ kernel @Cho2009  to describe the glottal flow during the open phase.
 
@@ -15,7 +16,7 @@ Many models for the glottal flow and its derivative have been proposed over the 
   image("./fig/gf-models.png", width: 100%),
   placement: bottom,
   caption: [
-    A 1986 lineup of GF models, together with their derivatives (DGFs). From #cite(<Fujisaki1986>, form: "author").
+    The GF model zoo. A lineup of (handdrawn?) GF models back in 1986, together with their derivatives (DGFs). From #cite(<Fujisaki1986>, form: "author").
   ],
 ) <fig:gf-lineup>
 
@@ -42,19 +43,21 @@ For a GF model to be useful, it should have the following properties: @Doval2006
 - Does not allow negative flow.
 It does however allow for very sharp GCI events, which are of utmost importance in joint inverse filtering setting. We will use it as a base model due to its popularity.
 
+Closed phase, open phase, return phase. Some count return as open, some as closed phase as reflected in OQ computations @Doval2006.
+
 Mainly computationably cumbersome due to non-analytical tractablilty: requires solving a bisection routine for each numerical sample. Brittle. Research into more stable routines @Gobl2017.
 
 We also built a jax-compatible library which can differentiate through this, and which can simulate realistic changes in amplitude (shimmer), fundamental frequency (jitter), open quotient and others. Differentiable and batchable. Very fast because bisection routines in machine code.
 
 
-== Classic polynomial models
+== Classic piecewise polynomial models
 <sec:classic-polynomial-models>
 
 We make a case for the old "forgotten" family of polynomial GF models such as @Alku2002 @Verdolini1995 @Doval2006:
 - Computationally fast, analytical null flow condition
 - Many exist in literature guised in orders $n = 0,1,2,3$
 - Capable of very sharp events
-- "Bright spectrum": very slow decay, so are excellently placed to excite GF (@chapter:gif).
+- "Bright spectrum": very slow decay, so are excellently placed to excite GF
 
 
 /*
@@ -103,14 +106,14 @@ $ <eq:dgf-piece>
 This function is parametrized by the time domain parameters ${t_o, t_m, t_e}$, which specifiy the changepoints, and amplitude domain parameters ${f_"ac", d_"peak"}$. Note that $d_"peak"$ is conscipicously absent in @eq:dgf-piece; this is because the closure constraint $integral_(t_o)^(t_e) u'(t) dif t = 0$ removes one degree of freedom, so any single one of these can be expressed in terms of the others. Thus $d_"peak" = f_"ac"/(t_e-t_m)$ or equivalently $t_e - t_m = f_"ac"/d_"peak"$. #cite(<Alku2002>, form: "prose") point out that this last relation expresses a difficult-to-measure time domain quantity as the ratio of two easy-to-measure quantities in the amplitude domain and exploit this fact to measure the open quotient (OQ) more robustly.
 
 
-== Parametric polynomial models
+== Parametric piecewise polynomial models
 
 The rectangular pulse model @eq:dgf-piece contains two jumps, so we can write it more generally as a linear combination of two Heaviside functions during the open phase:
 $
   u'(t) = a_1 (t - t_o)_+^0 + a_2 (t - t_m)_+^0 quad (t_o <= t <= t_c)
 $
 
-where $t - c)_+^0 = max (0, t - c)^0$ is the Heaviside function and
+where $(t - c)_+^0 = max (0, t - c)^0$ is the Heaviside function and
 $
 a_1 = f_"ac" 1/T_1, quad a_2 = -f_"ac" (1/T_1+1/T_2).
 $
@@ -119,7 +122,9 @@ Note that the amplitudes $bm(a) = {a_1, a_2}$ have
 
 This is an instance of a regression problem with $H$ fixed basisfunctions. Following #cite(<MacKay1998>, form: "prose"), 
 
-
+$
+  phi_h (t \; bold(theta))
+$
 
 But we needn't stop here. We now restate the rectangular pulse model @eq:dgf-piece during the open phase as a probabilistic standard linear model @MacKay1998, in which Gaussian amplitudes modulate fixed basis functions (assume hyperparameters $bold(t)$ fixed). For increased resolution (extra changepoints), we can generalize this to a linear combination of $K$ arbitrarily scaled Heaviside jumps centered at change points $t_(1:K) in [t_o, t_e]$:
 $
@@ -216,7 +221,7 @@ The parameters in the polynomial models are always DGF amplitudes (GF slopes) an
 /* now we got a prior for t_k: we can show samples */
 /* K, n picture */
 
-== Nonparametric polynomial models
+== Nonparametric piecewise polynomial models
 
 After having generalized $n$, now we generalize $H -> oo$. Let $phi(t) = (t)_+^n$ with $n$ given, then the covariance matrix $K$ is given as
 

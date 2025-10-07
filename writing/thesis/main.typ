@@ -4,6 +4,7 @@
 #show raw.where(lang: "dot"): it => diagraph.render(it.text)
 
 #import "lib/gnuplot.typ": gnuplot
+#import "lib/prelude.typ": bm
 
 #show heading: set block(above: 1.4em, below: 1em)
 #show heading.where(level: 1): it => [
@@ -86,12 +87,14 @@
   glossary: none,
   acknowledgments: include "./meta/acknowledgments.typ",
   dedication: none,
-  bibliography: bibliography("library.bib"),
+  bibliography: bibliography("library.bib", style: "apa"),
   // Also optional. If you don't have any appendices, you can delete this.
   // Same as all other sections, you can just include the content here from a
   // separate file.
   appendices: [
-    //#include "./appendix/lf.typ"
+    #include "./appendix/regularization.typ"
+    #include "./appendix/gps.typ"
+    #include "./appendix/related-contributions.typ"
   ],
 )
 
@@ -115,5 +118,25 @@
 }
 
 
-#include "./chapter/gif.typ"
+#include "./chapter/overview.typ"
+//#include "./chapter/gif.typ"
+
+= Infinite kernel linear prediction
+<chapter:iklp>
+
 #include "./chapter/parametric/main.typ"
+
+= The arc cosine kernel in the spectral domain
+<chapter:spectral>
+
+= Learning a nonparametric glottal flow prior
+
+= But what about $p(bm(a))$?
+<chapter:arprior>
+
+= Evaluation
+<chapter:evaluation>
+
+= Conclusion
+<chapter:conclusion>
+

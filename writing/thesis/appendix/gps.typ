@@ -1,5 +1,5 @@
-= Gaussian Processes via Span, Weighting, and Woodbury
-<appendix:gp>
+= Gaussian processes
+<chapter:gps>
 
 *@MacKay1998 shows for linear models that given hyperparameters*
 
