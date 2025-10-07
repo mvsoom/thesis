@@ -19,7 +19,7 @@ p = {
     "Ta": 0.2,
 }
 
-t = jnp.linspace(0, tc, 1000)
+t = jnp.linspace(0, tc + 1, 1000)
 
 du = dgf(t, p, offset=to)
 u = jnp.cumsum(du) * (t[1] - t[0])
