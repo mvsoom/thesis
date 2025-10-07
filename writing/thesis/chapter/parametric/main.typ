@@ -12,7 +12,7 @@ In this chapter, we motivate the use of $arccos(n)$ kernel @Cho2009  to describe
 Many models for the glottal flow and its derivative have been proposed over the course of time in acoustic phonetics -- see @fig:gf-lineup for a catalogue already in 1986. These models differ mainly in the details, and can be unified in a common framework as per #cite(<Doval2006>, form: "prose").
 
 #figure(
-  image("./fig/fl-model.png", width: 100%),
+  image("./fig/gf-models.png", width: 100%),
   placement: bottom,
   caption: [
     A 1986 lineup of GF models, together with their derivatives (DGFs). From #cite(<Fujisaki1986>, form: "author").
@@ -26,11 +26,26 @@ For a GF model to be useful, it should have the following properties: @Doval2006
 
 *Allow negative flow?* At first sight, glottal flow should be strictly postive, and most GF models enforce it. But there are exceptions like @Fujisaki1986. Motivation: "rounded closure" is often seen; sometimes attributed to residual leakage, but they argue there is also a component due to a period of negative flow caused by lowering of the vocal cords after closure, drawing DC current of air back in.
 
-*The LF model.* The most dominant GF model by far is the LF model, number (e) in @fig:gf-lineup and see @appendix:lf for detailed description. Some shortcomings:
+
+#figure(
+  gnuplot(read("./fig/lf.gp")),
+  placement: top,
+  caption: [
+    The LF model.
+  ],
+) <fig:lf>
+
+
+*The LF model.* The most dominant GF model by far is the LF model, number (e) in @fig:gf-lineup and see @fig:lf for detailed description. Some shortcomings:
 - Analytically awkward: null flow condition not tractable, requires numerically solving a bisection routine. There has been research into making that routine more numerically stable.
 - Overparametrization: though conveniently parametrized in terms of physiological features, its parameters are not independent of each other. They are usually regressed in terms of one another, or in the LF model has been used for parametric fitting, even into a single parameter.
 - Does not allow negative flow.
 It does however allow for very sharp GCI events, which are of utmost importance in joint inverse filtering setting. We will use it as a base model due to its popularity.
+
+Mainly computationably cumbersome due to non-analytical tractablilty: requires solving a bisection routine for each numerical sample. Brittle. Research into more stable routines @Gobl2017.
+
+We also built a jax-compatible library which can differentiate through this, and which can simulate realistic changes in amplitude (shimmer), fundamental frequency (jitter), open quotient and others. Differentiable and batchable. Very fast because bisection routines in machine code.
+
 
 == Classic polynomial models
 <sec:classic-polynomial-models>
@@ -60,7 +75,13 @@ LF-model: trig + exp model
 
 The modern-day revival of piecewise functions (linear, quadratic, ...) puts these ancient models in a new light. Changepoint modeling ("hard ifs") in the guise of decision surfaces is what drives deep architectures today, and it is exactly the same kind we need for GFs. Plus, these models are already embedded in zero DC line (ie, a polynomial of order 0) as they model only open phase.
 
-There are conventially several changepoints in the glottal cycle to be modeled: the primary changepoints are opening onset and closure instant, with optional landmarks like max flow (maximum of $u(t)$) and closing phase onset (minimum of $u'(t)$) used to quantify shape. The simplest and arguably most succesful polynomial model is the triangular pulse model proposed in #cite(<Alku2002>, form: "prose") which is asserts $u(t)$ $n = 1$ piecewise linear in GF and $u'(t)$ $n = 0$ piecewise constant. It is used mainly as a more robust way to estimate OQ (a time domain parameter) from the amplitude domain and not as a GF model in itself, but we can use it as a starting point for our generalization from parametric to nonparametric models.
+There are conventially several changepoints in the glottal cycle to be modeled: the primary changepoints are opening onset and closure instant, with optional landmarks like max flow (maximum of $u(t)$) and closing phase onset (minimum of $u'(t)$, start of return phase) used to quantify shape.
+
+We now look at the simplest of the polynomial models in more detail. We will use this model below as a starting point for our generalization to general polynomials of arbitrary degree $n$ and precision $H$, and finally take the limit $H -> oo$.
+
+=== The triangular pulse model
+
+The simplest and arguably most succesful polynomial model is the triangular pulse model proposed in #cite(<Alku2002>, form: "prose") which is asserts $u(t)$ piecewise linear in GF ($n=1$ degree polynomial) and $u'(t)$ piecewise constant ($n = 0$ degree polynomial). It is used mainly as a more robust way to estimate OQ (a time domain parameter) from the amplitude domain and not as a GF model in itself, but we can use it as a starting point for our generalization from parametric to nonparametric models.
 
 #figure(
   gnuplot(read("./fig/alku2002.gp")),
@@ -70,33 +91,37 @@ There are conventially several changepoints in the glottal cycle to be modeled: 
   ],
 ) <fig:alku>
 
-=== The rectangular pulse model as a linear model
-
-@fig:alku shows the triangular pulse model. Its derivative is a piecewise constant function:
+@fig:alku shows the triangular pulse model for the glottal flow and its derivative given a period $T$. Its derivative is a rectangular (piecewise constant) function:
 $
   u'(t) = cases(
-    0 quad quad & t in (-oo, t_o],
-    f_"ac" / T_1 quad quad & t in (t_0, t_m],
-    -f_"ac"/T_2 quad quad & t in (t_m, t_c],
-    0 quad quad & t in (t_c, +oo),
+    0 quad quad & t & <= t_o,
+    +f_"ac" / (t_e-t_o) quad quad & t_o & < t & <= t_m,
+    -f_"ac"/ (t_e-t_m) quad quad & t_m & < t & <= t_e,
+    0 quad quad & t_e & > t,
   )
 $ <eq:dgf-piece>
-This function is parametrized by the time domain constants ${T, T_1, T_2}$ (or equivalently: ${t_o = T - T_1, t_m = T - T_2, t_e = T}$) and the amplitudes ${f_"ac", d_"peak"}$. Note that the latter does not appear in @eq:dgf-piece because the closure constraint $integral_(t_o)^(t_e) u'(t) dif t = 0$ removes one degree of freedom, so any single one of these can be expressed in terms of the others. Thus $d_"peak" = f_"ac"/T_2$ or $T_2 = f_"ac"/d_"peak"$. #cite(<Alku2002>, form: "prose") point out that this last relation expresses a difficult-to-measure time domain quantity as the ratio of two easy-to-measure quantities in the amplitude domain and exploit this fact to measure the open quotient (OQ) more robustly.
+This function is parametrized by the time domain parameters ${t_o, t_m, t_e}$, which specifiy the changepoints, and amplitude domain parameters ${f_"ac", d_"peak"}$. Note that $d_"peak"$ is conscipicously absent in @eq:dgf-piece; this is because the closure constraint $integral_(t_o)^(t_e) u'(t) dif t = 0$ removes one degree of freedom, so any single one of these can be expressed in terms of the others. Thus $d_"peak" = f_"ac"/(t_e-t_m)$ or equivalently $t_e - t_m = f_"ac"/d_"peak"$. #cite(<Alku2002>, form: "prose") point out that this last relation expresses a difficult-to-measure time domain quantity as the ratio of two easy-to-measure quantities in the amplitude domain and exploit this fact to measure the open quotient (OQ) more robustly.
 
-The pulse model contains two jumps in the derivative domain so we can write it conveniently as a linear combination of two Heaviside functions during the open phase:
-$
-  u'(t) = a_1 H(t - t_o) + a_2 H(t - t_m) quad (t_o <= t <= t_c)
-$
 
-where $a_1 = f_"ac"/T_1$, $a_2 = -f_"ac" (1/T_1+1/T_2)$ and $H(t)$ is the Heaviside function:
+== Parametric polynomial models
+
+The rectangular pulse model @eq:dgf-piece contains two jumps, so we can write it more generally as a linear combination of two Heaviside functions during the open phase:
 $
-  H(t) = integral_(-oo)^t delta(tau) dif tau = cases(
-    0 quad & t < 0,
-    1 quad & t > 0.
-  )
+  u'(t) = a_1 (t - t_o)_+^0 + a_2 (t - t_m)_+^0 quad (t_o <= t <= t_c)
 $
 
-*Generalizing to a linear model.* But we needn't stop here. We now restate the rectangular pulse model @eq:dgf-piece during the open phase as a probabilistic standard linear model @MacKay1998, in which Gaussian amplitudes modulate fixed basis functions (assume hyperparameters $bold(t)$ fixed). For increased resolution (extra changepoints), we can generalize this to a linear combination of $K$ arbitrarily scaled Heaviside jumps centered at change points $t_(1:K) in [t_o, t_e]$:
+where $t - c)_+^0 = max (0, t - c)^0$ is the Heaviside function and
+$
+a_1 = f_"ac" 1/T_1, quad a_2 = -f_"ac" (1/T_1+1/T_2).
+$
+Note that the amplitudes $bm(a) = {a_1, a_2}$ have
+
+
+This is an instance of a regression problem with $H$ fixed basisfunctions. Following #cite(<MacKay1998>, form: "prose"), 
+
+
+
+But we needn't stop here. We now restate the rectangular pulse model @eq:dgf-piece during the open phase as a probabilistic standard linear model @MacKay1998, in which Gaussian amplitudes modulate fixed basis functions (assume hyperparameters $bold(t)$ fixed). For increased resolution (extra changepoints), we can generalize this to a linear combination of $K$ arbitrarily scaled Heaviside jumps centered at change points $t_(1:K) in [t_o, t_e]$:
 $
   u'(t) = sum_(k=1)^K a_k H(t - t_k) quad (t_o <= t, t_k <= t_c)
 $
@@ -119,8 +144,6 @@ This is a linear constraint on the $a$, so we can update the prior to always res
 This shows how prior of $a$ can encode properties we care about. This is a central theme in what follows: we will find that our priors for the linear amplitude can encode a host of features such as differentiability, closure, ... in other words, the gross features of the expected spectrum of the DGF.
 
 /* picture of triangular pulse model with K=2 ... K = 5 with t_k chosen uniformly and respecting the closure constraint */
-
-== Parametric polynomial models
 
 In the previous example, we proposed to increase resolution by increasing $K$; we now can add more expressivity by allowing the degree $n$ to be $>= 0$ as well. In this way we also include the higher order classic polynomial models in @sec:classic-polynomial-models.
 
@@ -187,14 +210,29 @@ which expresses the DGF as a of changepoints $t_k$ followed by changes of direct
 
 To summarize what we did: we formulated all classic polynomial DGF models as linear polynomial changepoint models, where the $bold(t)$ changepoints were given hyperparameters. Changepoints are encoded as RePU functions; the closure constraint can be imposed analytically. Next we will bring the $bold(t)$ from hyperparameters to ordinary parameters.
 
+The parameters in the polynomial models are always DGF amplitudes (GF slopes) and changepoints, eg. @Fujisaki1986 Fig 2 has 6 parameters. Other models have other parameters, such as LF, which has 5. These can in principle be approximated to arbitrary precision with piecewise polynomial models, such that their parameters are again just amplitudes and changepoints. This is what we mean by parametric models. Next up we will marginalize over them such that they may 
+
+
 /* now we got a prior for t_k: we can show samples */
 /* K, n picture */
 
 == Nonparametric polynomial models
 
 After having generalized $n$, now we generalize $H -> oo$. Let $phi(t) = (t)_+^n$ with $n$ given, then the covariance matrix $K$ is given as
+
+/*
+We want to show that inf resolution still goes
+
+But we can't do MacKay completely: he has fixed basisfunctions
+
+We need to write again the expectation <f f'> which he could write as sigma <phi phi'> where phi are fixed, and we can't => this is how we get the expectiation over Gaussian weights and we are done
+
+MacKay integrates first over amplitude weight and THEN integrates over input index h, we integrate BOTH over h (resolution) AND weights (prior) simulteaunisky
+
+*/
+
 $
-  K_(i,j) & = sigma_a^2 sum_(h=1)^H phi_h (t_i) phi_h (t_j) \
+  K_(i j) & = sigma_a^2 sum_(h=1)^H phi_h (t_i) phi_h (t_j) \
   & = sigma_a^2 sum_(h=1)^H phi(w_(h 2) t_i + w_(h 1)) phi(w_(h 2) t_j + w_(h 1)) \
   &prop sigma_a^2 integral phi(w_(2) t_i + w_(1)) phi(w_(2) t_j + w_(1)) cal(N)(w_1 divides 0, sigma_1^2) cal(N)(w_2 divides 0,sigma_2^2) dif w_1 dif w_2 "as" H -> oo \
   &= arccos_n {bm(Sigma)^(1/2) vec(1, t_i), bm(Sigma)^(1/2) vec(1, t_j) }
@@ -203,17 +241,11 @@ where $Sigma = "diag"(sigma_1^2, sigma_2^2)$ and the weights are defined in @fig
 
 We can absorb $sigma_a$ into $Sigma$, as $arccos$ is homogenous for global rescaling, which is equivalent to rescaling $Sigma -> alpha Sigma$. What is excellent: we managed to push one layer of hyperparameters into the amplitudes! Since we marginalized them away, we end up with a nonparametric polynomial DGF model. We have only three hyperparameters: $sigma$, $sigma_1$, $sigma_2$ instead of $O(H)$ amount. This is the key to fast multiple kernel learning.
 
-/*
-$
-  k_n(t, t') = bb(E)_(w ~ cal(N)(0, I))[phi(w^top x) phi(w^top y)]
-$
-*/
+But we can allow $bm(Sigma) = mat(sigma_b^2, 0; 0, sigma_t^2)$ as this is important to model behavior of kernel. Introducing a third parameter $rho$ (correlation in $Sigma$) breaks our FT derivation (the $tan "/" arctan$ trick), which assumes no correlation between bias and $t$. So individual rescaling is as far as we can go and probably more than enough. So we can proceed with the $N(0,I)$ case as in @Cho2009. // https://chatgpt.com/s/t_68dfa3181bf88191a3183a8138bf2969
+
 
 
 Here the closure constraint becomes analytically "intractable" at first sight, but can be done for SqExp model analytically, and Matern models via Matern expansion trick @Tronarp2018
-
-But we can allow $Sigma = mat(sigma_b^2, 0; 0, sigma_t^2)$ as this is important to model behavior of kernel. Introducing a third parameter $rho$ (correlation in $Sigma$) breaks our FT derivation (the $tan "/" arctan$ trick), which assumes no correlation between bias and $t$. So individual rescaling is as far as we can go and probably more than enough. So we can proceed with the $N(0,I)$ case as in @Cho2009. // https://chatgpt.com/s/t_68dfa3181bf88191a3183a8138bf2969
-
 
 // @Pandey2014: covariance arccos kernel: to go wide or deep in NNs?
 // https://upcommons.upc.edu/server/api/core/bitstreams/bf52946e-0904-4e3d-afb7-d85d8a33c46a/content page 13

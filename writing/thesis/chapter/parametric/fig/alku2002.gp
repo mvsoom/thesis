@@ -15,7 +15,7 @@ unset mxtics
 unset mytics
 
 # only these three x tics, short marks, no mirror, outside
-set xtics ("0" 0, "t_{o}" 1, "t_{m}" 4.5, "t_{e}" 6) out nomirror scale 0.5
+set xtics ("0" 0, "t_{o}" 1, "t_{m}" 4.5, "t_{e} = t_{c}" 6) out nomirror scale 0.5
 
 set xtics offset 0,0.5
 
@@ -36,7 +36,7 @@ set label "T" at 3.25, -.8 center
 
 set yrange [-1.2:1.2]
 
-plot '-'   using 1:2 title "du" with lines lw 2 ,'-'   using 1:2 title "u" with lines lw 2
+plot '-'   using 1:2 title "du" with lines lw 1.3 ,'-'   using 1:2 title "u" with lines lw 1.3
 0.0 0.0
 0.014028056112224449 0.0
 0.028056112224448898 0.0

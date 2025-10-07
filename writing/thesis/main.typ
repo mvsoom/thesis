@@ -91,7 +91,7 @@
   // Same as all other sections, you can just include the content here from a
   // separate file.
   appendices: [
-    #include "./appendix/lf.typ"
+    //#include "./appendix/lf.typ"
   ],
 )
 
