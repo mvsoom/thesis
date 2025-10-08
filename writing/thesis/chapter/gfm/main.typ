@@ -27,9 +27,9 @@ This then sets the stage for @chapter:pack, which derives the _periodic arc cosi
 ) <fig:glottal-cycle>
  
 ==== The glottal cycle
-is the periodic opening and closing of the vocal folds.
-It is represented in @fig:glottal-cycle.
-GFMs describe the rate of airflow $u(t)$ [typically expressed in cm³/s] through the space between the vocal folds called the _glottis_.
+is the periodic opening and closing of the vocal folds, depicted in @fig:glottal-cycle.
+During one _pitch period_, a single cycle is completed.
+GFMs describe the rate of airflow $u(t)$ [typically expressed in cm³/s] through the opening between the vocal folds called the _glottis_.
 Importantly, it is not at maximum glottis aperture that the acoustic output is greatest; it is at the sudden _glottal closure instant_ (GCI).
 At this point, the moving air column in the vocal tract is abruptly interrupted, and kinetic energy is converted efficiently into acoustic energy which then excites the vocal tract much like plucking a harp or clapping in a resonant room @Chen2016[Section~4.6].
 The sharpness of this transition governs much of the clarity and perceived strength of voiced speech @Fant1979.
@@ -40,17 +40,16 @@ Thus, efficiency demands that the glottal cycle be strongly asymmetric: a slow b
 A model that has been hugely useful in describing how $u(t)$ varies during the glottal cycle is the _Liljencrants-Fant (LF) model_ proposed by #pcite(<Fant1985>).
 It has been the GFM of choice for many joint-inverse filtering approaches#footnote[
   See #section-title-page(<sec:joint-source-filter-methods>).
-] but also been studied in its own right.#footnote[See #pcite(<Degottex2010>, supplement: [Section~2.4])
-  Besides being the most used model, this one is also the
-  most studied in terms of spectral properties [van03, Hen01, DdH06, FL88]. Note that an analytical
-  definition of the LF spectrum can be found in [Dd97]. // TODO
+] but also been studied in its own right.#footnote[
+  See #pcite(<Degottex2010>, supplement: [Section~2.4]) for a discussion. Research into the LF model falls mainly into study of its spectral characteristics @Doval2006 and effective reparametrizations, notably #pcite(<Fant1995>).
 ]
-Each _pitch period_ of length $T$ consists of three parts: a null flow during the closed phase (C); a rising and falling exponential part modulated by a sinusoid during the open phase (O); and an exponential return during the _return phase_ (R):
+
+The model states that each pitch period of length $T$ consists of three parts: a null flow during the closed phase (C); a rising and falling exponential part modulated by a sinusoid during the open phase (O); and an exponential return during the _return phase_ (R):
 $
   u'(t) = cases(
     0 & (0 < & t <= t_o) & "(C)" &,
     e^(alpha t) sin(pi t/t_p) & (t_o < & t <= t_e) & "(O)" &,
-    -1 / (epsilon t_a) ( e^(-epsilon (t - t_e)) - e^(-epsilon (t_c - t_e)) ) quad quad &(t_e < &t <= t_c ) quad quad &"(R)"&
+    -1 / (epsilon T_a) ( e^(-epsilon (t - t_e)) - e^(-epsilon (t_c - t_e)) ) quad quad &(t_e < &t <= t_c ) quad quad &"(R)"&
   )
 $
 where the _changepoints_ ${t_o, t_m, t_e, t_c = T}$ are the model parameters and $alpha$ and $epsilon$ are calculated from the _closure constraint_
@@ -63,17 +62,30 @@ $ <eq:closure-constraint>
 
 // WHAT DID I WRITE BEFORE
 
+// Degottex 2010
+
+Defined as derivative because of radiation and you can see the shape in speech data.
+
+Parameters:
++ $E_e$: amplitude at $t_e$
++ $t_o$: instant of glottal opening
++ $t_e$: instant of maxiumum excitation ($"argmax" u'(t)$)
++ $t_p$: instant of maximum glottal flow ($"argmax" u(t)$)
++ $T_a$: time constant of the return phase
++ $T = t_c$: fundamental period
+
+
 
 
 #figure(
   gnuplot(read("./fig/lf.gp")),
   placement: auto,
   caption: [
-    *The Liljencrants-Fant model* for #text(fill: blue)[---] $u'(t)$ and #text(fill: red)[---] $u(t)$ during a single period of length $T$. The closed phase (C), open phase (O) and return phase (R) are marked at the top. See the text for the changepoints $t_o$, $t_m$, $t_e$ and $t_c$.
+    *The Liljencrants-Fant model* for #box(baseline: -3pt)[#line(length: 1.5em, stroke: 1.3pt + blue)] $u'(t)$ and #box(baseline: -3pt)[#line(length: 1.5em, stroke: 1.3pt + red)] $u(t)$ during a single period of length $T$. The closed phase (C), open phase (O) and return phase (R) are marked at the top. See the text for the changepoints $t_o$, $t_m$, $t_e$ and $t_c$.
   ],
 ) <fig:lf>
 
-The most dominant GF model by far is the LF model, number (e) in @fig:gf-lineup and see @fig:lf for detailed description. Some shortcomings:
+Some shortcomings:
 - Analytically awkward: null flow condition not tractable, requires numerically solving a bisection routine. There has been research into making that routine more numerically stable.
 - Overparametrization: though conveniently parametrized in terms of physiological features, its parameters are not independent of each other. They are usually regressed in terms of one another, or in the LF model has been used for parametric fitting, even into a single parameter.
 - Does not allow negative flow.

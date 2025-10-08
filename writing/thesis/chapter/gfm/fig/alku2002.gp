@@ -15,7 +15,7 @@ unset mxtics
 unset mytics
 
 # only these three x tics, short marks, no mirror, outside
-set xtics ("0" 0, "t_{o}" 1, "t_{m}" 4.5, "t_{e} = t_{c}" 6) out nomirror scale 0.5
+set xtics ("0" 0, "t_{o}" 1, "t_{p}" 4.5, "t_{e} = t_{c}" 6) out nomirror scale 0.5
 
 set xtics offset 0,0.5
 
