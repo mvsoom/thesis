@@ -108,9 +108,7 @@
 
 #set heading(numbering: "1.1.1")
 
-#show ref.where(target: heading.where(level: 1)): it => [
-  Chapter #it.counter.display()
-] // TODO: doesn't work
+#set heading(numbering: "1.", supplement: "Chapter")
 
 #set math.equation(
   numbering: "(1)",
@@ -132,8 +130,7 @@
 
 #include "./chapter/gfm/main.typ"
 
-= The arc cosine kernel in the spectral domain
-<chapter:spectral>
+#include "./chapter/spectral/main.typ"
 
 = Learning a nonparametric glottal flow prior
 

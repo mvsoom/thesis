@@ -1,16 +1,73 @@
-#import "/writing/thesis/lib/prelude.typ": bm
+#import "/writing/thesis/lib/prelude.typ": bm, pcite
 #import "/writing/thesis/lib/gnuplot.typ": gnuplot
 
 = From parametric to nonparametric glottal flow models
-<chapter:parametric>
+<chapter:gfm>
+
+In this Chapter, we introduce several classes of glottal flow models (GFMs) in the time domain. These models all hinge on describing $u(t)$ and $u'(t)$ by means of several _changepoints_.
+
+
+These time-domain models all share common features @Doval2006
+
+and review common .
 
 In this chapter, we motivate the use of $arccos(n)$ kernel @Cho2009  to describe the glottal flow during the open phase.
 
-== Glottal flow model zoo
+#figure(
+  image("./fig/glottal-cycle.png"),
+  caption: [*Strobovideolaryngoscopic images of vocal folds.* the seemingly continuous series of images of the vocal folds is in fact not continuous. It is selected from a
+    long run of vibrations. After #pcite(<Jopling2009>) #pcite(<Chen2015>).],
+)
+
+==== The glottal cycle
+is the periodic open/close cycle of the vocal folds
+
+You can see this when you put a camera in your mouth and say “aaaa”. Each frame here is a picture taken at 0.5 msec
+
+The vocal folds are like lips, and the space between them is called the glotts
+
+When the glottis closes, a pulse is created, which excites the vocal tract and creates a damped resonance in the time domain
+
+The interval between two pulses is called a pitch period, because it determines the pitch of speech
+
+
+== The Liljencrants-Fant model
+
+
+
+We start with the Liljencrants-Fant (LF) model, which is the dominant GFM.
+
+#figure(
+  gnuplot(read("./fig/lf.gp")),
+  placement: auto,
+  caption: [
+    *The Liljencrants-Fant model*
+  ],
+) <fig:lf>
+
+
+
+
+
+The most dominant GF model by far is the LF model, number (e) in @fig:gf-lineup and see @fig:lf for detailed description. Some shortcomings:
+- Analytically awkward: null flow condition not tractable, requires numerically solving a bisection routine. There has been research into making that routine more numerically stable.
+- Overparametrization: though conveniently parametrized in terms of physiological features, its parameters are not independent of each other. They are usually regressed in terms of one another, or in the LF model has been used for parametric fitting, even into a single parameter.
+- Does not allow negative flow.
+It does however allow for very sharp GCI events, which are of utmost importance in joint inverse filtering setting. We will use it as a base model due to its popularity.
+
+Closed phase, open phase, return phase. Some count return as open, some as closed phase as reflected in OQ computations @Doval2006.
+
+Mainly computationably cumbersome due to non-analytical tractablilty: requires solving a bisection routine for each numerical sample. Brittle. Research into more stable routines @Gobl2017.
+
+We also built a jax-compatible library which can differentiate through this, and which can simulate realistic changes in amplitude (shimmer), fundamental frequency (jitter), open quotient and others. Differentiable and batchable. Very fast because bisection routines in machine code.
+
+
+
+=== Glottal flow model zoo
 
 // **notebook**: /home/marnix/WRK/proj/sflinear/notebook/single-packet/titze-alku.ipynb
 
-Many models for the glottal flow and its derivative have been proposed over the course of time in acoustic phonetics -- see @fig:gf-lineup for a catalogue already in 1986. These models differ mainly in the details, and can be unified in a common framework as per #cite(<Doval2006>, form: "prose").
+Many models for the glottal flow and its derivative have been proposed over the course of time in acoustic phonetics -- see @fig:gf-lineup for a catalogue already in 1986. These models differ mainly in the details, and can be unified in a common framework as per #pcite(<Doval2006>).
 
 #figure(
   image("./fig/gf-models.png", width: 100%),
@@ -27,29 +84,6 @@ For a GF model to be useful, it should have the following properties: @Doval2006
 
 ==== Allow negative flow?
 At first sight, glottal flow should be strictly postive, and most GF models enforce it. But there are exceptions like @Fujisaki1986. Motivation: "rounded closure" is often seen; sometimes attributed to residual leakage, but they argue there is also a component due to a period of negative flow caused by lowering of the vocal cords after closure, drawing DC current of air back in.
-
-
-#figure(
-  gnuplot(read("./fig/lf.gp")),
-  placement: top,
-  caption: [
-    The LF model.
-  ],
-) <fig:lf>
-
-
-==== The LF model
-The most dominant GF model by far is the LF model, number (e) in @fig:gf-lineup and see @fig:lf for detailed description. Some shortcomings:
-- Analytically awkward: null flow condition not tractable, requires numerically solving a bisection routine. There has been research into making that routine more numerically stable.
-- Overparametrization: though conveniently parametrized in terms of physiological features, its parameters are not independent of each other. They are usually regressed in terms of one another, or in the LF model has been used for parametric fitting, even into a single parameter.
-- Does not allow negative flow.
-It does however allow for very sharp GCI events, which are of utmost importance in joint inverse filtering setting. We will use it as a base model due to its popularity.
-
-Closed phase, open phase, return phase. Some count return as open, some as closed phase as reflected in OQ computations @Doval2006.
-
-Mainly computationably cumbersome due to non-analytical tractablilty: requires solving a bisection routine for each numerical sample. Brittle. Research into more stable routines @Gobl2017.
-
-We also built a jax-compatible library which can differentiate through this, and which can simulate realistic changes in amplitude (shimmer), fundamental frequency (jitter), open quotient and others. Differentiable and batchable. Very fast because bisection routines in machine code.
 
 
 == Classic piecewise polynomial models
@@ -86,13 +120,13 @@ We now look at the simplest of the polynomial models in more detail. We will use
 
 === The triangular pulse model
 
-The simplest and arguably most succesful polynomial model is the triangular pulse model proposed in #cite(<Alku2002>, form: "prose") which is asserts $u(t)$ piecewise linear in GF ($n=1$ degree polynomial) and $u'(t)$ piecewise constant ($n = 0$ degree polynomial). It is used mainly as a more robust way to estimate OQ (a time domain parameter) from the amplitude domain and not as a GF model in itself, but we can use it as a starting point for our generalization from parametric to nonparametric models.
+The simplest and arguably most succesful polynomial model is the triangular pulse model proposed in #pcite(<Alku2002>) which is asserts $u(t)$ piecewise linear in GF ($n=1$ degree polynomial) and $u'(t)$ piecewise constant ($n = 0$ degree polynomial). It is used mainly as a more robust way to estimate OQ (a time domain parameter) from the amplitude domain and not as a GF model in itself, but we can use it as a starting point for our generalization from parametric to nonparametric models.
 
 #figure(
   gnuplot(read("./fig/alku2002.gp")),
   placement: top,
   caption: [
-    The triangular pulse model proposed in #cite(<Alku2002>, form: "prose").
+    The triangular pulse model proposed in #pcite(<Alku2002>).
   ],
 ) <fig:alku>
 
@@ -105,7 +139,7 @@ $
     0 quad quad & t_e & > t,
   )
 $ <eq:dgf-piece>
-This function is parametrized by the time domain parameters ${t_o, t_m, t_e}$, which specifiy the changepoints, and amplitude domain parameters ${f_"ac", d_"peak"}$. Note that $d_"peak"$ is conscipicously absent in @eq:dgf-piece; this is because the closure constraint $integral_(t_o)^(t_e) u'(t) dif t = 0$ removes one degree of freedom, so any single one of these can be expressed in terms of the others. Thus $d_"peak" = f_"ac"/(t_e-t_m)$ or equivalently $t_e - t_m = f_"ac"/d_"peak"$. #cite(<Alku2002>, form: "prose") point out that this last relation expresses a difficult-to-measure time domain quantity as the ratio of two easy-to-measure quantities in the amplitude domain and exploit this fact to measure the open quotient (OQ) more robustly.
+This function is parametrized by the time domain parameters ${t_o, t_m, t_e}$, which specifiy the changepoints, and amplitude domain parameters ${f_"ac", d_"peak"}$. Note that $d_"peak"$ is conscipicously absent in @eq:dgf-piece; this is because the closure constraint $integral_(t_o)^(t_e) u'(t) dif t = 0$ removes one degree of freedom, so any single one of these can be expressed in terms of the others. Thus $d_"peak" = f_"ac"/(t_e-t_m)$ or equivalently $t_e - t_m = f_"ac"/d_"peak"$. #pcite(<Alku2002>) point out that this last relation expresses a difficult-to-measure time domain quantity as the ratio of two easy-to-measure quantities in the amplitude domain and exploit this fact to measure the open quotient (OQ) more robustly.
 
 
 == Parametric piecewise polynomial models
@@ -122,7 +156,7 @@ $
 Note that the amplitudes $bm(a) = {a_1, a_2}$ have
 
 
-This is an instance of a regression problem with $H$ fixed basisfunctions. Following #cite(<MacKay1998>, form: "prose"),
+This is an instance of a regression problem with $H$ fixed basisfunctions. Following #pcite(<MacKay1998>),
 
 $
   phi_h (t \; bold(theta))
@@ -272,9 +306,44 @@ Also show # params and compute time for each
 
 */
 
-*Neural networks again.* The marginalization above was first done by #cite(<Cho2009>, form: "prose") in the context of infinite-width neural networks in the style of #cite(<Neal1996>, form: "prose") #cite(<Williams1998>, form: "prose"). This viewpoint also allows for going beyond a depth 1 network by iteration of the $arccos$ kernel.#footnote[Kernel composition (reiteration) is indeed a valid kernel operation in general, as recently emphasized by @Dutordoir2020.]
+#figure(
+  image("/figures/svg/20251008144755528.svg"),
+  caption: [Hard changepoints are difficult, best we can do are steep slopes.],
+) <fig:steep>
 
-*Why not go infinite depth?* Different character from increasing width; effective depth of deep GPs. If stable limit, it becomes independent of inputs @Diaconis1999. Seen often in DGPs as input independency, "forgetting inputs". Though one might counteract that going to infinite width also has similar "unfortunate" consequences (MacKay's baby with the bath water): "features are not learned", basis functions are fixed. This shows that kernel hyperparameters must encode (most of) features. We do this via sparse multiple kernel learning; ie static kernels on the Yoshii-grid mechanism; our hyperparams are $(T, tau, "OQ")$, ie 3 dim grid.
+==== Neural networks again.
+The marginalization above was first done by #pcite(<Cho2009>) in the context of infinite-width neural networks in the style of #pcite(<Neal1996>) #pcite(<Williams1998>). This viewpoint also allows for going beyond a depth 1 network by iteration of the $arccos$ kernel.#footnote[Kernel composition (reiteration) is indeed a valid kernel operation in general, as recently emphasized by @Dutordoir2020.]
 
-*Why not spline models?* Piecewise spline models are well-known and effective in low-dimensional nonparametric regression. Why not use them? Because they depend on the resolution. As Gaussian process priors, spline kernels produce posterior means that are splines with knots (hingepoints in some derivative) fixed at the observed inputs and nowhere else @MacKay1998[p. 6]. In contrast, the $arccos(n)$ kernel will learn the effective number of hingepoints from the data, which may happily remain $O(1)$ while the amount of datapoints grows indefinitely. Translated to our problem, we want the number of effective change points to be resolution-independent (independent of the sampling frequency) and not confined to the observation locations.
+==== 
+Why not go infinite depth?
+Different character from increasing width; effective depth of deep GPs. If stable limit, it becomes independent of inputs @Diaconis1999. Seen often in DGPs as input independency, "forgetting inputs". Though one might counteract that going to infinite width also has similar "unfortunate" consequences (MacKay's baby with the bath water): "features are not learned", basis functions are fixed. This shows that kernel hyperparameters must encode (most of) features. We do this via sparse multiple kernel learning; ie static kernels on the Yoshii-grid mechanism; our hyperparams are $(T, tau, "OQ")$, ie 3 dim grid.
 
+==== Why not spline models?
+Piecewise spline models are well-known and effective in low-dimensional nonparametric regression. Why not use them? Because they depend on the resolution. As Gaussian process priors, spline kernels produce posterior means that are splines with knots (hingepoints in some derivative) fixed at the observed inputs and nowhere else @MacKay1998[p. 6]. In contrast, the $arccos(n)$ kernel will learn the effective number of hingepoints from the data, which may happily remain $O(1)$ while the amount of datapoints grows indefinitely. Translated to our problem, we want the number of effective change points to be resolution-independent (independent of the sampling frequency) and not confined to the observation locations.
+
+==== Why not Lévy processes?
+These encode Poisson-style jumps $O(1)$ in number in time. But inference in these is always $O("# of jumps")$. So can't really marginalize out these jump points, and we want to avoid MCMC. We want to stack everything in the amplitude marginalization. But, actual discontinuities require Lévy processes; the arc cosine GP alone can only fake it with steep ramps (see @fig:steep).
+
+/* main point here: YES, we compromised; we got fast inference, but also diminshed support for true O(1) amount of jumps like a Levy process would. This is a practical question -- need to find out by running nested sampling and see how much support for these jumps is really there -- just calculate! */
+
+/* This means we should model u(t), not du(t)!
+
+u(t) ~ arccos: arccos is always continuous -- we cant do real jumps
+
+but if we can get du(t) implicitly -- from spectral domain OR via AR pole -- we can maybe cheat this thing
+
+Maybe we can LEARN the radiation characteristic by priming our AR prior to look for that spectral decay of +6db/oct
+
+So we model u(t) * (h(t) * r(t)) and the latter factor of combined VT + radiation impulse response is learned directly
+
+another option is to integrate data (move diff to data) but this possibly nasty
+
+pre-emphasis just flattens spectral slope as to partition poles better -- has nothing to do with radiation factor.
+Radition factor can only be undone by integrating, not further diffing.
+Pre-emphasis tilts the spectrum "up" by emphasizing higher freqs and is a fitting trick
+
+On the other hand
+LPC just proclaims s(t) = e(t) * h(t) and shoves radiation into the source such that h(t) cna remain all-pole
+since differentiation is ~ i2pi x => zero, not a pole
+so we are generalizing LPC, so also choose e(t) => u(t) * r(t)
+*/

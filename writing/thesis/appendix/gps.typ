@@ -328,3 +328,29 @@ infinite basis and then bolt on kernels; we started from what the finite
 case makes unavoidable: predictions and priors live in the span of
 kernel sections, and Woodbury is the bridge that turns this fact into
 working algebra.
+
+
+== Why Gaussian processes are so universal
+It feels like Gaussian processes connect to every possible thing, and for good reason.
+- Any linear transform of a Gaussian is Gaussian. This means spectral filtering, convolution, and projection all stay Gaussian.
+- The entire law of a Gaussian process is encoded by mean and covariance. Spectral density, kernel, and covariance function are just different handles on the same object.
+- Sums of many independent effects converge to Gaussian by the central limit theorem, so Gaussian processes appear naturally as models of aggregate randomness.
+- They are analytically tractable. Fourier transforms, Laplace transforms, conditioning, and marginalization all stay in closed form.
+
+== Consequences
+Because of these properties, Gaussian processes connect to many fields:
+- In signal processing: spectral densities, sampling theorems, Wiener filters.
+- In partial differential equations and physics: many stochastic PDE solutions are Gaussian processes, for example the heat equation with white noise forcing.
+- In Bayesian inference and machine learning: Gaussian process priors are equivalent to kernel methods and reproducing kernel Hilbert spaces.
+- In statistics: kriging, linear regression, and ARMA time-series are all special cases of Gaussian processes.
+- In functional analysis: covariance kernels are positive-definite kernels, tied to Mercer's theorem and RKHS theory.
+- In information theory: the Gaussian maximizes entropy under a variance constraint, so it is the least informative noise model.
+
+== Are they the only class like this
+No, but they are uniquely privileged. Only Gaussians, and more generally stable distributions, are closed under linear operations in this way. Only Gaussians are fully determined by their second-order structure. Other processes such as stable Lévy or Poisson are also fundamental, but they do not mesh as smoothly with everything else, and their tools are not as universal.
+
+== The meta-view
+Gaussian processes connect so widely because they sit at the intersection of probability, linear systems, and functional analysis. They are the unique fixed point of the combination of infinite-dimensional linear structure, limit theorems, and spectral representation. They are also much more analytically gentle than non-Gaussian infinite-dimensional distributions.
+
+== Bottom line
+Gaussian processes are not literally the only class with wide connections, but in terms of breadth, smoothness, and centrality they are the canonical universal object.

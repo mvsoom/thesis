@@ -1,4 +1,4 @@
-#import "/writing/thesis/lib/prelude.typ": bm
+#import "/writing/thesis/lib/prelude.typ": bm, pcite, pcite
 #import "/writing/thesis/lib/gnuplot.typ": gnuplot
 
 = Overview
@@ -30,8 +30,9 @@ filter are comparably well understood.
 
 #figure(
   [FIGURE HERE],
+  placement: auto,
   caption: [
-    Overview of source-filter separation.
+    *Overview of source-filter separation.*
     The speech waveform (left) is modeled as a glottal source signal (top right) passing through a series of vocal tract filters (bottom left).
     The task is to find such plausible source-filter pairs (colored samples on the right) that together produce a given speech waveform.
   ],
@@ -47,7 +48,7 @@ the GIF problem. That is the main theme of this thesis.
 
 GIF is an important and difficult problem in acoustic phonetics
 @Auvinen2014 @Kadiri2021 and various approaches have been developed over
-the last 60 years. Paraphrasing @Alku2011, applications mainly come in
+the last 60 years. Paraphrasing #pcite(<Alku2011>), applications mainly come in
 three broad categories: (i) fundamental research about voice production
 (for example, quantifying voice quality), (ii) medical applications
 (such as analysis of pathological voices), and (iii) speech technology
@@ -120,7 +121,7 @@ The central problem of this thesis is boxed in @fig:central-problem.
   box(
     [
       *Glottal inverse filtering (GIF)*
-
+      
       Assume that the source-filter model of speech production @Fant1960 holds
       such that the speech signal at time $t in bb(R)$ is described by
       convolving three real-valued functions:
@@ -133,7 +134,7 @@ The central problem of this thesis is boxed in @fig:central-problem.
       response of the radiation characteristic, assumed known. Source-filter
       theory asserts that $s (t)$ can be thought of as the result of the
       source signal $u (t)$ passing through the filters $h (t)$ and $r (t)$.
-
+      
       The data consists of $N$ noisy samples $bm(d) = d_(1:N)$ of the speech
       pressure waveform $s (t)$ at times $bm(t) = t_(1:N)$. We assume
       additive errors $bm(e) = e_(1:N)$ such that
@@ -144,17 +145,17 @@ The central problem of this thesis is boxed in @fig:central-problem.
       The error components $e_n$ are modeled as white noise
       with expected power $sigma_n^2$ which means that
       $e_n ~ "Normal"(0, sigma_n^2)$ for $n = 1 dots.h.c N$.
-
+      
       The data $(bm(t),bm(d))$ is possibly augmented with noisy statistics of
       $s (t)$ such as a list of estimated glottal closing instants (GCIs).
-
+      
       The GIF problem is then to #emph[find plausible estimates of the source
         $u (t)$ and the filter $h (t)$] that are consistent with the given data.
     ],
     inset: 10pt,
     stroke: black,
   ),
-  caption: [Statement of the GIF problem, which we attack in this thesis.],
+  caption: [*The GIF problem* which we attack in this thesis.],
 ) <fig:central-problem>
 
 Source-filter theory as expressed by equation
@@ -211,7 +212,7 @@ Source-filter theory#footnote[Currently the dominant paradigm in
   useful and compact description of the acoustics of phonation, summarized
   by @Fant1960[p. 15] as "the speech wave is the response of the vocal
   tract filter systems to one or more sound sources." A modern perspective
-  on source-filter theory is given by #cite(<Svec2021>, form: "prose").] models the speech
+  on source-filter theory is given by #pcite(<Svec2021>).] models the speech
 production process as a standard #emph[linear time-invariant] (LTI)
 system @Antsaklis2006 which is essentially a linear approximation to the
 underlying nonlinear dynamics of voice production that is roughly valid
@@ -229,7 +230,7 @@ $
   tilde(u)(x) = cal(F) [u(t)](x) = integral_(-oo)^oo u(t) exp{-i 2 pi x t} dif t
 $ <eq:ux>
 is obtained by the Fourier transform $cal(F)$ of $u (t)$. Note that the
-system's transfer functions is assumed to be independent from its input:
+system's transfer function is assumed to be independent from its input:
 source-filter theory assumes source and filter to be decoupled.
 
 The vocal tract transfer function $tilde(h)(x)$ describes the
@@ -246,14 +247,12 @@ using the inverse Fourier transform $cal(F)^(- 1)$.
 Unlike $u (t)$ and $h (t)$, $r (t)$ is assumed fixed and known: the lip
 radiation effect is modeled in the GIF literature as a standard 6
 dB/octave high pass filter @Stevens2000[p.~128] which has transfer
-function $tilde(r)(x) = -i 2 pi x$. This corresponds to
+function $tilde(r)(x) = i 2 pi x$. This corresponds to
 differentiation in the time domain as @eq:hrt yields
 $r (t) = delta' (t)$.#footnote[Convolution of a test function $f (x)$
   with the derivative of the Dirac delta function is equivalent to
-  differentiation: $f (t) \* delta' (t) = f' (t)$. This can be justified
-  by considering nascent delta functions such as the Gaussian
-  $exp - t^2 \/ a^2 \/ sqrt(2 pi a^2)$ and then taking the limit
-  $a arrow.r 0$.]
+  differentiation: $f (t) * delta' (t) = f' (t)$. This can be justified
+  by distribution theory @Lighthill1958.]
 
 The _output_ of the system is the speech pressure signal $s (t)$
 $
@@ -344,7 +343,7 @@ transfers to the voiced speech signal $s (t)$ because the vocal
 articulators move much more slowly than the vibrating vocal folds.
 
 The most widely used model for the DGF $u' (t)$ in voiced speech is the
-Liljencrants-Fant model of @Fant1985. We use this in @chapter:parametric
+Liljencrants-Fant model of #pcite(<Fant1985>). We use this in @chapter:gfm
 as the basis for a parametric prior for $u (t)$ denoted formally as
 $
   u(t) ~ pi_"LF"(u(t))
@@ -474,7 +473,7 @@ is the output of the
 LTI system that describes speech production according to source-filter
 theory. The priors for $u (t)$ and $h (t)$ introduced in (@eq:gpprior,
 @eq:pzprior, @eq:apprior) induce a prior for $s (t)$ through
-@eq:suh;, which is derived analytically in @chapter:iklp. This prior is the aforementioned nonparametric
+@eq:suh, which is derived analytically in @chapter:iklp. This prior is the aforementioned nonparametric
 generative model of voiced speech that underlies BNGIF:
 $
   s(t) ~ pi_"VS"(s(t))
@@ -511,7 +510,7 @@ specific contributions made by BNGIF to the GIF literature, and what
 they are hoped to accomplish at what cost, we first situate the approach
 taken in this thesis within these two classes.
 
-#cite(<Miller1959>, form: "prose") founded the basis for the first and larger class of GIF
+#pcite(<Miller1959>) founded the basis for the first and larger class of GIF
 methods, which holds most of the popular GIF methods used today such as
 closed phase analysis @Wong1979 and iterative adaptive inverse filtering
 @Alku1992. The inverse filtering approach aims to recover the glottal
@@ -525,7 +524,7 @@ $tilde(h)(x)$ is estimated @Kadiri2021. No explicit parametric form of
 $u (t)$ is assumed because $u (t)$ is recovered by applying the digital
 filter $1\/hat(tilde(h))(x)$ to a vector of speech samples $bm(d)$.
 
-#cite(<Milenkovic1986>, form: "prose") proposed a different approach for the second class of
+#pcite(<Milenkovic1986>) proposed a different approach for the second class of
 GIF methods, a logical consequence of the increased computing power
 available in the 1980s. With joint source-filter optimization methods
 the fit of a parametric model to the speech data $bm(d)$ is optimized
