@@ -4,50 +4,50 @@
 = From parametric to nonparametric glottal flow models
 <chapter:gfm>
 
-In this Chapter, we introduce several classes of glottal flow models (GFMs) in the time domain. These models all hinge on describing $u(t)$ and $u'(t)$ by means of several _changepoints_.
+Glottal flow models (GFMs) describe the source signal $u(t)$ as it drives the vocal tract during voiced speech.
+These models operate in the time domain because the delicate phase characteristics of the _glottal cycle_ are an integral part of vocal communication.#footnote[
+  For example, plosives: glottal stops are micro-events at the millisecond level that underlie semantic information two orders of magnitude higher up the scale.
+  The timing of the vocal fold movement is so precisely controlled by our brain that the slightest deviations are studied as biomarkers for neurodegenerative diseases like Parkinson's @Ma2020.
+]
 
+A large body of work and decades of empirical work @Degottex2010 have produced a "model zoo" of GFMs: handcrafted waveforms of $u(t)$ with handfuls of carefully chosen parameters.
+Because these are _parametric_ models, they all share the same basic traits: parsimonious, interpretable, but inevitably stiff @Schleusing2012. Their parametric nature limits the range of time domain information they can encode.
+This motivates the construction of a family of _nonparametric_ models, which reach for greater expressivity with _less_ parameters.
 
-These time-domain models all share common features @Doval2006
-
-and review common .
-
-In this chapter, we motivate the use of $arccos(n)$ kernel @Cho2009  to describe the glottal flow during the open phase.
+With the many equations to follow, it is all too easy to lose connection to the actual physical phenomenon being modeled.
+After a short look at the glottal cycle, we begin with a review of the classic Liljencrants-Fant model.
+Then we revisit the parametric piecewise polynomial models and generalize them to the nonparametric regime, where they are identified with the _arc cosine kernel_ of #pcite(<Cho2009>).
+The latter is argued to combine the advantages of both worlds: the interpretability of parametric models with the flexibility of nonparametric ones.
+This then sets the stage for @chapter:pack, which derives the _periodic arc cosine kernel_ as a learnable surrogate model of synthetic glottal flow data.
 
 #figure(
-  image("./fig/glottal-cycle.png"),
-  caption: [*Strobovideolaryngoscopic images of vocal folds.* the seemingly continuous series of images of the vocal folds is in fact not continuous. It is selected from a
-    long run of vibrations. After #pcite(<Jopling2009>) #pcite(<Chen2015>).],
-)
-
+  image("./fig/glottal-cycle.png", height: 28%),
+  placement: auto,
+  caption: [*A look at the glottal cycle* via laryngeal stroboscopy of the vocal folds. Each frame here is a picture taken at intervals spanning different cycles to give the illusion of steady-state behavior. The glottis is the opening between the folds. After #pcite(<Jopling2009>) #pcite(<Chen2016>).],
+) <fig:glottal-cycle>
+ 
 ==== The glottal cycle
-is the periodic open/close cycle of the vocal folds
-
-You can see this when you put a camera in your mouth and say “aaaa”. Each frame here is a picture taken at 0.5 msec
-
-The vocal folds are like lips, and the space between them is called the glotts
-
-When the glottis closes, a pulse is created, which excites the vocal tract and creates a damped resonance in the time domain
-
-The interval between two pulses is called a pitch period, because it determines the pitch of speech
-
+is the periodic opening and closing of the vocal folds.
+It is represented in @fig:glottal-cycle.
+GFMs describe the rate of airflow $u(t)$ [typically expressed in cm³/s] through the space between the vocal folds called the _glottis_.
+Importantly, it is not at maximum glottis aperture that the acoustic output is greatest; it is at the sudden _glottal closure instant_ (GCI).
+At this point, the moving air column in the vocal tract is abruptly interrupted, and kinetic energy is converted efficiently into acoustic energy which then excites the vocal tract much like plucking a harp or clapping in a resonant room @Chen2016[Section~4.6].
+The sharpness of this transition governs much of the clarity and perceived strength of voiced speech @Fant1979.
+Efficiency demands that the glottal cycle be strongly asymmetric: a slow buildup of flow during the open phase, followed by a rapid, almost impulsive closure to the closed phase.
 
 == The Liljencrants-Fant model
 
+A model that has been hugely succesful in describing how $u(t)$ varies during the glottal cycle is the Liljencrants-Fant (LF) model.
 
-
-We start with the Liljencrants-Fant (LF) model, which is the dominant GFM.
+ @fig:lf
 
 #figure(
   gnuplot(read("./fig/lf.gp")),
-  placement: auto,
+  placement: bottom,
   caption: [
-    *The Liljencrants-Fant model*
+    *The Liljencrants-Fant model* for #text(fill: blue)[---] $u'(t)$ and #text(fill: red)[---] $u(t)$.
   ],
 ) <fig:lf>
-
-
-
-
 
 The most dominant GF model by far is the LF model, number (e) in @fig:gf-lineup and see @fig:lf for detailed description. Some shortcomings:
 - Analytically awkward: null flow condition not tractable, requires numerically solving a bisection routine. There has been research into making that routine more numerically stable.
@@ -73,7 +73,7 @@ Many models for the glottal flow and its derivative have been proposed over the 
   image("./fig/gf-models.png", width: 100%),
   placement: bottom,
   caption: [
-    *The GF model zoo.* A lineup of (handdrawn?) GF models back in 1986, together with their derivatives (DGFs). From #cite(<Fujisaki1986>, form: "author").
+    *A lineup of GF models* back from 1986 (handdrawn?), together with their derivatives (DGFs). From #cite(<Fujisaki1986>, form: "author").
   ],
 ) <fig:gf-lineup>
 
@@ -106,6 +106,9 @@ See images ./fig/:
 3rd order: @Fujisaki1986 (FL model, also in @Drugman2019a)
 * also allow negative flow segment after closure
 * Motivation: “rounded closure” is often seen; sometimes attributed to residual leakage, **but they argue there is also a component due to a period of *negative flow* caused by *lowering of the vocal cords* after closure**
+
+The Rosenberg–Klatt model is a straightforward glottal flow model. It models the shape
+of the glottal airflow signal within one fundamental period using a cubic polynomial function @Bleyer2017
 
 non-polynomials:
 Rosenberg-C: trig (sine) model

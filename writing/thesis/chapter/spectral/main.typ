@@ -1,5 +1,7 @@
-= The arc cosine kernel in the spectral domain
-<chapter:spectral>
+= The periodic arc cosine kernel
+<chapter:pack>
+
+The periodic arc cosine kernel (PACK)
 
 /*
 Our sampling of freqs in the Nyquist band reproduces the Sinc kernel-property that we automatically band limit the smoothness => good prior information

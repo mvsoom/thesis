@@ -2,8 +2,6 @@
 
 We clarify some of the confusing terminology associated with Bayesian nonparametric models.
 
-== two
-
 === Parametric models
 are simply models with a fixed and prespecified amount of unknown parameters $R$, independent of the size of the dataset $N$.
 

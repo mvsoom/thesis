@@ -140,6 +140,17 @@
 = Evaluation
 <chapter:evaluation>
 
+/*
+Gridding over OQ also done in @Fu2006
+*/
+
 = Conclusion
 <chapter:conclusion>
 
+/*
+From @Drugman2019
+
+Glottal characterization has also been shown to be helpful in another
+biomedical problem: the classification of clinical depression in speech. In
+(Ozdas et al. (2004))
+*/

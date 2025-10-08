@@ -349,7 +349,7 @@ $
   u(t) ~ pi_"LF"(u(t))
 $ <eq:lfprior>
 This parametric prior serves as the basis for a more expressive and
-nonparametric Gaussian process prior derived in @chapter:spectral:
+nonparametric Gaussian process prior derived in @chapter:pack:
 $
   u(t) ~ pi_"GP"(u(t))
 $ <eq:gpprior>
