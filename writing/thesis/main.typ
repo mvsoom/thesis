@@ -101,6 +101,7 @@
   appendices: [
     #include "./appendix/regularization.typ"
     #include "./appendix/parametric.typ"
+    #include "./appendix/jaxlf.typ"
     #include "./appendix/gps.typ"
     #include "./appendix/related-contributions.typ"
   ],

@@ -1,4 +1,4 @@
-#import "/writing/thesis/lib/prelude.typ": bm, pcite
+#import "/writing/thesis/lib/prelude.typ": bm, pcite, section-title-page
 #import "/writing/thesis/lib/gnuplot.typ": gnuplot
 
 = From parametric to nonparametric glottal flow models
@@ -33,19 +33,43 @@ GFMs describe the rate of airflow $u(t)$ [typically expressed in cm³/s] through
 Importantly, it is not at maximum glottis aperture that the acoustic output is greatest; it is at the sudden _glottal closure instant_ (GCI).
 At this point, the moving air column in the vocal tract is abruptly interrupted, and kinetic energy is converted efficiently into acoustic energy which then excites the vocal tract much like plucking a harp or clapping in a resonant room @Chen2016[Section~4.6].
 The sharpness of this transition governs much of the clarity and perceived strength of voiced speech @Fant1979.
-Efficiency demands that the glottal cycle be strongly asymmetric: a slow buildup of flow during the open phase, followed by a rapid, almost impulsive closure to the closed phase.
+Thus, efficiency demands that the glottal cycle be strongly asymmetric: a slow buildup of flow during the _open phase_, followed by a rapid, almost impulsive closure to the _closed phase_.
 
 == The Liljencrants-Fant model
 
-A model that has been hugely succesful in describing how $u(t)$ varies during the glottal cycle is the Liljencrants-Fant (LF) model.
+A model that has been hugely useful in describing how $u(t)$ varies during the glottal cycle is the _Liljencrants-Fant (LF) model_ proposed by #pcite(<Fant1985>).
+It has been the GFM of choice for many joint-inverse filtering approaches#footnote[
+  See #section-title-page(<sec:joint-source-filter-methods>).
+] but also been studied in its own right.#footnote[See #pcite(<Degottex2010>, supplement: [Section~2.4])
+  Besides being the most used model, this one is also the
+  most studied in terms of spectral properties [van03, Hen01, DdH06, FL88]. Note that an analytical
+  definition of the LF spectrum can be found in [Dd97]. // TODO
+]
+Each _pitch period_ of length $T$ consists of three parts: a null flow during the closed phase (C); a rising and falling exponential part modulated by a sinusoid during the open phase (O); and an exponential return during the _return phase_ (R):
+$
+  u'(t) = cases(
+    0 & (0 < & t <= t_o) & "(C)" &,
+    e^(alpha t) sin(pi t/t_p) & (t_o < & t <= t_e) & "(O)" &,
+    -1 / (epsilon t_a) ( e^(-epsilon (t - t_e)) - e^(-epsilon (t_c - t_e)) ) quad quad &(t_e < &t <= t_c ) quad quad &"(R)"&
+  )
+$
+where the _changepoints_ ${t_o, t_m, t_e, t_c = T}$ are the model parameters and $alpha$ and $epsilon$ are calculated from the _closure constraint_
+$
+  integral_0^T u'(t) dif t = 0 quad "such that" quad u(0) = u(T).
+$ <eq:closure-constraint>
 
- @fig:lf
+@fig:lf shows the waveforms for $u'(t)$ and $u(t)$ for a typical setting of its parameters.
+
+
+// WHAT DID I WRITE BEFORE
+
+
 
 #figure(
   gnuplot(read("./fig/lf.gp")),
-  placement: bottom,
+  placement: auto,
   caption: [
-    *The Liljencrants-Fant model* for #text(fill: blue)[---] $u'(t)$ and #text(fill: red)[---] $u(t)$.
+    *The Liljencrants-Fant model* for #text(fill: blue)[---] $u'(t)$ and #text(fill: red)[---] $u(t)$ during a single period of length $T$. The closed phase (C), open phase (O) and return phase (R) are marked at the top. See the text for the changepoints $t_o$, $t_m$, $t_e$ and $t_c$.
   ],
 ) <fig:lf>
 
@@ -57,7 +81,7 @@ It does however allow for very sharp GCI events, which are of utmost importance 
 
 Closed phase, open phase, return phase. Some count return as open, some as closed phase as reflected in OQ computations @Doval2006.
 
-Mainly computationably cumbersome due to non-analytical tractablilty: requires solving a bisection routine for each numerical sample. Brittle. Research into more stable routines @Gobl2017.
+Mainly computationably cumbersome due to non-analytical tractablilty: requires solving a bisection routine for each numerical sample. Brittle. Research into more stable routines @Gobl2017. @chapter:jaxlf
 
 We also built a jax-compatible library which can differentiate through this, and which can simulate realistic changes in amplitude (shimmer), fundamental frequency (jitter), open quotient and others. Differentiable and batchable. Very fast because bisection routines in machine code.
 

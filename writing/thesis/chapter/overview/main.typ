@@ -510,6 +510,8 @@ specific contributions made by BNGIF to the GIF literature, and what
 they are hoped to accomplish at what cost, we first situate the approach
 taken in this thesis within these two classes.
 
+==== Inverse filtering
+<sec:inverse-filtering-methods>
 #pcite(<Miller1959>) founded the basis for the first and larger class of GIF
 methods, which holds most of the popular GIF methods used today such as
 closed phase analysis @Wong1979 and iterative adaptive inverse filtering
@@ -524,6 +526,8 @@ $tilde(h)(x)$ is estimated @Kadiri2021. No explicit parametric form of
 $u (t)$ is assumed because $u (t)$ is recovered by applying the digital
 filter $1\/hat(tilde(h))(x)$ to a vector of speech samples $bm(d)$.
 
+==== Joint source-filter optimization
+<sec:joint-source-filter-methods>
 #pcite(<Milenkovic1986>) proposed a different approach for the second class of
 GIF methods, a logical consequence of the increased computing power
 available in the 1980s. With joint source-filter optimization methods
