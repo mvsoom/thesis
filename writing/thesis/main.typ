@@ -1,4 +1,4 @@
-#import "@preview/bye-ubc:0.2.2": thesis
+#import "lib/bye-ubc.typ": thesis
 
 #import "@preview/diagraph:0.3.6"
 #show raw.where(lang: "dot"): it => diagraph.render(it.text)
@@ -6,11 +6,18 @@
 #import "lib/gnuplot.typ": gnuplot
 #import "lib/prelude.typ": bm
 
+#set figure.caption(separator: [ | ])
+
 #show heading: set block(above: 1.4em, below: 1em)
-#show heading.where(level: 1): it => [
-  #pagebreak()
-  #it
-]
+
+// Latex \par{} style
+#show heading.where(level: 4): it => {
+  // inline, bold, body-sized; add trailing period and a little space
+  text(size: 1em, weight: "bold")[
+    #it.body
+  ]
+  h(0.5em)
+}
 
 #set outline(depth: 2)
 
@@ -93,12 +100,14 @@
   // separate file.
   appendices: [
     #include "./appendix/regularization.typ"
+    #include "./appendix/parametric.typ"
     #include "./appendix/gps.typ"
     #include "./appendix/related-contributions.typ"
   ],
 )
 
-#set heading(numbering: "1.1")
+#set heading(numbering: "1.1.1")
+
 #show ref.where(target: heading.where(level: 1)): it => [
   Chapter #it.counter.display()
 ] // TODO: doesn't work
@@ -117,14 +126,11 @@
   }
 }
 
+#include "./chapter/overview/main.typ"
 
-#include "./chapter/overview.typ"
-//#include "./chapter/gif.typ"
+#include "./chapter/iklp/main.typ"
 
-= Infinite kernel linear prediction
-<chapter:iklp>
-
-#include "./chapter/parametric/main.typ"
+#include "./chapter/gfm/main.typ"
 
 = The arc cosine kernel in the spectral domain
 <chapter:spectral>

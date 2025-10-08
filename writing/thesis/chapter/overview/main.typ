@@ -12,8 +12,8 @@ followed by a summary of the contributions made in this thesis.
 <sec:introduction>
 
 In this thesis we present a new approach to the problem of #emph[glottal
-inverse filtering] (GIF) called #emph[Bayesian nonparametric glottal
-inverse filtering] (BNGIF). At the heart of this new approach lies a
+  inverse filtering] (GIF) called #emph[Bayesian nonparametric glottal
+  inverse filtering] (BNGIF). At the heart of this new approach lies a
 Bayesian nonparametric #emph[generative model of voiced speech] that
 reflects general constraints on the voice production process. Though
 conceived for GIF, the generative model can be conditioned on both raw
@@ -34,7 +34,7 @@ filter are comparably well understood.
     Overview of source-filter separation.
     The speech waveform (left) is modeled as a glottal source signal (top right) passing through a series of vocal tract filters (bottom left).
     The task is to find such plausible source-filter pairs (colored samples on the right) that together produce a given speech waveform.
-    ],
+  ],
 ) <fig:source-filter-overview>
 
 The GIF problem refers to source-filter separation of speech; that is,
@@ -79,16 +79,16 @@ algorithms to fit the data in true plug-and-play fashion @Murphy2022.
 This standardized form also ensures that generative models are easily
 modifiable and extendable for more specific applications such as (ii-iv)
 mentioned above.#footnote[For example it is expected that our model of
-human voice production can be useful for mammal vocal communication
-research @Taylor2010 by simply tweaking some of its prior assumptions.
-An example of extending the model to downstream tasks is forensic
-phonetics, since "formant features \[...\] are widely accepted features
-used in forensic acoustic-phonetic speaker verification"
-@Becker2008[p.~1] and "the Bayesian decision framework \[...\] is now
-the standard paradigm for forensic speaker comparison"
-@Bonastre2015[p.~1]. This Bayesian decision framework depends on
-likelihood ratios @Harrison2013 that can be calculated with the same
-computational tools used in this thesis.]
+  human voice production can be useful for mammal vocal communication
+  research @Taylor2010 by simply tweaking some of its prior assumptions.
+  An example of extending the model to downstream tasks is forensic
+  phonetics, since "formant features \[...\] are widely accepted features
+  used in forensic acoustic-phonetic speaker verification"
+  @Becker2008[p.~1] and "the Bayesian decision framework \[...\] is now
+  the standard paradigm for forensic speaker comparison"
+  @Bonastre2015[p.~1]. This Bayesian decision framework depends on
+  likelihood ratios @Harrison2013 that can be calculated with the same
+  computational tools used in this thesis.]
 
 Another distinguishing feature of BNGIF is the #emph[nonparametric]
 nature of our generative model of speech. More precisely, the model
@@ -116,40 +116,45 @@ the vocal tract @Stevens2000.
 
 The central problem of this thesis is boxed in @fig:central-problem.
 
-#figure(box([
-*Glottal inverse filtering (GIF)*
+#figure(
+  box(
+    [
+      *Glottal inverse filtering (GIF)*
 
-Assume that the source-filter model of speech production @Fant1960 holds
-such that the speech signal at time $t in bb(R)$ is described by
-convolving three real-valued functions:
-$
-s (t) = u (t) * h (t) * r (t).
-$ <eq:lti-full>
-From left to right $s (t)$ is the
-speech pressure waveform, $u (t)$ is the glottal flow waveform, $h (t)$
-is the impulse response of the vocal tract and $r (t)$ is the impulse
-response of the radiation characteristic, assumed known. Source-filter
-theory asserts that $s (t)$ can be thought of as the result of the
-source signal $u (t)$ passing through the filters $h (t)$ and $r (t)$.
+      Assume that the source-filter model of speech production @Fant1960 holds
+      such that the speech signal at time $t in bb(R)$ is described by
+      convolving three real-valued functions:
+      $
+        s (t) = u (t) * h (t) * r (t).
+      $ <eq:lti-full>
+      From left to right $s (t)$ is the
+      speech pressure waveform, $u (t)$ is the glottal flow waveform, $h (t)$
+      is the impulse response of the vocal tract and $r (t)$ is the impulse
+      response of the radiation characteristic, assumed known. Source-filter
+      theory asserts that $s (t)$ can be thought of as the result of the
+      source signal $u (t)$ passing through the filters $h (t)$ and $r (t)$.
 
-The data consists of $N$ noisy samples $bm(d) = d_(1:N)$ of the speech
-pressure waveform $s (t)$ at times $bm(t) = t_(1:N)$. We assume
-additive errors $bm(e) = e_(1:N)$ such that
-$
-  bm(d) & = bm(s) + bm(e)
-          ==> quad d_n & = s(t_n) + e_n quad (n = 1 dots.c N).
-$
-The error components $e_n$ are modeled as white noise
-with expected power $sigma_n^2$ which means that
-$e_n ~ "Normal"(0, sigma_n^2)$ for $n = 1 dots.h.c N$.
+      The data consists of $N$ noisy samples $bm(d) = d_(1:N)$ of the speech
+      pressure waveform $s (t)$ at times $bm(t) = t_(1:N)$. We assume
+      additive errors $bm(e) = e_(1:N)$ such that
+      $
+        bm(d) & = bm(s) + bm(e)
+                ==> quad d_n & = s(t_n) + e_n quad (n = 1 dots.c N).
+      $
+      The error components $e_n$ are modeled as white noise
+      with expected power $sigma_n^2$ which means that
+      $e_n ~ "Normal"(0, sigma_n^2)$ for $n = 1 dots.h.c N$.
 
-The data $(bm(t),bm(d))$ is possibly augmented with noisy statistics of
-$s (t)$ such as a list of estimated glottal closing instants (GCIs).
+      The data $(bm(t),bm(d))$ is possibly augmented with noisy statistics of
+      $s (t)$ such as a list of estimated glottal closing instants (GCIs).
 
-The GIF problem is then to #emph[find plausible estimates of the source
-$u (t)$ and the filter $h (t)$] that are consistent with the given data.
-], inset: 10pt, stroke: black),
-caption: [Statement of the GIF problem, which we attack in this thesis.]
+      The GIF problem is then to #emph[find plausible estimates of the source
+        $u (t)$ and the filter $h (t)$] that are consistent with the given data.
+    ],
+    inset: 10pt,
+    stroke: black,
+  ),
+  caption: [Statement of the GIF problem, which we attack in this thesis.],
 ) <fig:central-problem>
 
 Source-filter theory as expressed by equation
@@ -184,7 +189,7 @@ the voice production process.
 Even with that regularization in place, we will see that the problem is
 still underdetermined in the sense that we cannot in general expect to
 find unique solutions: the best we can hope for are #emph[plausible
-estimates in the form of posterior samples of $u (t)$ and $h (t)$];.
+  estimates in the form of posterior samples of $u (t)$ and $h (t)$];.
 These are plausible in the sense that they are consistent with both the
 speech data $bm(d)$ and whatever prior information about voice
 production we have expressed through the priors for $u (t)$ and $h (t)$.
@@ -196,17 +201,17 @@ production we have expressed through the priors for $u (t)$ and $h (t)$.
   [FIGURE HERE],
   caption: [
     Schematical representation of the source-filter model @eq:lti-full with $u,h,r,s$ and their Fourier transforms.
-    ],
+  ],
 ) <fig:source-filter-theory>
 
 Source-filter theory#footnote[Currently the dominant paradigm in
-acoustic phonetics @Maurer2016, the source-filter theory of voice
-production is commonly attributed to @Fant1960 but appears to date back
-to the early 19th century @Chen2016. Its strength lies in its extremely
-useful and compact description of the acoustics of phonation, summarized
-by @Fant1960[p. 15] as "the speech wave is the response of the vocal
-tract filter systems to one or more sound sources." A modern perspective
-on source-filter theory is given by #cite(<Svec2021>, form: "prose").] models the speech
+  acoustic phonetics @Maurer2016, the source-filter theory of voice
+  production is commonly attributed to @Fant1960 but appears to date back
+  to the early 19th century @Chen2016. Its strength lies in its extremely
+  useful and compact description of the acoustics of phonation, summarized
+  by @Fant1960[p. 15] as "the speech wave is the response of the vocal
+  tract filter systems to one or more sound sources." A modern perspective
+  on source-filter theory is given by #cite(<Svec2021>, form: "prose").] models the speech
 production process as a standard #emph[linear time-invariant] (LTI)
 system @Antsaklis2006 which is essentially a linear approximation to the
 underlying nonlinear dynamics of voice production that is roughly valid
@@ -234,8 +239,8 @@ $tilde(r)(x)$ describes the lip radiation effect. These transfer
 functions can be described equivalently in the time domain by the
 #emph[impulse responses]
 $
-    h(t) &= cal(F)^(-1)[tilde(h)(x)](t) &= integral_(-oo)^oo tilde(h)(x) exp{i 2 pi t x} dif x \
-    r(t) &= cal(F)^(-1)[tilde(r)(x)](t) &= integral_(-oo)^oo tilde(r)(x) exp{i 2 pi t x} dif x
+  h(t) & = cal(F)^(-1)[tilde(h)(x)](t) & = integral_(-oo)^oo tilde(h)(x) exp{i 2 pi t x} dif x \
+  r(t) & = cal(F)^(-1)[tilde(r)(x)](t) & = integral_(-oo)^oo tilde(r)(x) exp{i 2 pi t x} dif x
 $ <eq:hrt>
 using the inverse Fourier transform $cal(F)^(- 1)$.
 Unlike $u (t)$ and $h (t)$, $r (t)$ is assumed fixed and known: the lip
@@ -244,16 +249,17 @@ dB/octave high pass filter @Stevens2000[p.~128] which has transfer
 function $tilde(r)(x) = -i 2 pi x$. This corresponds to
 differentiation in the time domain as @eq:hrt yields
 $r (t) = delta' (t)$.#footnote[Convolution of a test function $f (x)$
-with the derivative of the Dirac delta function is equivalent to
-differentiation: $f (t) \* delta' (t) = f' (t)$. This can be justified
-by considering nascent delta functions such as the Gaussian
-$exp - t^2 \/ a^2 \/ sqrt(2 pi a^2)$ and then taking the limit
-$a arrow.r 0$.]
+  with the derivative of the Dirac delta function is equivalent to
+  differentiation: $f (t) \* delta' (t) = f' (t)$. This can be justified
+  by considering nascent delta functions such as the Gaussian
+  $exp - t^2 \/ a^2 \/ sqrt(2 pi a^2)$ and then taking the limit
+  $a arrow.r 0$.]
 
 The _output_ of the system is the speech pressure signal $s (t)$
 $
-    s(t) &=& &u(t)& * &h(t)& * &r(t)& quad quad &"(time domain)" \ //tag{ref{eq:lti-full}} 
-    ==> quad tilde(s)(x) &=& &tilde(u)(x)& &tilde(h)(x)& &tilde(r)(x)& &"(frequency domain)"
+                  s(t) & = && u(t)        & * & h(t)        & * & r(t)        & quad quad & "(time domain)" \
+  //tag{ref{eq:lti-full}}
+  ==> quad tilde(s)(x) & = && tilde(u)(x) &   & tilde(h)(x) &   & tilde(r)(x) &           & "(frequency domain)"
 $ <eq:lti-x>
 
 assumed to be measured in the free field (that is,
@@ -268,10 +274,10 @@ tract such that it vibrates with some initial distribution over
 frequencies $tilde(u)(x)$. Excited, the vocal tract filter
 $tilde(h)(x)$ reacts: frequencies in $tilde(u)(x)$ close to its
 resonance frequencies are emphasized,#footnote[The vocal tract filter is
-#emph[passive];, meaning that $|tilde(h)(x)| \< 1$ for all frequencies
-$x$ @Flanagan1965. The resonances of the vocal tract do not actively
-amplify frequencies; frequencies close to the resonance frequencies are
-just less dampened relative to neighbouring frequency bands.] while
+  #emph[passive];, meaning that $|tilde(h)(x)| \< 1$ for all frequencies
+  $x$ @Flanagan1965. The resonances of the vocal tract do not actively
+  amplify frequencies; frequencies close to the resonance frequencies are
+  just less dampened relative to neighbouring frequency bands.] while
 frequencies in $tilde(u)(x)$ close to its antiresonance frequencies are
 (often brutally) suppressed. The result of this spectral imprinting is
 then radiated from the lips into the free field. This radiation effect
@@ -286,21 +292,21 @@ Since $r (t)$ is assumed known, we can further simplify
 @eq:lti-full by substituting
 $r (t) = delta' (t)$:
 $
-s (t) = u (t) * h (t) * delta' (t) = [u (t) * delta ' (t)] * h (t) = u (t) * [h (t) * delta ' (t)] .
+  s (t) = u (t) * h (t) * delta' (t) = [u (t) * delta ' (t)] * h (t) = u (t) * [h (t) * delta ' (t)] .
 $
 We can differentiate either $u (t)$ or $h (t)$ in
 @eq:lti-full because convolution is
 associative; we choose to differentiate $u (t)$ as is customary in the
 literature @Doval2006. This finally yields
 $
-#box([$s (t) = u' (t) * h (t)$], stroke: black, inset: 10pt)
+  #box([$s (t) = u' (t) * h (t)$], stroke: black, inset: 10pt)
 $ <eq:suh>
 where
 $u' (t)$ is the #emph[glottal flow derivative] (DGF) which now acts as
 the source driving the single filter in @eq:suh.
 The original source $u (t)$ can be recovered through integration:
 $
-u(t) = integral_(-oo)^t u'(tau) dif tau.
+  u(t) = integral_(-oo)^t u'(tau) dif tau.
 $ <eq:udu>
 Equation @eq:suh is the basis for the nonparametric
 generative model of $s (t)$ which we use to separate speech data \[noisy
@@ -328,7 +334,7 @@ the lips). This definition is quite general and the actual physical
 mechanism underlying $u (t)$ depends on the type of phonation employed.
 
 In the GIF literature the type of phonation assumed is #emph[voiced
-speech];, during which the vocal folds vibrate at the fundamental
+  speech];, during which the vocal folds vibrate at the fundamental
 frequency $F_0$ while modulating a stream of air expelled from the
 lungs. The $u (t)$ waveform measures the flow rate (volume velocity, in
 ml/sec) of this airflow which looks like a quasiperiodic string of
@@ -341,12 +347,12 @@ The most widely used model for the DGF $u' (t)$ in voiced speech is the
 Liljencrants-Fant model of @Fant1985. We use this in @chapter:parametric
 as the basis for a parametric prior for $u (t)$ denoted formally as
 $
-u(t) ~ pi_"LF"(u(t))
+  u(t) ~ pi_"LF"(u(t))
 $ <eq:lfprior>
 This parametric prior serves as the basis for a more expressive and
 nonparametric Gaussian process prior derived in @chapter:spectral:
 $
-u(t) ~ pi_"GP"(u(t))
+  u(t) ~ pi_"GP"(u(t))
 $ <eq:gpprior>
 The GP underlying this prior has a Matérn kernel that is calibrated to
 $pi_"LF"$ using Bayesian transfer learning @Xuan2021.
@@ -355,7 +361,7 @@ $pi_"LF"$ using Bayesian transfer learning @Xuan2021.
   [FIGURE HERE],
   caption: [
     DGF and GF samples from $pi_"LF"$ and $pi_"GP"$.
-    ],
+  ],
 ) <fig:usamples>
 
 Samples from $pi_"LF"$ and $pi_"GP"$ are shown in
@@ -404,14 +410,14 @@ superposition of exponentially decaying sinusoids. This real-valued
 superposition is more convenient mathematically for our purposes than a
 complex rational function, so in @chapter:arprior we express our two
 priors for $h (t)$ in the time domain.#footnote[This might seem
-counterintuitive at first, but it is actually a common approach in
-Bayesian spectrum analysis @Bretthorst1988@Turner2014.]
+  counterintuitive at first, but it is actually a common approach in
+  Bayesian spectrum analysis @Bretthorst1988@Turner2014.]
 
 #figure(
   [FIGURE HERE],
   caption: [
     Samples from $h(t)$ prior in time and spectral domain.
-    ],
+  ],
 ) <fig:hsamples>
 
 The first one is a parametric prior over pole-zero expansions of the
@@ -457,12 +463,12 @@ traditional workhorse of acoustic analysis.
   [FIGURE HERE],
   caption: [
     Samples from $pi_"VS"$.
-    ],
+  ],
 ) <fig:ssamples>
 
 The speech pressure waveform
 $
-s(t) = u'(t) * h(t)
+  s(t) = u'(t) * h(t)
 $
 is the output of the
 LTI system that describes speech production according to source-filter
@@ -498,9 +504,9 @@ several lines along which the problem may be approached, but, following
 two recent reviews @Kadiri2021@Drugman2019a, it is possible to separate
 these approaches loosely into two broad classes: inverse filtering and
 joint source-filter optimization.#footnote[For the sake of the argument
-we ignore a here smaller third class which uses mixed-phase
-decomposition methods @Degottex2010@Kadiri2021@Drugman2019a such as
-complex cepstrum decomposition (CCD) @Drugman2011.] Before reviewing the
+  we ignore a here smaller third class which uses mixed-phase
+  decomposition methods @Degottex2010@Kadiri2021@Drugman2019a such as
+  complex cepstrum decomposition (CCD) @Drugman2011.] Before reviewing the
 specific contributions made by BNGIF to the GIF literature, and what
 they are hoped to accomplish at what cost, we first situate the approach
 taken in this thesis within these two classes.
@@ -560,7 +566,7 @@ other than operationalising it as input variability.
 
 === Contributions and merits of BNGIF
 <contributions-and-merits-of-bngif>
-===== Nonparametric glottal flow model
+==== Nonparametric glottal flow model
 <nonparametric-glottal-flow-model>
 BNGIF utilizes a nonparametric glottal flow model. That is, the unknown
 function $u (t)$ is modeled nonparametrically with the GP prior
@@ -582,7 +588,7 @@ hand, use analytical models for the glottal flow derivative $u' (t)$
 ability to capture the behavior of the glottal source in natural speech"
 @Kadiri2021[p.~1926].
 
-===== Uncertainty quantification
+==== Uncertainty quantification
 <uncertainty-quantification>
 It is commonly agreed that uncertainty analysis and quantification is
 important for fundamental scientific research and forensic or biometric
@@ -605,8 +611,8 @@ mathematically), and it does so uniquely, as first demonstrated by
 @Cox1946. Uncertainty analysis is automatically incorporated in a
 Bayesian approach by sampling the posterior for the given problem, and
 that is of course what BNGIF does,#footnote[Or rather: tries to do, as
-sampling the posterior is intractable for most real-world problems, and
-efficient approximations must be used instead.] as explained in
+  sampling the posterior is intractable for most real-world problems, and
+  efficient approximations must be used instead.] as explained in
 @sec:problem-statement and illustrated in
 @fig:source-filter-overview. Uncertainty quantification of
 various GIF-derived statistics such as the open quotient (OQ) and first
@@ -623,7 +629,7 @@ methods all produce point estimates of the glottal flow and vocal tract
 filter and do not seem to use posterior samples for uncertainty
 analysis.
 
-===== Adaptive GCI estimation
+==== Adaptive GCI estimation
 <adaptive-gci-estimation>
 Contrary to the sliding windows approach used by conventional LP
 analysis for formant estimation, GIF methods are
@@ -631,8 +637,8 @@ analysis for formant estimation, GIF methods are
 closure instants (GCIs) in order to work properly @Drugman2019. This
 means that the user has to run an independent GCI detection algorithm
 first before GIF methods can be used.#footnote[Note that robust GCI
-detection "is a very difficult task in practice" @Alzamendi2017[p.~14]
-for which many algorithms have been proposed @Drugman2019[Sec.~3.3].] A
+  detection "is a very difficult task in practice" @Alzamendi2017[p.~14]
+  for which many algorithms have been proposed @Drugman2019[Sec.~3.3].] A
 prominent (and according to @Chien2017, unique) exception to this is the
 aforementioned IAIF algorithm @Alku1992, which implements heuristic GCI
 estimation as part of its iterative structure.
@@ -650,7 +656,7 @@ inference, and yield refined estimates as part of its output. These
 adaptive abilities are quite unique in the GIF literature as far as we
 are aware.
 
-===== Modeling inertia and nonstationarity
+==== Modeling inertia and nonstationarity
 <modeling-inertia-and-nonstationarity>
 The inertia of the vocal apparatus and articulators imposes constraints
 on the speed at which the speech signal $s (t)$ can be produced and
@@ -686,7 +692,7 @@ important and representative inverse filtering methods use inter-pitch
 period correlations, and we are not aware of any joint source-filter
 optimization methods exploiting these correlations either.
 
-===== Probabilistic (anti)formant tracking
+==== Probabilistic (anti)formant tracking
 <probabilistic-antiformant-tracking>
 Formant tracking refers to estimating from speech data the (smooth)
 trajectories along which formants move over time, which in turn reflect
@@ -724,7 +730,7 @@ relatively recent example. BNGIF and KARMA also have in common the
 ability to optionally use noisy a priori estimates of the formant
 trajectories to speed up inference.
 
-===== Avoiding harmonic attraction
+==== Avoiding harmonic attraction
 <avoiding-harmonic-attraction>
 Higher values of the fundamental frequency $F_0$ pose challenges for
 formant tracking algorithms based on LP analysis due to a phenomenon
@@ -765,10 +771,10 @@ and reduced sensitivity to prior estimation of GCIs
 
 
 /*
-===== Improved accuracy
+==== Improved accuracy
 <improved-accuracy>
 
-===== Standardization and interface to downstream tasks
+==== Standardization and interface to downstream tasks
 <standardization-and-interface-to-downstream-tasks>
 No pipeline of operations like IAIF, just a prior and likelihood
 function ready to be plugged in a PPL
@@ -838,7 +844,7 @@ this too good to be true? Yes and no.
 
 The main issue here is cost:
 
-===== Cost
+==== Cost
 <cost>
 As we have mentioned sporadically before, the computational cost of
 BNGIF will prove prohibiting in many practical applications. In a sense
@@ -860,7 +866,7 @@ virtually certain that inference can be sped up by one or more orders of
 magnitude. Specialized inference methods are certainly possible. We
 discuss this further and other issues in Chapter~@chapter:7.
 
-===== Number of parameters
+==== Number of parameters
 <number-of-parameters>
 Another issue is the proliferation of parameters. Their sheer number
 makes the typical set hard to find. "One of the main drawbacks of
@@ -877,7 +883,7 @@ Linear in number of pitch periods $P$.
 
 But: sequential inference
 
-===== LTI assumption
+==== LTI assumption
 <lti-assumption>
 It is remarkable that LTI works. Why does it apply? What is being
 reconstructed? Linear approxiatiomn that works best within steady stat
@@ -901,7 +907,7 @@ will have different formants and bandwidths in closed and open phases
 and the result would be a glottal waveform independent of the vocal
 tract \[7,29]. @Walker2005
 
-===== Assumptions (priors)
+==== Assumptions (priors)
 <assumptions-priors>
 As with all models, any Bayesian analysis is only as strong as the
 extent of the veracity of the prior assumptions that go into it. And
@@ -939,11 +945,11 @@ Caveat: model selection is costly, so might be prohibitive in practice
 Other related contributions to acoustic phonetics that are not
 explicitly part of BNGIF are listed in Appendix~@app:othercontributions.
 
-===== JAX LF model
+==== JAX LF model
 <jax-lf-model>
-===== Generating reference formants tracks
+==== Generating reference formants tracks
 <generating-reference-formants-tracks>
-===== Method to determine spectral tilt
+==== Method to determine spectral tilt
 <method-to-determine-spectral-tilt>
 == Outline
 <outline>

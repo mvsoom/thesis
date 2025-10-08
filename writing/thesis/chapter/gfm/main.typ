@@ -16,7 +16,7 @@ Many models for the glottal flow and its derivative have been proposed over the 
   image("./fig/gf-models.png", width: 100%),
   placement: bottom,
   caption: [
-    The GF model zoo. A lineup of (handdrawn?) GF models back in 1986, together with their derivatives (DGFs). From #cite(<Fujisaki1986>, form: "author").
+    *The GF model zoo.* A lineup of (handdrawn?) GF models back in 1986, together with their derivatives (DGFs). From #cite(<Fujisaki1986>, form: "author").
   ],
 ) <fig:gf-lineup>
 
@@ -25,7 +25,8 @@ For a GF model to be useful, it should have the following properties: @Doval2006
 - DGF should integrate to $approx 0$
 - Computationally: quick to evaluate
 
-*Allow negative flow?* At first sight, glottal flow should be strictly postive, and most GF models enforce it. But there are exceptions like @Fujisaki1986. Motivation: "rounded closure" is often seen; sometimes attributed to residual leakage, but they argue there is also a component due to a period of negative flow caused by lowering of the vocal cords after closure, drawing DC current of air back in.
+==== Allow negative flow?
+At first sight, glottal flow should be strictly postive, and most GF models enforce it. But there are exceptions like @Fujisaki1986. Motivation: "rounded closure" is often seen; sometimes attributed to residual leakage, but they argue there is also a component due to a period of negative flow caused by lowering of the vocal cords after closure, drawing DC current of air back in.
 
 
 #figure(
@@ -37,7 +38,8 @@ For a GF model to be useful, it should have the following properties: @Doval2006
 ) <fig:lf>
 
 
-*The LF model.* The most dominant GF model by far is the LF model, number (e) in @fig:gf-lineup and see @fig:lf for detailed description. Some shortcomings:
+==== The LF model
+The most dominant GF model by far is the LF model, number (e) in @fig:gf-lineup and see @fig:lf for detailed description. Some shortcomings:
 - Analytically awkward: null flow condition not tractable, requires numerically solving a bisection routine. There has been research into making that routine more numerically stable.
 - Overparametrization: though conveniently parametrized in terms of physiological features, its parameters are not independent of each other. They are usually regressed in terms of one another, or in the LF model has been used for parametric fitting, even into a single parameter.
 - Does not allow negative flow.
@@ -115,12 +117,12 @@ $
 
 where $(t - c)_+^0 = max (0, t - c)^0$ is the Heaviside function and
 $
-a_1 = f_"ac" 1/T_1, quad a_2 = -f_"ac" (1/T_1+1/T_2).
+  a_1 = f_"ac" 1/T_1, quad a_2 = -f_"ac" (1/T_1+1/T_2).
 $
 Note that the amplitudes $bm(a) = {a_1, a_2}$ have
 
 
-This is an instance of a regression problem with $H$ fixed basisfunctions. Following #cite(<MacKay1998>, form: "prose"), 
+This is an instance of a regression problem with $H$ fixed basisfunctions. Following #cite(<MacKay1998>, form: "prose"),
 
 $
   phi_h (t \; bold(theta))
@@ -215,7 +217,7 @@ which expresses the DGF as a of changepoints $t_k$ followed by changes of direct
 
 To summarize what we did: we formulated all classic polynomial DGF models as linear polynomial changepoint models, where the $bold(t)$ changepoints were given hyperparameters. Changepoints are encoded as RePU functions; the closure constraint can be imposed analytically. Next we will bring the $bold(t)$ from hyperparameters to ordinary parameters.
 
-The parameters in the polynomial models are always DGF amplitudes (GF slopes) and changepoints, eg. @Fujisaki1986 Fig 2 has 6 parameters. Other models have other parameters, such as LF, which has 5. These can in principle be approximated to arbitrary precision with piecewise polynomial models, such that their parameters are again just amplitudes and changepoints. This is what we mean by parametric models. Next up we will marginalize over them such that they may 
+The parameters in the polynomial models are always DGF amplitudes (GF slopes) and changepoints, eg. @Fujisaki1986 Fig 2 has 6 parameters. Other models have other parameters, such as LF, which has 5. These can in principle be approximated to arbitrary precision with piecewise polynomial models, such that their parameters are again just amplitudes and changepoints. This is what we mean by parametric models. Next up we will marginalize over them such that they may
 
 
 /* now we got a prior for t_k: we can show samples */
