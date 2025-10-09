@@ -6,24 +6,27 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # %%
-to = 1
-tm = 4.5
-te = T = 6
+
+to = 0
+tp = te = 5.5
+tc = 7
+
+T0 = tc + 1
 
 K = 2
-t = np.array([to, tm])
+t = np.array([to, tp])
 
-x = np.linspace(0, T + 1, 500)
+x = np.linspace(-0.01, T0, 500)
 u = np.piecewise(
     x,
-    [x < to, (x >= to) & (x < tm), (x >= tm) & (x <= te), x > te],
-    [0, lambda x: (x - to) / (tm - to), lambda x: (te - x) / (te - tm), 0],
+    [x <= to, (x >= to) & (x < tp), (x >= tp) & (x <= tc), x > tc],
+    [0, lambda x: (x - to) / (tp - to), lambda x: (tc - x) / (tc - tp), 0],
 )
 
 du = np.piecewise(
     x,
-    [x < to, (x >= to) & (x < tm), (x >= tm) & (x <= te), x > te],
-    [0, 1 / (tm - to), -1 / (te - tm), 0],
+    [x <= to, (x >= to) & (x < tp), (x >= tp) & (x <= tc), x > tc],
+    [0, 1 / (tp - to), -1 / (tc - tp), 0],
 )
 
 plt.plot(x, u * 0)
@@ -46,8 +49,8 @@ def H(x, n):
     return np.heaviside(x, 1) * x**n
 
 
-tm = np.random.uniform(te, to)
-t = np.array([to, tm])
+tp = np.random.uniform(te, to)
+t = np.array([to, tp])
 
 t = np.random.uniform(te, to, size=500)
 

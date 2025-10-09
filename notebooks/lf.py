@@ -7,21 +7,23 @@ from matplotlib import pyplot as plt
 
 from utils.lfmodel import dgf
 
-to = 1
-tm = 4.5
-te = 6.5
+to = 0
+tm = 4
+te = 5.5
 tc = 7
+
+T0 = tc + 1
 
 p = {
     "T0": tc,
-    "Te": te - to,
-    "Tp": tm - to,
-    "Ta": 0.2,
+    "Te": te,
+    "Tp": tm,
+    "Ta": 0.15,
 }
 
-t = jnp.linspace(0, tc + 1, 1000)
+t = jnp.linspace(0, T0, 1000)
 
-du = dgf(t, p, offset=to)
+du = dgf(t, p)
 u = jnp.cumsum(du) * (t[1] - t[0])
 
 plt.plot(t, du)
