@@ -131,7 +131,9 @@
 
 #include "./chapter/gfm/main.typ"
 
-#include "./chapter/spectral/main.typ"
+#include "./chapter/pack/main.typ"
+
+#include "./chapter/qpack/main.typ"
 
 = Learning a nonparametric glottal flow prior
 

@@ -57,9 +57,9 @@ applications (for example, voice modification). To this we would add
 speaker identification @Bonastre2015.
 
 Our approach to the GIF problem is mostly relevant to the first category
-(i) above because we try to model the process of scientific inference –
+(i) above because we try to model the process of scientific inference --
 make assumptions, model the data, fit the data, evaluate the model,
-reiterate – as a whole rather than 'just' modeling the data alone
+reiterate -- as a whole rather than 'just' modeling the data alone
 @MacKay2005[Ch.~28]. It has been shown repeatedly that the unique way to
 do this is the probabilistic or #emph[Bayesian] framework @Knuth2012.
 Within this mathematical framework our generative model of voiced speech
@@ -262,7 +262,7 @@ $
 $ <eq:lti-x>
 
 assumed to be measured in the free field (that is,
-sufficiently far from the speaker’s head) @Stevens2000. Filtering in LTI
+sufficiently far from the speaker's head) @Stevens2000. Filtering in LTI
 systems happens through multiplication in the frequency domain
 @eq:lti-x, which is equivalent to convolution in
 the time domain @eq:lti-full.
@@ -283,9 +283,9 @@ then radiated from the lips into the free field. This radiation effect
 is contained within $tilde(r)(x)$: high frequencies are emphasized,
 essentially because the lips act like small (passive) tweeters
 @Schroeder1999. We are able to #emph[hear] the spectral imprint of the
-speaker’s vocal tract on the initial energy distribution @Klatt1986,
+speaker's vocal tract on the initial energy distribution @Klatt1986,
 because it is what we use to tell the difference between different
-speech sounds, and ultimately to understand the speaker’s message.
+speech sounds, and ultimately to understand the speaker's message.
 
 Since $r (t)$ is assumed known, we can further simplify
 @eq:lti-full by substituting
@@ -320,7 +320,7 @@ overview of the proposed priors for each of them.
 the GIF problem requires realistic priors on $u (t)$ and $h (t)$ and we
 can show some of their realistic properties already by just sampling
 them. Note that these priors are nothing but generative models of
-$u (t)$, $h (t)$ and $s (t)$ – they are 'priors' because we can generate
+$u (t)$, $h (t)$ and $s (t)$ -- they are 'priors' because we can generate
 samples from these models according to a probability density that
 represents our prior information about the speech production process.
 
@@ -603,7 +603,7 @@ separation problem since neither the vocal tract response nor the
 glottal flow contribution are actually observable"
 @Degottex2014[p.~962], we would argue that uncertainty quantification
 takes on a nearly essential quality, if only as a rough measure of the
-GIF algorithm’s trust in its own output.
+GIF algorithm's trust in its own output.
 
 As the reader probably anticipates by now, the natural framework for
 uncertainty quantification is Bayesian probability theory.
@@ -652,7 +652,7 @@ discovered information (during inference) about either one of these to
 constrain the others. This adaptive strategy helps to 'bootstrap' the
 GCIs from the speech signal, since GCIs are instrumental in recovering
 $u (t)$, but ultimately need to be derived from (and are defined in
-terms of) the latter. Another adaptive aspect of BNGIF’s built-in GCI
+terms of) the latter. Another adaptive aspect of BNGIF's built-in GCI
 estimation is that noisy GCI estimates may #emph[optionally] be supplied
 by the user a priori; BNGIF will then use this information to speed up
 inference, and yield refined estimates as part of its output. These
@@ -726,8 +726,8 @@ zeros occur during the open phase of the glottis due to coupling to the
 subglottal cavity @Ananthapadmanabha1982@Plumpe1999.
 
 There are a handful of formant tracking algorithms, however, that
-implement the same principle – that is, smoothing of formant tracks
-during inference rather than as a post-processing step – of which the
+implement the same principle -- that is, smoothing of formant tracks
+during inference rather than as a post-processing step -- of which the
 Kalman-based autoregressive moving average @Mehta2012 method is a
 relatively recent example. BNGIF and KARMA also have in common the
 ability to optionally use noisy a priori estimates of the formant
@@ -746,7 +746,7 @@ $F_0$, this alignment causes the systematic correlations between $F_0$
 and $bold(F)$ known as $F_0$ bias. In the case that $F_0 approx F_1$,
 known as $F_0 - F_1$ congruence @Kent2018, harmonic attraction can be
 especially challenging, since LP analysis, as a spectral smoothing
-device, lacks a conceptual model for separating the two – in contrast
+device, lacks a conceptual model for separating the two -- in contrast
 to, for example, the auditory processing regions of our brains
 @Schnupp2011.
 
@@ -787,7 +787,7 @@ acteristics of speech and is known to signiﬁcantly vary with changes in
 phonation type, glottal ﬂow parameterisation ﬁnds useful applica- tions
 in many areas of speech research. COVAREP includes algo- rithms for
 extracting several commonly used GF parameters: NAQ \[35], QOQ \[36],
-H1–H2 \[37], HRF \[38], and PSP \[39]. @Degottex2014
+H1--H2 \[37], HRF \[38], and PSP \[39]. @Degottex2014
 
 There is often interest for statistics of the glottal flow $u (t)$
 rather than the signal itself, as it is convenient to capture the
@@ -803,8 +803,8 @@ from the source signal together with error estimates.
 Example: Utilization of Excitation Information for Detection of
 Neurodegenerative Diseases @Kadiri2021
 
-Parkinsons’s @Ma2020: \"Emerging evidence suggests voice dysfunction is
-the earliest sign of motor impairment in Parkinson’s disease (PD). The
+Parkinsons's @Ma2020: \"Emerging evidence suggests voice dysfunction is
+the earliest sign of motor impairment in Parkinson's disease (PD). The
 complexity and fine motor control involved in vocalization may result in
 dysfunction here before the limbm(s)\" Mainly (see Table 1 for list of
 features): - higher HNR (harmonics-to-noise ratio) - shimmer and jitter
@@ -832,9 +832,9 @@ envelope appraoches @Yoshii2013
 === Costs and caveats of BNGIF
 <costs-and-caveats-of-bngif>
 All of the above merits of BNGIF are consequences of it being a
-'all-encompassing' Bayesian generative model of speech – the data is
+'all-encompassing' Bayesian generative model of speech -- the data is
 modeled in its entirety, and this solves many issues with other GIF
-methods in – suspiciously unique – one go.
+methods in -- suspiciously unique -- one go.
 
 But this comes at a large cost: Bayesian inference for BNGIF is not
 cheap, and this mirrors other Bayesian GIF attempts.
@@ -858,7 +858,7 @@ course an impedement in simplifying and faster methods based on signal
 processing.
 
 Similar cost in @Auvinen2014: 2.5h of processing per speech frame on
-single CPU – a frame is 25 msec or about 4 pitch periods.
+single CPU -- a frame is 25 msec or about 4 pitch periods.
 
 Other expensive optimization is in @Airaksinen2017
 
@@ -928,7 +928,7 @@ computationally expensive.
 
 Other issues are assumptions such as the parametric models for $h (t)$,
 which are quite crude. For example homomorphic methods, while relatively
-crude @Chien2017, have the advantage of actually being nonparametric –
+crude @Chien2017, have the advantage of actually being nonparametric --
 that is, no parametric model is assumed at all.
 
 And more issues are the fixed hyperparameters: like the time scales for

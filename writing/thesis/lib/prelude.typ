@@ -11,3 +11,6 @@
     }
   }
 }
+
+#let argmax = $op("argmax", limits: #true)$
+#let argmin = $op("argmin", limits: #true)$
