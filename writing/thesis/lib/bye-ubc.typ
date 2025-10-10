@@ -260,7 +260,7 @@
     // appendices will inherit the subsection counter from the previous section.
     counter(heading).update(0)
 
-    let numbering_format = "A.1"
+    let numbering_format = "A.1."
 
     set heading(
       // Allow users to write each appendix as a level 1 heading, but then treat
@@ -280,7 +280,7 @@
       }
       context {
         let level = counter(heading).get().at(1)
-        [Appendix #numbering(numbering_format, level): #it.body]
+        [Appendix #numbering(numbering_format, level) #it.body]
       }
       s.update(true)
     }

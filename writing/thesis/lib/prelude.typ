@@ -1,6 +1,10 @@
 #let bm(x) = math.bold(math.upright(x))
 
 #let pcite(key, ..args) = cite(key, form: "prose", ..args)
+#let ncite(label, ..args) = {
+  show regex("\(|\)"): none
+  cite(label, ..args)
+}
 
 #let section-title-page(label) = context {
   let els = query(label)
