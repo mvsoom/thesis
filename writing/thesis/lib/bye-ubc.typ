@@ -1,3 +1,4 @@
+/* source: https://github.com/DJDuque/bye-ubc v0.2.3 */
 #let title-page(
   title: none,
   author: none,
@@ -255,8 +256,11 @@
 
   if appendices != none and appendices != [] {
     heading("Appendices", numbering: none)
+    // Given that the appendices heading has no numbering, the following
+    // appendices will inherit the subsection counter from the previous section.
+    counter(heading).update(0)
 
-    let numbering_format = "A.1:"
+    let numbering_format = "A.1"
 
     set heading(
       // Allow users to write each appendix as a level 1 heading, but then treat
@@ -266,7 +270,6 @@
       numbering: (_, ..rest) => numbering(numbering_format, ..rest),
       supplement: [Appendix],
     )
-
     // Each appendix should start on a new page, but the first one should not
     // start with a pagebreak i.e. it should be right after the "Appendices"
     // heading.
@@ -277,7 +280,7 @@
       }
       context {
         let level = counter(heading).get().at(1)
-        [Appendix #numbering(numbering_format, level) #it.body]
+        [Appendix #numbering(numbering_format, level): #it.body]
       }
       s.update(true)
     }
