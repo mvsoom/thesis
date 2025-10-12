@@ -15,7 +15,7 @@ Decades of empirical work have over time produced a "model zoo" of GFMs: handcra
 Because these are _parametric_ models, they all share the same basic traits: parsimonious, interpretable, but inevitably stiff @Schleusing2012. Their parametric nature limits the range of time domain information they can encode.
 This motivates the construction of a family of _nonparametric_ models, which reach for greater expressivity with _less_ parameters.
 
-With the equations to follow, it is all too easy to lose connection to the actual physical phenomenon being modeled.
+With the many equations to follow, it is all too easy to lose connection to the actual physical phenomenon being modeled.
 After a short look at the glottal cycle, we begin with a review of the classic Liljencrants-Fant model.
 Then we revisit the parametric piecewise polynomial models and generalize them to the nonparametric regime, where they are identified with the _arc cosine kernel_ of #pcite(<Cho2009>).
 The latter is argued to combine the advantages of both worlds: the interpretability of parametric models with the flexibility of nonparametric ones.
@@ -130,10 +130,10 @@ Over the years, a large number of glottal flow models have been proposed in acou
 share a common mathematical structure and can be unified under a single framework;
 the $bold(theta)_"LF"$ parameters in @eq:lf-parameters can in fact express all of them.
 These GFMs all model a glottal flow $u(t)$ that is positive or null, continuous, and typically differentiable except at the glottal closure instant (GCI). Within each period, $u(t)$ rises during the opening phase, falls during the closing phase, and returns to zero during the closed phase, possibly through a short return phase that smooths the closure. The derivative $u'(t)$ alternates positive, zero, and negative in the expected order and integrates to zero over one period, satisfying the closure constraint @eq:closure-constraint.
-It is continuous in case of a nonempty return phase and discontinuous otherwise (jump at $t_c$), known as hard closure.
+It is continuous in case of a nonempty return phase and discontinuous otherwise (meaning a jump at $t_c$ as in @fig:alku), known as hard closure.
 
 ==== Allow partial closure?
-The strict closure constraint in @eq:closure-constraint is of course a convenient modeling choice and must be expected to be violated to varying degrees in reality, as real folds often leak, especially in breathy or pathological voices.
+The strict closure constraint in @eq:closure-constraint is of course just a convenient modeling choice and must be expected to be violated to varying degrees in reality, as real folds often leak, especially in breathy or pathological voices.
 On the one hand, it clearly is a defining feature
 #footnote[
   The pioneering study on GIF by #pcite(<Miller1959>) had to deconvolve taped speech waveforms with analogue resistor networks and manual optimization.
@@ -141,20 +141,22 @@ On the one hand, it clearly is a defining feature
 ]
 of the periodic nature of the glottal cycle.
 On the other, empirical data show the limits of this hard constraint.
-For example, #pcite(<Kreiman2007>, supplement: [p.~601]) observe that:
+For example, #pcite(<Kreiman2007>, supplement: [p.~601]) observe that
 #quote(block: true)[
-  in many cases in our data, returning flow derivatives to 0 at the end of the cycle conflicted with the need to match the experimental data and conflicted with the requirement for equal areas under positive and negative curves in the flow derivative. [...] These conflicts between model features, constraints, and the empirical data were handled by abandoning the equal area constraint.#footnote[The "equal area constraint" is another name for the closure constraint.]
+  in many cases in our data, returning flow derivatives to 0 at the end of the cycle conflicted with the need to match the experimental data and conflicted with the requirement for equal areas under positive and negative curves in the flow derivative. [...] These conflicts between model features, constraints, and the empirical data were handled by abandoning the equal area constraint.#footnote[That "equal area constraint" is just another name for the closure constraint @eq:closure-constraint.]
 ]
 The approach we take in @chapter:pack is to learn a softened version of the closure constraint @eq:closure-constraint from data rather than set it a priori.
 This means we learn both whether the flow typically returns to zero and, if not, to what extent this constraint is plausibly violated.
 
 ==== Allow negative flow?
-Same story: at first sight, glottal flow should be strictly postive ($u(t) >= 0$), and most GF models enforce it. But there are exceptions like #pcite(<Fujisaki1986>), also noted in #pcite(<Degottex2010>, supplement: [p.~35]), who allow for
-transient negative flow which can model a lowering of the vocal folds after GCI such that air is sucked back in.
-We also learn this effect from data and do not forbid $u(t) < 0$ a priori.
+Most GFMs enforce a positive glottal flow and assert $u(t) >= 0$. But there are exceptions such as #pcite(<Fujisaki1986>)/*, also noted in #pcite(<Degottex2010>, supplement: [p.~35])*/. They allow for
+transient negative flow which could represent a lowering of the vocal folds after GCI (presumably when air is sucked back into the lungs).
+As with the closure constraint, we will learn this effect from data in @chapter:pack and do not forbid $u(t) < 0$ a priori.
 
 == Classic piecewise polynomial models
 <sec:classic-polynomial-models>
+
+// TODO
 
 We make a case for the old "forgotten" family of polynomial GF models such as @Alku2002 @Verdolini1995 @Doval2006:
 - Computationally fast, analytical null flow condition
@@ -195,55 +197,110 @@ There are conventially several changepoints in the glottal cycle to be modeled: 
 
 We now look at the simplest of the polynomial models in more detail. We will use this model below as a starting point for our generalization to general polynomials of arbitrary degree $n$ and precision $H$, and finally take the limit $H -> oo$.
 
-=== The triangular pulse model
+// TODO until here
 
-The simplest and arguably most succesful polynomial model is the triangular pulse model proposed in #pcite(<Alku2002>) which is asserts $u(t)$ piecewise linear in GF ($n=1$ degree polynomial) and $u'(t)$ piecewise constant ($n = 0$ degree polynomial). It is used mainly as a more robust way to estimate OQ (a time domain parameter) from the amplitude domain and not as a GF model in itself, but we can use it as a starting point for our generalization from parametric to nonparametric models.
+=== The triangular pulse model
 
 #figure(
   gnuplot(read("./fig/alku2002.gp")),
-  placement: top,
+  placement: auto,
   caption: [
-    The triangular pulse model proposed in #pcite(<Alku2002>).
+    *The triangular pulse model* for #box(baseline: -3pt)[#line(length: 1.5em, stroke: 1.3pt + blue)] $u'_Delta (t)$ and #box(baseline: -3pt)[#line(length: 1.5em, stroke: 1.3pt + red)] $u_Delta (t)$ during a single period of length $T$.
+    The parameters used in this model are identical to @fig:lf, except for the lack of a return phase and that the 'instant' of maximum excitation $t_e$ now spans the interval $[t_p, t_c]$.
   ],
 ) <fig:alku>
 
-@fig:alku shows the triangular pulse model for the glottal flow and its derivative given a period $T$. Its derivative is a rectangular (piecewise constant) function:
+The simplest polynomial model is the _triangular pulse model_ proposed by #pcite(<Alku2002>).
+It takes $u(t)$ piecewise linear and $u'(t)$ piecewise constant, as shown in @fig:alku.
+Mathematically, the triangular pulse model is given by:
 $
-  u'(t) = cases(
-    0 quad quad & 0 & < t & <= t_o,
-    +f_"ac" / (t_e-t_o) quad quad & t_o & < t & <= t_m,
-    -f_"ac"/ (t_e-t_m) quad quad & t_m & < t & <= t_e = t_c,
-     // 0 quad quad & t_e & > t,
+  u'_Delta (t) = cases(
+    +E_e (t_c/t_p - 1) quad quad & 0 & < t & <= t_p quad quad & "(O)",
+    -E_e quad quad & t_p & < t & <= t_c & "(O)",
+    0 quad quad & t_c & < t & <= T & "(C)",
   )
 $ <eq:dgf-piece>
-This function is parametrized by the time domain parameters ${t_o, t_m, t_e}$, which specifiy the changepoints, and amplitude domain parameters ${f_"ac", d_"peak"}$. Note that $d_"peak"$ is conscipicously absent in @eq:dgf-piece; this is because the closure constraint $integral_(t_o)^(t_e) u'(t) dif t = 0$ removes one degree of freedom, so any single one of these can be expressed in terms of the others. Thus $d_"peak" = f_"ac"/(t_e-t_m)$ or equivalently $t_e - t_m = f_"ac"/d_"peak"$. #pcite(<Alku2002>) point out that this last relation expresses a difficult-to-measure time domain quantity as the ratio of two easy-to-measure quantities in the amplitude domain and exploit this fact to measure the open quotient (OQ) more robustly.
+The model has no return phase and only four parameters: $bold(theta)_Delta = {E_e, t_p, t_c, T}$.
+Note that the amplitude of the first case in @eq:dgf-piece is fixed because the closure constraint @eq:closure-constraint removes one degree of freedom.
+#pcite(<Alku2002>) point out that this enables a difficult-to-measure time domain quantity to be expressed as the ratio of two easy-to-measure quantities in the amplitude domain and exploit this fact to measure the open quotient more robustly.
 
 
 == Parametric piecewise polynomial models
 <sec:parametric-piecewise-polynomials>
 
-The rectangular pulse model @eq:dgf-piece contains two jumps, so we can write it more generally as a linear combination of two Heaviside functions during the open phase:
+The triangular pulse model @eq:dgf-piece contains two jumps in the derivative $u'_Delta (t)$, so we can write the latter more compactly as a linear combination of two Heaviside functions
 $
-  u'(t) = a_1 (t)_+^0 + a_2 (t - t_m)_+^0 quad (t_o <= t <= t_c)
-$
-
+  u'_Delta (t) = cases(
+    a_1 (t)_+^0 + a_2 (t - t_p)_+^0 quad quad & 0 & < t & <= t_c quad quad & "(O)",
+    0 quad quad & t_c & < t & <= T & "(C)",
+  )
+$ <eq:alku-lc>
 where $(t)_+^0 = max (0, t)^0$ is the Heaviside function and
 $
-  a_1 = f_"ac" 1/T_1, quad a_2 = -f_"ac" (1/T_1+1/T_2).
+  a_1 = +E_e (t_c/t_p - 1), quad a_2 = -E_e t_c/t_p.
 $
-Note that the amplitudes $bm(a) = {a_1, a_2}$ have
+During the open phase, we can interpret the rewritten triangular pulse model as a _parametric piecewise polynomial model_ of _degree_ $d = 0$ and _order_ $H = 2$.
+It has parameters $bm(theta)_2 = {bm(a), bm(t)}$ which describe $H = 2$ jumps with amplitudes $bm(a) = (a_1, a_2)^top$ and at changepoint locations $bm(t) = (0, t_p)^top$.
+Note that in this formulation the amplitudes $bm(a)$ differ from the piecewise amplitudes in @eq:dgf-piece but are still linearly dependent given $bm(t)$.
+
+Continuing, nothing stops us from generalizing both $H$ and $d$.
+The open phase part of @eq:alku-lc becomes:
+$
+  u'_H (t) = sum_(h=1)^H a_h (t-t_h)_+^d quad quad & 0 & < t & <= t_c quad quad & "(O)"
+$ <eq:udH>
+This is the general parametric piecewise polynomial model of degree $d$ and order $H$.//, supported on $[0,t_c]$ (the open phase). // Technically the support operation takes the closure of the interval 0 < t <= t_c so this is correct
+Again, its parameters $bm(theta)_H = {bm(a), bm(t)}$ are the amplitudes $bm(a) = (a_1, dots, a_H)^top in bb(R)^H$ and the changepoints $bm(t) = (t_1, dots, t_H)^top in bb(R)^H$.
+These scale and shift $H$ piecewise monomials of degree $d$:
+$
+  (t-t_h)_+^d = max(0, t-t_h)^d = cases(
+    0 quad & t < t_h,
+    (t-t_h)^d quad & t >= t_h,
+  )
+$ <eq:repu>
+We recognize @eq:repu as the family of activation functions called _rectified power units_ (RePUs).
+These include Heaviside for $d = 0$ and the influential ReLU function for $d = 1$, both shown amongst higher degree variants in @fig:repu.
+It may sound like a stretch to relate polynomial GFMs to neural nets, but this view of things will pay off greatly in @sec:nonparametric-piecewise when we take the limit $H -> oo$.
+
+#figure(
+  grid(
+    align: center,
+    row-gutter: { 10pt },
+    column-gutter: { 1pt },
+    columns: 4,
+    $(t)_+^0$, $(t)_+^1$, $(t)_+^2$, $(t)_+^3$,
+    [Heaviside], [ReLU], [ReQU], [ReCU],
+    gnuplot(read("./fig/repu0.gp")),
+    gnuplot(read("./fig/repu1.gp")),
+    gnuplot(read("./fig/repu2.gp")),
+    gnuplot(read("./fig/repu3.gp")),
+  ),
+  placement: auto,
+  caption: [*The RePU activation functions* $(t)_+^d$ for $d in {0,1,2,3}$. After #pcite(<Cho2009>).],
+) <fig:repu>
+
+=== Regression view
+
+In the context of Bayesian time series regression, @eq:udH is a standard linear model with $H$ fixed basisfunctions (given $bm(t)$) @Bretthorst1988 @ORuanaidh1996.
+We may write it as
+$
+       u'_H (t; bm(theta)_H) & = bm(phi) (t; bm(t))^top bm(a) quad \
+  "where" bm(phi) (t; bm(t)) & = [0 < t <= t_c] times vec((t-t_1)_+^d, dots.v, (t-t_H)_+^d) in bb(R)^H \
+         "and" bm(a) | bm(t) & ~ cal(N)(bm(a) | bm(0),bm(Sigma)_a).
+$ <eq:udH-linear>
+We used an Iverson bracket $[0 < t <= t_c]$ in @eq:udH-linear to bake in the compact support during the open phase.
 
 
 This is an instance of a regression problem with $H$ fixed basisfunctions. Following #pcite(<MacKay1998>),
+The addidivity of the $phi$ suggests Gaussian priors for $bm(a)$.
 
-$
-  phi_h (t \; bold(theta))
-$
+// go to mean and covar formulation in this section
+// including k(t,t') = Pi() ( ) (Pi) from phi
 
-But we needn't stop here. We now restate the rectangular pulse model @eq:dgf-piece during the open phase as a probabilistic standard linear model @MacKay1998, in which Gaussian amplitudes modulate fixed basis functions (assume hyperparameters $bold(t)$ fixed). For increased resolution (extra changepoints), we can generalize this to a linear combination of $K$ arbitrarily scaled Heaviside jumps centered at change points $t_(1:K) in [t_o, t_e]$:
-$
-  u'(t) = sum_(k=1)^K a_k H(t - t_k) quad (t_o <= t, t_k <= t_c)
-$
+
+
+==== Closure constraint
+Here we derive $bm(Sigma)_a$.
+
 If we assume the $t_(1:K)$ given for now and let $a_k ~ N(0, sigma^2_a)$, then using $integral_(-oo)^t H(tau - c) dif tau = H(t - c)(t - c)$ we get the closure condition for free in expectation:
 $
   bb(E)_a [integral_0^T u'(t) dif t] = sum_(k=1)^K bb(E)[a_k] H(T-t_k) (T-t_k) = 0.
@@ -266,38 +323,6 @@ This shows how prior of $a$ can encode properties we care about. This is a centr
 
 In the previous example, we proposed to increase resolution by increasing $K$; we now can add more expressivity by allowing the degree $n$ to be $>= 0$ as well. In this way we also include the higher order classic polynomial models in @sec:classic-polynomial-models.
 
-#figure(
-  grid(
-    align: center,
-    row-gutter: { 10pt },
-    column-gutter: { 1pt },
-    columns: 4,
-    $(t)_+^0$, $(t)_+^1$, $(t)_+^2$, $(t)_+^3$,
-    [Heaviside], [ReLU], [ReQU], [ReCU],
-    gnuplot(read("./fig/repu0.gp")),
-    gnuplot(read("./fig/repu1.gp")),
-    gnuplot(read("./fig/repu2.gp")),
-    gnuplot(read("./fig/repu3.gp")),
-  ),
-  placement: auto,
-  caption: [Activation functions. After @Cho2009.],
-) <fig:repu>
-
-The need to access both $u(t)$ and $u'(t)$ also suggest to write $H(t)$ as a RePU (rectified power unit, aka thresholded monomials) function:
-$
-  (t)_+^n = H(t) t^n = cases(
-    0 quad & t < 0,
-    t^n quad & t >= 0,
-  )
-$
-so now integration and differentiation act as convenient ladder operators:
-$
-  integral_(-oo)^t (tau - c)_+^(n-1) dif tau & = 1/n (t - c)_+^n, \
-                     dif/(dif t) (t - c)_+^n & = n (t - c)_+^(n-1) quad quad (n >= 1, c in bb(R))
-$
-allowing us to quickly go from DGF to GF and vice versa.
-#footnote[These relations can be made precise by using distribution theory @Lighthill1958 rather than functions, but they will do for our purpose here.] $t_+^n$ includes Heaviside for $n = 0$ ($t_+^0 = H(t)$); ReLU for $n = 1$ (linear), ReQU for $n = 2$ (quadratic) and ReCU for $n = 3$ (cubic) -- see @fig:repu.
-
 The general parametric polynomial model of degree $n$ and order $K$ is now
 $
       u'(t) & = sum_(k=1)^K a_k (t-t_k)_+^n \
@@ -318,14 +343,37 @@ which expresses the DGF as a of changepoints $t_k$ followed by changes of direct
   placement: top,
   kind: image,
   caption: [
-    (a) The triangular pulse model as a tiny neural network with a single hidden layer, linear readout and $t^0_+ = H(t)$ activation.
-    (b) The general parametric polynomial model of degree $n$ with order $K$ with weights $w in bb(R)^(K times 2), a in bb(R)^K$ and RePU activation function $t_+^n = H(t) t^n$.
+    *Neural network view.*
+    (a) The triangular pulse model as a tiny neural network with a single hidden layer, linear readout and $t^0_+$ activation.
+    (b) The general parametric polynomial model of degree $n$ with order $H$ with weights $bm(w) = {bm(a), bm(t), bm(c)} in bb(R)^(3 H)$ and RePU activation function $t_+^n$.
   ],
   gap: 1em,
 ) <fig:nn-polynomial>
 
+==== How good of a GFM is this?
 
-*Connection to neural networks.* In a modern lens, these models can be seen as a neural net with a single hidden layer in the regression setting. $H(t) t$ is a ReLU, etc. This is good, because already a single hidden layer has the universality property. Encouraged, this also suggests the prior $t_k ~ N(0, sigma_t^2)$ truncated to $t_k in [t_0, t_e]$: these are biases in the neural net picture, and we truncate to remain in the open phase.
+
+Before doing so, we take a look at how much of viable candidates @eq:udH still are as GFMs.
+
+Differentiable: yes
+
+Domain: yes
+
+No return phase unless very lucky, tiny support
+
+Closure constraint: we could restrict this analytically
+
+Putting priors will enable us to trace out a family of GFMs
+
+=== Connection to neural networks.
+<sec:connection-to-neural-networks>
+
+/*
+we invoked linearity on the bm(a) to justify gaussian priors, but the bm(t) are also additive within neural network lense
+and this suggest a bm(c) parameter to modulate t
+*/
+
+In a modern lens, these models can be seen as a neural net with a single hidden layer in the regression setting. $H(t) t$ is a ReLU, etc. This is good, because already a single hidden layer has the universality property. Encouraged, this also suggests the prior $t_k ~ N(0, sigma_t^2)$ truncated to $t_k in [t_0, t_e]$: these are biases in the neural net picture, and we truncate to remain in the open phase.
 
 To summarize what we did: we formulated all classic polynomial DGF models as linear polynomial changepoint models, where the $bold(t)$ changepoints were given hyperparameters. Changepoints are encoded as RePU functions; the closure constraint can be imposed analytically. Next we will bring the $bold(t)$ from hyperparameters to ordinary parameters.
 
@@ -336,6 +384,7 @@ The parameters in the polynomial models are always DGF amplitudes (GF slopes) an
 /* K, n picture */
 
 == Nonparametric piecewise polynomial models
+<sec:nonparametric-piecewise>
 
 After having generalized $n$, now we generalize $H -> oo$. Let $phi(t) = (t)_+^n$ with $n$ given, then the covariance matrix $K$ is given as
 

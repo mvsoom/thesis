@@ -10,21 +10,21 @@
     hK [label="t_+^n"];
     u [label="u'"];
 
-    1 -> h1 [label="w_(11)"]
+    1 -> h1 [label="t_1"]
     t -> h1
 
     1 -> h2
-    t -> h2 [label="w_(K 2)"]
+    t -> h2 [label="c_H"]
 
     1 -> h3
-    t -> h3 [label="w_(k 2)"]
+    t -> h3 [label="c_h"]
 
-    1 -> hK [label="w_(21)"]
+    1 -> hK [label="t_2"]
     t -> hK
 
     h1 -> u [label="a_1"]
-    h2 -> u [headlabel="a_K", labelangle=17, labeldistance=2.75];
-    h3 -> u [headlabel="a_k", labelangle=14, labeldistance=2.75];
+    h2 -> u [headlabel="a_H", labelangle=17, labeldistance=2.75];
+    h3 -> u [headlabel="a_h", labelangle=14, labeldistance=2.75];
     hK -> u [label="a_2"]
   }
 ```

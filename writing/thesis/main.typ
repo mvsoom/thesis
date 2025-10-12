@@ -109,8 +109,6 @@
 
 #set heading(numbering: "1.1.1")
 
-#set heading(numbering: "1.", supplement: "Chapter")
-
 #set math.equation(
   numbering: "(1)",
   supplement: none,
@@ -124,6 +122,8 @@
     it
   }
 }
+
+#show figure.caption: set align(left)
 
 #include "./chapter/overview/main.typ"
 

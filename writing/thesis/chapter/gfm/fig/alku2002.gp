@@ -1,4 +1,4 @@
-eval set_plot_size(550, 210)
+eval set_plot_size(550, 230)
 
 set key bottom left Left reverse box spacing 1. outside
 
@@ -34,7 +34,13 @@ set arrow from 7.3,0 to 7.3,-0.66 as 1
 set label "E_{e}" at 7.5,-0.3 left
 #set label "T" at 3.25, -.8 center
 
-#set yrange [-1.2:1.2]
+set arrow from 0,1.3 to 7,1.3 as 1
+set label "O" at 3.5, 1.55 center
+
+set arrow from 7,1.3 to 8,1.3 as 1
+set label "C" at 7.5, 1.55 center
+
+set yrange [-1.2:1.8]
 
 plot '-'   using 1:2 title "du" with lines ,'-'   using 1:2 title "u" with lines 
 -0.01 0.0
