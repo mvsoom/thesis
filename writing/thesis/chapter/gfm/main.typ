@@ -9,12 +9,13 @@ These models operate in the time domain because the delicate phase characteristi
   For example, plosives: glottal stops are micro-events at the millisecond level that underlie semantic information two orders of magnitude higher up the scale.
   The timing of the vocal fold movement is so precisely controlled by our brain that the slightest deviations are studied as biomarkers for neurodegenerative diseases like Parkinson's @Ma2020.
 ]
+// "timing relationships are very important for modelling the glottal flow signal" @Doval2006
 
-A large body of work and decades of empirical work @Degottex2010 have produced a "model zoo" of GFMs: handcrafted waveforms of $u(t)$ with handfuls of carefully chosen parameters.
+Decades of empirical work have over time produced a "model zoo" of GFMs: handcrafted waveforms of $u(t)$ with handfuls of carefully chosen parameters.
 Because these are _parametric_ models, they all share the same basic traits: parsimonious, interpretable, but inevitably stiff @Schleusing2012. Their parametric nature limits the range of time domain information they can encode.
 This motivates the construction of a family of _nonparametric_ models, which reach for greater expressivity with _less_ parameters.
 
-With the many equations to follow, it is all too easy to lose connection to the actual physical phenomenon being modeled.
+With the equations to follow, it is all too easy to lose connection to the actual physical phenomenon being modeled.
 After a short look at the glottal cycle, we begin with a review of the classic Liljencrants-Fant model.
 Then we revisit the parametric piecewise polynomial models and generalize them to the nonparametric regime, where they are identified with the _arc cosine kernel_ of #pcite(<Cho2009>).
 The latter is argued to combine the advantages of both worlds: the interpretability of parametric models with the flexibility of nonparametric ones.
@@ -30,7 +31,7 @@ This then sets the stage for @chapter:pack, which derives the _periodic arc cosi
 is the periodic opening and closing of the vocal folds, depicted in @fig:glottal-cycle.
 During one _pitch period_, a single cycle is completed, in this case spanning $T = "6 ms"$.
 GFMs describe the rate of airflow $u(t)$ [typically expressed in cm³/s] through the opening between the vocal folds called the _glottis_, visible as a black slit in @fig:glottal-cycle.
-Importantly, it is not at maximum glottis aperture that the acoustic output is greatest; it is at the sudden _glottal closure instant_ (GCI).
+Importantly, it is not at maximum glottis aperture that the acoustic output is greatest; it is at the sudden _glottal closure instant_ (GCI), as first shown by #pcite(<Miller1959>) in modern literature.
 At this point, the moving air column in the vocal tract is abruptly interrupted, and kinetic energy is converted efficiently into acoustic energy which then excites the vocal tract much like plucking a harp or clapping in a resonant room @Chen2016[Section~4.6].
 The sharpness of this transition governs much of the clarity and perceived strength of voiced speech @Fant1979.
 Thus, efficiency demands that the glottal cycle be strongly asymmetric: a slow buildup of flow during the open phase, followed by a rapid, almost impulsive closure to the closed phase.
@@ -93,7 +94,7 @@ which turned out to be effective in capturing the glottal cycle in both modal an
   In their unifying theory of common GFMs, #pcite(<Doval2006>) also collapse $T$ to $t_c$.
   It is common too in applications (for example, #ncite(<OCinneide2012>)).
   Of course, nothing is really lost because a closed phase of any length can be appended to any GFM by piecewise concatenation.
-  We choose to keep $t_c$ distinct from $T$ explicitly because this becomes important for short return phases and is experimentally observed to be important, especially in clinical scenarios @Kreiman2007.
+  We choose to keep $t_c$ distinct from $T$ explicitly because this becomes significant for short return phases and is experimentally observed to be important, especially in clinical scenarios @Rosenberg1971 @Kreiman2007.
 ]
 Note that, apart from $E_e$, which sets the vertical scale, these are all time domain parameters which determine _changepoints_ in the glottal cycle in @fig:glottal-cycle.
 These tend to covary significantly and can in fact be regressed into a single convenient parameter $R_d$ @Fant1995.
@@ -109,7 +110,7 @@ In practice, the LF model is unwieldy to compute @Veldhuis1998 @Gobl2017. The cl
 As noted by #pcite(<Perrotin2021>), simplified LF models exist that are perceptually equivalent to LF and easier to work with. Perhaps authors should retire LF altogether.
 
 Nevertheless, it remains the de facto standard in parametric source-filter modeling and we therefore use it here. Our code in @chapter:jaxlf implements the LF equations in JAX @Bradbury2020, so the bisection routines are compiled to native code for a speedup and the entire model is differentiable and easily batcheable.
-The code also implements four LF parametrizations, including the widely used $R_d$ formulation of #pcite(<Fant1995>).
+The code also implements four LF parametrizations, including the previously mentioned $R_d$ formulation of #pcite(<Fant1995>).
 
 === One of many: the glottal flow “model zoo”
 
@@ -121,85 +122,36 @@ The code also implements four LF parametrizations, including the widely used $R_
   ],
 ) <fig:gf-lineup>
 
-Over the years, a large number of glottal flow models have been proposed in acoustic phonetics. A sample of these is shown in @fig:gf-lineup, already an impressive lineup by 1986. Despite their visual differences, these models are, at heart, variations on a single theme: they all describe a quasi-periodic glottal pulse that opens, closes, and repeats with subtle asymmetries and smooth transitions.
+Over the years, a large number of glottal flow models have been proposed in acoustic phonetics. A sample of these is shown in @fig:gf-lineup, already an impressive lineup by 1986. Despite their visual differences, these models are, essentially, variations on a single theme: they all describe a glottal pulse that tracks the periodic opening and closing of the glottis.
 
-#pcite(<Doval2006>) demonstrated that the most useful and physically plausible GFMs—such as the Rosenberg C, KLGLOTT88, R++, and LF models—share a common mathematical structure and can be unified under a single framework. All of them model a glottal flow $u(t)$ that is positive or null, continuous, and typically differentiable except at the glottal closure instant (GCI). Within each period, $u(t)$ rises during the opening phase, falls during the closing phase, and returns to zero during the closed phase, possibly through a short return phase that smooths the closure. The derivative $u'(t)$ alternates positive, zero, and negative in the expected order and integrates to zero over one period, satisfying the closure constraint @eq:closure-constraint.
-
-When viewed through this lens, the differences between models are superficial. Each expresses the same physical process using slightly different analytic forms—exponentials, sinusoids, or polynomial pieces—but all encode the same bell-shaped glottal pulse with a characteristic asymmetry and decay. In fact, nearly every GFM can be reparameterized in the terms introduced for the LF model: excitation amplitude $E_e$, open quotient, asymmetry, return-phase time constant, and fundamental period. These few parameters control the timing, smoothness, and efficiency of vocal fold motion and thereby the spectral shape of the resulting voice source.
-
-==== Allow partial closure?
-The strict closure constraint in @eq:closure-constraint—that $u(t)$ must return exactly to zero each cycle—is seldom realistic. As #pcite(<Kreiman2007>) observe:
-_“in many cases in our data, returning flow derivatives to 0 at the end of the cycle conflicted with the need to match the experimental data and conflicted with the requirement for equal areas under positive and negative curves in the flow derivative (the equal area constraint). [...] These conflicts between model features, constraints, and the empirical data were handled by abandoning the equal area constraint.”_
-
-Perfect closure, then, is mostly a mathematical nicety. Real folds often leak, especially in breathy or pathological voices. We therefore allow $u(t)$ to end at any constant level rather than forcing it to zero.#footnote[
-  Early inverse-filtering work also struggled with this: _“After this, the fine-tuning of the resistors of the inverse network was conducted by searching for such values that yielded zero flow after the instant of glottal closure.”_ @Alku2011[after @Miller1959].
+#pcite(<Doval2006>) demonstrated that the most common GFMs#footnote[
+  These are LF, KLGLOTT88 @Klatt1990, Rosenberg C @Rosenberg1971, R++ @Veldhuis1998.
 ]
-
-==== Allow negative flow?
-While most GFMs enforce $u(t) ≥ 0$, transient negative flow is sometimes reported @Fujisaki1986 @Degottex2010. It likely reflects a brief suction as the folds recoil—an aerodynamic, not numerical, effect. Its magnitude is small but real, and we do not forbid it: later models learn when such reversals are warranted by data.
-
-/*
-=== One of many: the glottal flow "model zoo"
-
-#figure(
-  image("./fig/gf-models.png", width: 100%),
-  placement: bottom,
-  caption: [
-    *A lineup of GF models* back from 1986 (handdrawn?), together with their derivatives (DGFs). From #cite(<Fujisaki1986>, form: "author").
-  ],
-) <fig:gf-lineup>
-
-Many models for the glottal flow and its derivative have been proposed over the course of time in acoustic phonetics -- see @fig:gf-lineup for a catalogue already in 1986. These models differ mainly in the details, and can be unified in a common framework as per #pcite(<Doval2006>).
-
-#pcite(<Doval2006>) note that the most useful GFMs have the following general properties:
-- positive: $u(t) >= 0$
-- Differentiable ... n times, continuous -- see @Doval2006
-- DGF integrates closure constraint @eq:closure-constraint
-- definite polarity : Always points up or down \citep{Chen2016}.
-
-/*
-and ideally
-- interpretable
-- Computationally: quick to evaluate
-- well defined spectrum: ``voice quality is often described in spectral terms (e.g., voice spectral tilt, brightness, tenseness): spectral parameters are closer to perception than time-domain parameters.'' \citep[p.~1274]{Perrotin2021}
-*/
-
-Importantly, to put it simply nearly all GFMs can be recast in the LF parameters we introduced above and the 2 phases, open and closed, in which the closed phase also hosts the return phase.
-@Doval2006 go further and unify the parametrizations, but we don't go there as we will introduce GFMs which move from parametric to nonparametric regime.
+share a common mathematical structure and can be unified under a single framework;
+the $bold(theta)_"LF"$ parameters in @eq:lf-parameters can in fact express all of them.
+These GFMs all model a glottal flow $u(t)$ that is positive or null, continuous, and typically differentiable except at the glottal closure instant (GCI). Within each period, $u(t)$ rises during the opening phase, falls during the closing phase, and returns to zero during the closed phase, possibly through a short return phase that smooths the closure. The derivative $u'(t)$ alternates positive, zero, and negative in the expected order and integrates to zero over one period, satisfying the closure constraint @eq:closure-constraint.
+It is continuous in case of a nonempty return phase and discontinuous otherwise (jump at $t_c$), known as hard closure.
 
 ==== Allow partial closure?
-Probably better to allow some slack.
-Experimentally -- see this quote:
-_in many
-  cases in our data, returning flow derivatives to 0 at the
-  end of the cycle conflicted with the need to match the
-  experimental data and conflicted with the requirement
-  for equal areas under positive and negative curves in the
-  flow derivative (the equal area constraint). Empirically,
-  this constraint means that the ending flow level should
-  be the same as the beginning flow level (although that
-  value need not equal 0; Ní Chasaide & Gobl, 1997). This
-  is probably not true for highly variable pathological voices.
-  In many cases, the combination of this constraint with
-  fitting the experimental pulses resulted in a flow derivative that stepped sharply to 0. This introduced significant high-frequency artifacts into the synthetic signals.
-  These conflicts between model features, constraints, and
-  the empirical data were handled by abandoning the
-  equal area constraint_
-@Kreiman2007
-
+The strict closure constraint in @eq:closure-constraint is of course a convenient modeling choice and must be expected to be violated to varying degrees in reality, as real folds often leak, especially in breathy or pathological voices.
+On the one hand, it clearly is a defining feature
 #footnote[
-  Interesting historical example of incorporating hard closure constraint directly:
-  Note that this connects with ``After this, the fine-tuning of the resistors of the inverse network was conducted by searching for such values that yielded zero flow after the instant of glottal closure.'' \citep[p.~626]{Alku2011} by the first study on glottal inverse filtering by \citep{Miller1959}.
+  The pioneering study on GIF by #pcite(<Miller1959>) had to deconvolve taped speech waveforms with analogue resistor networks and manual optimization.
+  A review article on GIF methods notes the part played by the defining quality of the closure constraint in this search for $u(t)$: "the fine-tuning of the resistors of the inverse network was conducted by searching for such values that yielded zero flow after the instant of glottal closure" @Alku2011[p.~626].
 ]
-
-With our approach, as we will see, softer constraints are learned by "transfer learning" and incorporated into priors.
-We don't always impose perfect zero flow as in @eq:closure-constraint.
-
+of the periodic nature of the glottal cycle.
+On the other, empirical data show the limits of this hard constraint.
+For example, #pcite(<Kreiman2007>, supplement: [p.~601]) observe that:
+#quote(block: true)[
+  in many cases in our data, returning flow derivatives to 0 at the end of the cycle conflicted with the need to match the experimental data and conflicted with the requirement for equal areas under positive and negative curves in the flow derivative. [...] These conflicts between model features, constraints, and the empirical data were handled by abandoning the equal area constraint.#footnote[The "equal area constraint" is another name for the closure constraint.]
+]
+The approach we take in @chapter:pack is to learn a softened version of the closure constraint @eq:closure-constraint from data rather than set it a priori.
+This means we learn both whether the flow typically returns to zero and, if not, to what extent this constraint is plausibly violated.
 
 ==== Allow negative flow?
-At first sight, glottal flow should be strictly postive $u(t) >= 0$, and most GF models enforce it. But there are exceptions like @Fujisaki1986, also noted in \citep[p.~35]{Degottex2010}. Motivation: "rounded closure" is often seen; sometimes attributed to residual leakage, but they argue there is also a component due to a period of negative flow caused by lowering of the vocal cords after closure, drawing DC current of air back in.
-
-*/
+Same story: at first sight, glottal flow should be strictly postive ($u(t) >= 0$), and most GF models enforce it. But there are exceptions like #pcite(<Fujisaki1986>), also noted in #pcite(<Degottex2010>, supplement: [p.~35]), who allow for
+transient negative flow which can model a lowering of the vocal folds after GCI such that air is sucked back in.
+We also learn this effect from data and do not forbid $u(t) < 0$ a priori.
 
 == Classic piecewise polynomial models
 <sec:classic-polynomial-models>
