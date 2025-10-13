@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# pip install numpy pandas papermill scrapbook jupyter-cache tqdm nbformat
 """
 Usage:
   python -m experiments.run generate  <experiment-folder>
