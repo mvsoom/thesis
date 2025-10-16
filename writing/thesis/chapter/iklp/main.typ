@@ -7,6 +7,25 @@
 
 Linear prediction augmented with a more realistic noise source.
 
+=== Gaussian Processes
+
+In the time–series setting, we consider a stochastic process ${Y(t) | t in T}$ indexed by time $t$.
+Here $T subset.eq bb(R)$ represents the time axis, and each $Y(t)$ is a random variable describing the signal value at time $t$.
+The process is defined by assigning a consistent joint probability distribution to every finite subset ${Y(t_1), ..., Y(t_N)}$.
+
+A _Gaussian process_ (GP) is a stochastic process that is completely specified by its first two moments:
+the mean function
+$
+  mu(t) = E[Y(t)]
+$
+and the covariance function
+$
+  C(t, t') = E[(Y(t) - mu(t))(Y(t') - mu(t'))].
+$
+Any finite collection ${Y(t_1), ..., Y(t_N)}$ drawn from a GP will have a joint multivariate Gaussian distribution with these mean and covariance functions.
+In time–series regression, this provides a nonparametric prior over functions $Y(t)$, allowing uncertainty quantification and smooth interpolation between observed samples.
+
+
 == Infinite kernel linear prediction
 
 Multiple kernel learning is a thing, but needn't go there

@@ -10,7 +10,7 @@
     hK [label="t_+^n"];
     u [label="u'"];
 
-    1 -> h1 [label="t_1"]
+    1 -> h1 [label="b_1"]
     t -> h1
 
     1 -> h2
@@ -19,7 +19,7 @@
     1 -> h3
     t -> h3 [label="c_h"]
 
-    1 -> hK [label="t_2"]
+    1 -> hK [label="b_2"]
     t -> hK
 
     h1 -> u [label="a_1"]

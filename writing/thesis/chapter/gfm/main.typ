@@ -1,4 +1,4 @@
-#import "/writing/thesis/lib/prelude.typ": argmax, argmin, bm, ncite, pcite, section-title-page
+#import "/writing/thesis/lib/prelude.typ": argmax, argmin, bm, expval, ncite, pcite, section-title-page
 #import "/writing/thesis/lib/gnuplot.typ": gnuplot
 
 = From parametric to nonparametric glottal flow models
@@ -181,7 +181,7 @@ See images ./fig/:
 3rd order: R++ (from @Doval2006 A1.2)
 3rd order: @Fujisaki1986 (FL model, also in @Drugman2019a)
 * also allow negative flow segment after closure
-* Motivation: “rounded closure” is often seen; sometimes attributed to residual leakage, **but they argue there is also a component due to a period of *negative flow* caused by *lowering of the vocal cords* after closure**
+* Motivation: “rounded closure” is often seen; sometimes attributed to residual leakage, *but they argue there is also a component due to a period of *negative flow* caused by *lowering of the vocal cords* after closure*
 
 The Rosenberg–Klatt model is a straightforward glottal flow model. It models the shape
 of the glottal airflow signal within one fundamental period using a cubic polynomial function @Bleyer2017
@@ -231,34 +231,35 @@ Note that the amplitude of the first case in @eq:dgf-piece is fixed because the 
 The triangular pulse model @eq:dgf-piece contains two jumps in the derivative $u'_Delta (t)$, so we can write the latter more compactly as a linear combination of two Heaviside functions
 $
   u'_Delta (t) = cases(
-    a_1 (t)_+^0 + a_2 (t - t_p)_+^0 quad quad & 0 & < t & <= t_c quad quad & "(O)",
+    a_1 (t - b_1)_+^0 + a_2 (t - b_2)_+^0 quad quad & 0 & < t & <= t_c quad quad & "(O)",
     0 quad quad & t_c & < t & <= T & "(C)",
   )
 $ <eq:alku-lc>
-where $(t)_+^0 = max (0, t)^0$ is the Heaviside function and
+where $(t-b)_+^0 = mono("Heaviside")(t-b)$ and
 $
-  a_1 = +E_e (t_c/t_p - 1), quad a_2 = -E_e t_c/t_p.
+  bm(a) = vec(a_1, a_2) = E_e vec(t_c/t_p - 1, -t_c/t_p), quad quad
+  bm(b) = vec(b_1, b_2) = vec(0, t_p).
 $
 During the open phase, we can interpret the rewritten triangular pulse model as a _parametric piecewise polynomial model_ of _degree_ $d = 0$ and _order_ $H = 2$.
-It has parameters $bm(theta)_2 = {bm(a), bm(t)}$ which describe $H = 2$ jumps with amplitudes $bm(a) = (a_1, a_2)^top$ and at changepoint locations $bm(t) = (0, t_p)^top$.
-Note that in this formulation the amplitudes $bm(a)$ differ from the piecewise amplitudes in @eq:dgf-piece but are still linearly dependent given $bm(t)$.
+It has parameters $bm(theta)_2 = {bm(a), bm(b)}$ which describe $H = 2$ jumps with amplitudes $bm(a)$ at locations $bm(b)$.
+Note that in this formulation the amplitudes $bm(a)$ differ from the piecewise amplitudes in @eq:dgf-piece but are still linearly dependent given the changepoints $bm(b)$ and $t_c$.
 
 Continuing, nothing stops us from generalizing both $H$ and $d$.
 The open phase part of @eq:alku-lc becomes:
 $
-  u'_H (t) = sum_(h=1)^H a_h (t-t_h)_+^d quad quad & 0 & < t & <= t_c quad quad & "(O)"
+  u'_H (t) = sum_(h=1)^H a_h (t-b_h)_+^d quad quad & 0 & < t & <= t_c quad quad & "(O)"
 $ <eq:udH>
 This is the general parametric piecewise polynomial model of degree $d$ and order $H$.//, supported on $[0,t_c]$ (the open phase). // Technically the support operation takes the closure of the interval 0 < t <= t_c so this is correct
-Again, its parameters $bm(theta)_H = {bm(a), bm(t)}$ are the amplitudes $bm(a) = (a_1, dots, a_H)^top in bb(R)^H$ and the changepoints $bm(t) = (t_1, dots, t_H)^top in bb(R)^H$.
+Again, its parameters $bm(theta)_H = {bm(a), bm(b)}$ are the amplitudes $bm(a) = (a_1, dots, a_H)^top in bb(R)^H$ and the changepoints $bm(b) = (b_1, dots, b_H)^top in bb(R)^H$.
 These scale and shift $H$ piecewise monomials of degree $d$:
 $
-  (t-t_h)_+^d = max(0, t-t_h)^d = cases(
-    0 quad & t < t_h,
-    (t-t_h)^d quad & t >= t_h,
+  (t-b)_+^d = (t-b)^d mono("Heaviside")(t-b) = cases(
+    0 quad & t < b,
+    (t-b)^d quad & t >= b,
   )
 $ <eq:repu>
 We recognize @eq:repu as the family of activation functions called _rectified power units_ (RePUs).
-These include Heaviside for $d = 0$ and the influential ReLU function for $d = 1$, both shown amongst higher degree variants in @fig:repu.
+These include Heaviside for $d = 0$ and the influential ReLU function for $d = 1$, both shown among higher degree variants in @fig:repu.
 It may sound like a stretch to relate polynomial GFMs to neural nets, but this view of things will pay off greatly in @sec:nonparametric-piecewise when we take the limit $H -> oo$.
 
 #figure(
@@ -280,40 +281,52 @@ It may sound like a stretch to relate polynomial GFMs to neural nets, but this v
 
 === Regression view
 
-In the context of Bayesian time series regression, @eq:udH is a standard linear model with $H$ fixed basisfunctions (given $bm(t)$) @Bretthorst1988 @ORuanaidh1996.
-We may write it as
+GFMs ultimately play the role of regression models in the GIF problem.
+From this point of view, the general parametric model in @eq:udH is just a standard linear model,
+and we will now develop it into a Bayesian regression model following #pcite(<MacKay1998>).
+
+Suppose we observe $N$ time samples $bold(t) = {t_n}_(n=1)^N$ during one glottal cycle, and fix $H$ basis functions of the form
 $
-       u'_H (t; bm(theta)_H) & = bm(phi) (t; bm(t))^top bm(a) quad \
-  "where" bm(phi) (t; bm(t)) & = [0 < t <= t_c] times vec((t-t_1)_+^d, dots.v, (t-t_H)_+^d) in bb(R)^H \
-         "and" bm(a) | bm(t) & ~ cal(N)(bm(a) | bm(0),bm(Sigma)_a).
-$ <eq:udH-linear>
-We used an Iverson bracket $[0 < t <= t_c]$ in @eq:udH-linear to bake in the compact support during the open phase.
-
-
-This is an instance of a regression problem with $H$ fixed basisfunctions. Following #pcite(<MacKay1998>),
-The addidivity of the $phi$ suggests Gaussian priors for $bm(a)$.
-
-// go to mean and covar formulation in this section
-// including k(t,t') = Pi() ( ) (Pi) from phi
-
-
+  phi.alt_h (t) = /*[0 < t <= t_c] times*/ (t - b_h)_+^d,
+$ <eq:phi-iverson>
+where /*we used an Iverson bracket $[0 < t <= t_c]$ to bake in the compact support during the open phase, and*/ the changepoints $bm(b)$ and $t_c$ are treated as given.
+Collecting these into the design matrix $bm(Phi) in bb(R)^(N times H)$ with
+$
+  Phi_(n h) = phi.alt_h (t_n),
+$
+the general parametric model during /*both open and closed phase*/ the open phase becomes simply
+$
+  bm(u') = bm(Phi) bm(a).
+$
+This is linear in the amplitudes $bm(a)$ given $bm(Phi)$, so the model is rather constrained at this point.
+Indeed, $bm(a)$ is currently the only source of variability and power in this model because we assume all other parameters fixed.
+Which prior then for $bm(a)$ should we choose?
+If we want to maximize model support while adhering to the known additivity and power constraints, the optimal choice
+is the canonical Gaussian prior over amplitudes @Bretthorst1988:
+$
+  p(bm(a) | bm(b)) = mono("Normal")(bm(a) | bm(0), sigma_a^2 bm(I)).
+$ <eq:pab>
 
 ==== Closure constraint
-Here we derive $bm(Sigma)_a$.
-
-If we assume the $t_(1:K)$ given for now and let $a_k ~ N(0, sigma^2_a)$, then using $integral_(-oo)^t H(tau - c) dif tau = H(t - c)(t - c)$ we get the closure condition for free in expectation:
+The closure constraint @eq:closure-constraint becomes
 $
-  bb(E)_a [integral_0^T u'(t) dif t] = sum_(k=1)^K bb(E)[a_k] H(T-t_k) (T-t_k) = 0.
+  integral_0^T u'_H (t) dif t = sum_(h=1)^H a_h integral_0^t_c phi.alt_h (t) dif t = sum_(h=1)^H a_h r_h = 0,
 $
-This motivates setting the mean of the $a$ to zero, otherwise than symmetry of ignorance around $a = 0$.
-We can also enforce it: set $b_k = H(T-t_k) (T-t_k) = T - t_k$ then
+with $r_h = (t_c - b_h)^(d+1)\/(d+1)$.
+Observe that the prior @eq:pab already satisfies the closure constraint in expectation:
 $
-  sum_(k=1)^K a_k b_k = 0 ==> a divides b^top a = 0 ~ cal(N)(0, sigma_a^2 (I - q q^top))
+  bb(E)_(bm(a)|bm(b)) [sum_(h=1)^H a_h r_h] = sum_(h=1)^H bb(E)_(bm(a)|bm(b))[a_h] thin r_h = 0.
 $
-where $q = b/(||b||)$. Equivalently,
+This motivates setting the prior mean of the $bm(a)$ to zero, otherwise than symmetry of ignorance around $bm(a) = bm(0)$.
+We can also enforce it:
 $
-  a = (q q^top) z + (I - q q^top) z, quad z ~ cal(N)(0, sigma_a^2 I). \
-  => a = (I - q q^top) z
+  sum_(h=1)^H a_h r_h = 0 ==> p(bm(a) | bm(b), thin bm(r)^top bm(a) = 0) = mono("Normal")(bm(a) | 0, sigma_a^2 (bm(I) - bm(q) bm(q)^top))
+$
+where $bm(r) = (r_1, dots, r_H)^top$ and $bm(q) = bm(r)/(||bm(r)||)$.
+A convenient way to a sample from this updated prior makes use of the fact that this is a rank-one projection:
+$
+  &bm(a) &equiv& (bm(q) bm(q)^top) bm(a) + (bm(I) - bm(q) bm(q)^top) bm(a) quad &~& quad p(bm(a) | bm(b)) \
+  ==> &bm(a)^* &=& (bm(I) - bm(q) bm(q)^top) bm(a) &~& quad p(bm(a) | bm(b), thin bm(r)^top bm(a) = 0)
 $
 This is a linear constraint on the $a$, so we can update the prior to always respect the constraint. A single constraint projects out the component of $a$ along $b$, so the resulting covariance matrix is degenerate and has rank $K - 1$. A Bayesian way to derive this would make use updating the prior via $D_"KL"$.
 
@@ -321,15 +334,7 @@ This shows how prior of $a$ can encode properties we care about. This is a centr
 
 /* picture of triangular pulse model with K=2 ... K = 5 with t_k chosen uniformly and respecting the closure constraint */
 
-In the previous example, we proposed to increase resolution by increasing $K$; we now can add more expressivity by allowing the degree $n$ to be $>= 0$ as well. In this way we also include the higher order classic polynomial models in @sec:classic-polynomial-models.
-
-The general parametric polynomial model of degree $n$ and order $K$ is now
-$
-      u'(t) & = sum_(k=1)^K a_k (t-t_k)_+^n \
-  "where" a & ~ cal(N)(0, sigma_a^2 (I - q q^top)", " t_k in [t_o, t_e] "are given," \
-  "and" q_k & = 1/(n+1) (T - t_k)_+^(n+1) = 1/(n+1) (T - t_k)^(n+1)
-$
-which expresses the DGF as a of changepoints $t_k$ followed by changes of direction according to the amplitude $a_k$. All polynomial models of @sec:classic-polynomial-models can be expressed in this way, with the constraint on $a$ taking into account the closure constraint automatically rather than deriving it for each model (as e.g. in @Doval2006).
+All polynomial models of @sec:classic-polynomial-models can be expressed in this way, with the constraint on $a$ taking into account the closure constraint automatically rather than deriving it for each model (as e.g. in @Doval2006).
 
 #figure(
   grid(
@@ -352,6 +357,7 @@ which expresses the DGF as a of changepoints $t_k$ followed by changes of direct
 
 ==== How good of a GFM is this?
 
+// maybe put this in summary
 
 Before doing so, we take a look at how much of viable candidates @eq:udH still are as GFMs.
 
@@ -365,8 +371,25 @@ Closure constraint: we could restrict this analytically
 
 Putting priors will enable us to trace out a family of GFMs
 
-=== Connection to neural networks.
+=== Connection to neural networks
 <sec:connection-to-neural-networks>
+
+Moving on to data space, the prior probability of $bm(u')$ is also Gaussian,
+$
+  p(bm(u') | bm(b)) /* = integral p(bm(u') | bm(a), bm(b)) p(bm(a) | bm(b)) dif bm(a) */ = mono("Normal")(bm(u') | bm(0), sigma_a^2 bm(Phi) bm(Phi)^top),
+$ <eq:udashgauss>
+since
+$
+             expval(bm(u')) & = bm(Phi) expval(bm(a)) = 0, \
+  // mono(E)_bm(a)[bm(u')] &= bm(Phi) expval(bm(a)) = 0, \
+  expval(bm(u') bm(u')^top) & = bm(Phi) expval(bm(a) bm(a)^top) bm(Phi)^top = sigma_a^2 bm(Phi) bm(Phi)^top.
+$
+where the expectations $expval(dot)$ were taken with respect to @eq:pab.
+As said before, this model is very constrained to lie on submanifold of dim $H$.
+
+we should add more expreissiblitly
+
+we can do so to add a prior for $bm(b)$ so we don't have to assume anymore that this is fixed
 
 /*
 we invoked linearity on the bm(a) to justify gaussian priors, but the bm(t) are also additive within neural network lense
@@ -386,7 +409,318 @@ The parameters in the polynomial models are always DGF amplitudes (GF slopes) an
 == Nonparametric piecewise polynomial models
 <sec:nonparametric-piecewise>
 
-After having generalized $n$, now we generalize $H -> oo$. Let $phi(t) = (t)_+^n$ with $n$ given, then the covariance matrix $K$ is given as
+We now let the number of polynomial pieces go to infinity and study what this limit accomplishes. The finite model in @eq:udH is linear in its amplitudes and thus a standard linear regression model once the changepoints are fixed. The next step is to assign independent Gaussian priors to all parameters and ask what happens when the number of terms becomes large.
+
+==== Random feature model
+As suggested by the analogy to neural networks in the previous section, we take independent Gaussian priors
+$
+  a_h ~^"i.i.d." mono("Normal")(0, sigma_a^2), quad
+  b_h ~^"i.i.d." mono("Normal")(0, sigma_b^2), quad
+  c_h ~^"i.i.d." mono("Normal")(0, sigma_c^2),
+$
+and define the random-feature representation
+$
+  u'_H (t) = (1/sqrt(H)) sum_(h=1)^H a_h phi.alt (t; b_h, c_h),
+$
+where $phi.alt (t; b, c) = (c t - b)_+^d$.
+The factor $1/sqrt(H)$ ensures that the total variance of $u'_H (t)$ stays of order one as $H$ grows.
+
+==== Conditional Gaussian
+Let $bm(t) = (t_1, dots, t_m)$ be a set of input points and $bm(Phi)$ the corresponding feature matrix introduced earlier, with entries
+$
+  Phi_(n h) = phi.alt (t_n; b_h, c_h).
+$
+Given the random features $\{(b_h, c_h)\}_(h=1)^H$, the vector $u'_H (bm(t))$ is a linear combination of Gaussian amplitudes. It is therefore exactly
+$
+  u'_H (bm(t)) | \{(b_h, c_h)\}
+  ~ mono("Normal")(bm(0), (sigma_a^2/H) bm(Phi) bm(Phi)^top).
+$
+We define
+$
+  bm(Q)_H (bm(t)) = (1/H) bm(Phi) bm(Phi)^top
+$
+as the _empirical kernel matrix_ for the chosen feature realization.
+
+==== Law of large numbers and the population kernel
+
+Each entry of $bm(Q)_H (bm(t))$ is an empirical average of independent terms
+$
+  [bm(Q)_H (bm(t))]_(n n') = (1/H) sum_(h=1)^H phi.alt (t_n; b_h, c_h) phi.alt (t_(n'); b_h, c_h).
+$
+By the law of large numbers this converges almost surely to its expectation under the feature prior:
+$
+  bm(Q)_H (bm(t)) --> bm(K)(bm(t)) "a.s.",
+  quad [bm(K)(bm(t))]_(n n') = E_(b,c) [phi.alt (t_n; b, c) phi.alt (t_(n'); b, c)].
+$
+This expectation is what we call the _population kernel_: it is the covariance of one random feature evaluated at two input points. The only role of the limit $H -> oo$ is to make the Monte Carlo estimate $bm(Q)_H (bm(t))$ converge to this known quantity.
+
+==== Degenerating mixture --> single Gaussian
+
+Unconditionally, $u'_H (bm(t))$ is a mixture of Gaussians because its covariance depends on the randomly drawn features:
+$
+  p(u'_H (bm(t))) =
+  integral mono("Normal")(bm(0), sigma_a^2 bm(Q)_H (bm(t))) \, p(bm(Q)_H (bm(t))) \, d bm(Q)_H.
+$
+As $H$ increases, the distribution of $bm(Q)_H (bm(t))$ concentrates around its expectation $bm(K)(bm(t))$. In the limit, it collapses to a point mass:
+$
+  p(bm(Q)_H (bm(t))) --> delta(bm(Q)_H - bm(K)).
+$
+The mixture thus _degenerates_: the only remaining randomness is due to the Gaussian amplitudes. The marginal distribution becomes
+$
+  u'_H (bm(t)) --> mono("Normal")(bm(0), sigma_a^2 bm(K)(bm(t))).
+$
+Since this holds for any finite set of evaluation points, the limiting process is a Gaussian process with covariance $sigma_a^2 K(t, t')$.
+
+==== What the limit actually accomplishes
+
+The limit $H -> oo$ does not create Gaussianity—it is already there, conditional on the features. What the limit does is remove the randomness in the empirical kernel by letting the Monte Carlo average converge to its population mean:
+$
+  (1/H) sum_h phi.alt (t; b_h, c_h) phi.alt (t'; b_h, c_h)
+  --> E_(b,c) [phi.alt (t; b, c) phi.alt (t'; b, c)].
+$
+This is the only real effect of the limit: it fixes the covariance function once and for all.
+
+==== Arc-cosine kernel with affine augmentation
+
+To make this explicit, write the affine feature parameters as
+$
+  tilde(w) = (c, -b), quad tilde(x)(t) = (t, 1),
+$
+so that
+$
+  phi.alt (t; b, c) = (tilde(w)^top tilde(x)(t))_+^d.
+$
+With the Gaussian prior
+$
+  tilde(w) ~ mono("Normal")(bm(0), "diag"(sigma_c^2, sigma_b^2)),
+$
+the population kernel becomes
+$
+  K(t, t') =
+  E_(tilde(w)) [(tilde(w)^top tilde(x)(t))_+^d (tilde(w)^top tilde(x)(t'))_+^d].
+$
+Up to a constant scaling determined by $(sigma_b^2, sigma_c^2)$ and the degree $d$, this is the degree–$d$ _arc–cosine kernel_ of #pcite(<Cho2009>) on the augmented inputs $(t, 1)$. A fixed rescaling of inputs or outputs can absorb the constant, so we drop it below.
+
+==== Two kinds of averaging
+
+To close, recall that there are two distinct averages at play:
+(1) the $1/sqrt(H)$ average in the definition of the function $u'_H (t)$, which keeps its variance finite, and
+(2) the $1/H$ average in the kernel estimator $hat(K)_H (t, t')$, which ensures that the empirical kernel converges to $K(t, t')$.
+The first governs the distribution over functions, the second governs the convergence of their covariance. Together they give the Gaussian process limit with kernel $sigma_a^2 K(t, t')$.
+
+==== What happened?
+It is worth pausing to ask what really happened here.
+At first sight, taking $H -> oo$ might seem like an act of reckless generalization: we blow up the number of parameters without bound, yet somehow end up with something *simpler*—a single Gaussian process with a fixed kernel. Conditional on the random features, the model was already Gaussian, so the only effect of the limit is that the *random design itself* stops being random. The empirical kernel freezes to its mean, and with it the whole architecture of the network becomes a static, deterministic map from inputs to covariances.
+
+This is the peculiar balance of the Gaussian process limit. The randomness of finite networks (the accident of which features you drew) disappears, while the *expressive field* of possible functions becomes infinite. What looks like a loss of freedom in one space is a gain of freedom in another. You trade a random, high–dimensional parameterization for a deterministic law over an infinite–dimensional function space. The model collapses in its parameter dimension but expands in its functional reach. That is the sense in which the GP limit achieves “infinite resolution”: it no longer needs to enumerate features to approximate every smooth behavior the kernel supports. The prior already spans that continuum.
+
+This connects directly to the remark by MacKay (1998) about “throwing out the baby with the bathwater.”
+MacKay warned that when one marginalizes out parameters too early—when one keeps only the covariance structure and discards the explicit representation of weights—one may lose intuition about how learning actually works. In our case, the GP limit *is* that marginalization, pushed to its logical extreme. The baby (the random feature machinery) is gone, but its bathwater—the covariance it left behind—turns out to be everything. The Gaussian process is the distilled trace of that infinite hidden layer, the residual law that remains once we have averaged over all its possible microscopic configurations. The cost is that we can no longer “see” the mechanism that created a particular function; the benefit is that the resulting prior is perfectly well–defined, smooth, and tractable.
+
+So the infinite–width limit does not so much simplify the neural network as *clarify* it: by letting the network’s structural noise disappear, it reveals the underlying stochastic law that every large random feature model was already approximating in miniature.
+
+/*
+CHATGPT QUESTION
+
+Given iid Gaussian priors for $a, b, c$,
+$
+  phi(t) = a phi.alt (t \; b, c)
+$
+is a random feature.
+Thus
+$
+  1/H u'_H (t) = 1/H sum_(h=1)^H phi_h (t)
+$
+is a central limit theorem-kind of sum that will converge to a normal distribution for $H -> oo$.
+Therefore we characterize the marginal of $phi(t)$, ie $p(phi(t))$ by its moments:
+$
+  E_w phi(t) &= 0 \
+  E_w (phi(t) phi(t')) &= sigma_a^2 k(t, t') \
+  E_w (phi(t) phi(t') phi(t'')) &= f(t, t', t'') != 0 "in general" \
+  &"etc."
+$
+Now by CLT the limit
+$
+  lim_(H -> oo) 1/H u'_H (t) ~ mono("Normal")(0, sigma_a^2 k(t,t))
+$
+and higher order moments don't matter anymore; the GP is a full description.
+
+But how could the limit we are actually interested in,
+$
+  lim_(H -> oo) 1/H [u'_H (t) u'_H (t')] = sigma_a^2 k(t,t)
+
+$
+enter the picture in the way I want to develop the story here?
+Is this even correct?
+CLT only talks about marginal variance of a single variable?
+But have $t$ AND $t'$ here... two variables $u'(t)$ and $u'(t')$, not a single one.
+How would you do this?
+I don't want painstaken precision but I do want to be very clear what $H -> oo$ accomplishes, because my prior assumptions on this derivation were kinda misguided.
+
+
+*/
+/*
+note: it is possible to use the hard closure constraint prior for $a$ and derive a GP with same kernel minus rank 1 term, but the derivaiton is cleaner this way
+AND we will do this in a generalized way for soft closure constraint in next section
+*/
+
+/*
+We now turn to the limit where the number of changepoints $H$ becomes large.
+Recall the general model
+$
+  u'_H (t) = sum_(h=1)^H a_h phi.alt (t; b_h, c_h),
+$
+with
+$
+  phi.alt (t; b, c) = [0 < t <= t_c] (c t - b)_+^d.
+$
+Each term is a random feature—one draw from the population of piecewise polynomial responses.
+Given the priors defined earlier for $a_h, b_h, c_h$, all draws are i.i.d.
+
+We can now ask: what happens to this model as $H$ increases?
+
+The mean of $u'_H$ is trivial:
+$
+  E_(bm(w))[u'_H(t)]
+  = sum_(h=1)^H E_(a_h)[a_h] E_(b_h,c_h)[phi.alt (t; b_h, c_h)] = 0.
+$
+The covariance, conditional on $(bm(b), bm(c))$, is
+$
+  Q_(n n') = E_(a)[u'_H(t_n) u'_H(t_{n'}) | bm(b), bm(c)]
+  = sigma_a^2 (bm(Phi) bm(Phi)^top)_(n n'),
+$
+where $Phi_(n h) = phi.alt (t_n; b_h, c_h)$.
+This is just the regression covariance from before, but now the design matrix itself is random.
+
+Averaging also over $(bm(b), bm(c))$ converts the finite sum into a Monte Carlo estimate of a kernel integral:
+$
+  E_(bm(b), bm(c))[Q_(n n')]
+  = H sigma_a^2 E_(b, c)[phi.alt (t_n; b, c) phi.alt (t_{n'}; b, c)].
+$
+Hence each additional hidden unit adds another sample from the same base measure, refining the empirical estimate of the kernel.
+Writing
+$
+  K_d (t, t') = E_(b, c)[phi.alt (t; b, c) phi.alt (t'; b, c)]
+  = [0 < t <= t_c][0 < t' <= t_c] E_(b, c)[(c t - b)_+^d (c t' - b)_+^d],
+$
+we have
+$
+  E_(bm(w))[Q_(n n')] = H sigma_a^2 K_d (t_n, t_{n'}).
+$
+
+To keep variance finite as $H$ grows, set $sigma_a^2 = sigma^2 / H$.
+Then
+$
+  E_(bm(w))[Q_(n n')] -> sigma^2 K_d (t_n, t_{n'}),
+$
+and the finite sum becomes a Monte Carlo quadrature of the kernel integral in expectation.
+As $H -> oo$, the empirical measure $(1/H) sum_h delta_(b_h, c_h)$ converges to its generating distribution, so the random-feature model converges in distribution to a Gaussian process
+$
+  lim_(H -> oo) u'_H(t) ~ mono("Gaussian process")(0, sigma^2 K_d (t, t')).
+$
+
+The base measure for $(b, c)$ determines the shape of $K_d$.
+Taking $(b, c) ~ mono("Normal")((0, 0), "diag"(sigma_b^2, sigma_c^2))$ maximizes entropy given fixed second moments and admits a closed form.
+Defining augmented variables
+$
+  tilde(w) = (c, -b), quad tilde(x) = (t, 1),
+$
+we can write $phi.alt (t; b, c) = (tilde(w)^top tilde(x))_+^d$.
+Under the Gaussian base measure for $tilde(w)$ this becomes the *degree-$d$ arc-cosine kernel* of #pcite(<Cho2009>):
+$
+  K_d(t, t') = [0 < t <= t_c][0 < t' <= t_c] k_d (tilde(x), tilde(x')).
+$
+
+/*
+WAIT still need to scale $k(sigma_c t, sigma_c)$ or the like because prior is NOT N(0,1).
+*/
+
+Unlike in the original derivation of #pcite(<Williams1998>), bounded transfer functions are not required; it suffices that $phi.alt (t; b, c)$ has finite variance under the Gaussian weight prior, which holds for any finite $d$ #pcite(<Matthews2018>).
+
+In this view, increasing $H$ increases the *Monte Carlo resolution* with which the regression model samples its feature space.
+The nonparametric limit replaces explicit random changepoints with their continuous Gaussian measure, yielding a Gaussian process prior over $u'(t)$ whose covariance is the arc-cosine kernel restricted to the open phase of the glottal cycle.
+
+*/
+
+
+/*
+
+Following @Williams1998 @Neal1993
+$
+  u'_H (t) = sum_(h=1)^H a_h phi.alt_h (t; b_h, c_h)
+$
+where
+$
+  p(bm(a)) & = mono("Normal")(bm(a) | bm(0), sigma_a^2 I), \
+  p(bm(b)) & = mono("Normal")(bm(b) | bm(0), sigma_b^2 I), \
+  p(bm(c)) & = mono("Normal")(bm(c) | bm(0), sigma_c^2 I)
+$
+Denote all weights by $bm(w) = {bm(a), bm(b), bm(c)}$.
+$
+  a_j ~^"i.i.d." a ~ mono("Normal")(0, sigma_a^2), \
+  b_j ~^"i.i.d." b ~ mono("Normal")(0, sigma_b^2), \
+  c_j ~^"i.i.d." c ~ mono("Normal")(0, sigma_c^2),
+$
+In data space,
+$
+  E_bm(w)[u'_H (t)] &= sum_(h=1)^H E_a [a_h] E_(b,c)[phi.alt_h (t; b_h, c_h)] = 0 \
+  E_bm(w)[u'_H (t) u'_H (t')] &= sum_(h=1)^H sum_(ell=1)^H E_a [a_h a_ell] E_(b, c)[phi.alt_h (t; b_h, c_h) phi.alt_ell (t'; b_ell, c_ell)] \
+  &= sum_(h=1)^H sigma_a^2 E_(b,c)[phi.alt_h (t; b, c) phi.alt_ell (t'; b, c)] \
+  &= H sigma_a^2 K_phi.alt(t, t')
+$
+Here $u'_H$ has zero mean because $a_h$ is zero mean and independent of $b_h, c_h$.
+Likewise, only the diagonal terms with $h = ell$ survive due to independence of amplitudes $a_h, a_ell$.
+Here
+$
+  K_phi.alt(t, t') &= [0 < t <= t_c] times [0 < t' <= t_c] times \
+  integral mono("Normal")(b | 0, sigma_b^2) &mono("Normal")(c | 0, sigma_c^2) (c t - b)_+^d (c t' - b)_+^d dif b dif c \
+  &= [0 < t <= t_c] times [0 < t' <= t_c] times k_d (t, t') \
+$
+Here $k_d (t,t')$ is the arc cosine kernel of @Cho2009.
+Taking the limit $H -> oo$ and letting $sigma_a^2$ scale as $sigma^2\/H$ to keep variance finite, we get
+$
+  lim_(H -> oo) E_bm(w)[u'_H (t)] &= 0 \
+  lim_(H -> oo) E_bm(w)[u'_H (t) u'_H (t')] &= sigma^2 [0 < t <= t_c] times [0 < t' <= t_c] times k_d (t, t') := k(t, t')
+$
+and higher moments are zero due to the central limit theorem.
+Thus in the limit $H -> oo$,
+$
+  lim_(H -> oo) u'_H(t) ~ mono("Gaussian process")(0, sigma^2 k (t, t'))
+$
+
+*/
+
+/*
+questions:
+- transfer functions are not bounded unlike in Williams -- this does not cause problems?
+* answer: no:
+Unlike in the original derivation of #pcite(<Williams1998>), we do not require the hidden-unit transfer functions to be bounded; it is sufficient that their outputs have finite variance under the weight prior as was shown in #pcite(<Matthews2018>). For $(C t - B)_+^d$ with Gaussian weights $B, C$, this holds for any finite $d$ and $t$, and the infinite-width limit then yields the degree-$d$ arc-cosine kernel #pcite(<Cho2009>).
+
+
+- the H -> oo limit only matters to make higher order moments vanish? in this case for any finite H we'd still just have a rescaled arc cosine kernel?
+- so what does that limit actually accomplish here? i thought it would give us infinite resolution (since oo amount of changepoints) but that seems untrue. i am confused as in MacKay 1998 he derivs RBF kernel as sum of RBF basisfunctions taking limit to oo amount. but we do something different here... but i cant put my finger on it. having a hard time to explain this properly to a relatively GP-inexperienced jury
+
+
+
+*/
+
+
+
+/*
+
+Note that $bm(u')$ is a Gaussian like @eq:udashgauss for any finite collection of $N$ sample times $bm(t)$.
+This is the defining property of a Gaussian process and therefore $u'_H (t)$ is a Gaussian process of rank $<= H$ with kernel
+$
+  k(t, t') = sigma_a^2 sum_(h=1)^H phi.alt_h (t) phi.alt_h (t').
+$
+
+*/
+
+/*
+$
+  bm(Q)_(n n') = sigma_a^2 sum_(h=1)^H phi.alt_h (t_n) phi.alt_h (t_n')
+$
+*/
 
 /*
 We want to show that inf resolution still goes
@@ -398,6 +732,8 @@ We need to write again the expectation <f f'> which he could write as sigma <phi
 MacKay integrates first over amplitude weight and THEN integrates over input index h, we integrate BOTH over h (resolution) AND weights (prior) simulteaunisky
 
 */
+
+/*
 
 $
   K_(i j) & = sigma_a^2 sum_(h=1)^H phi_h (t_i) phi_h (t_j) \
@@ -433,6 +769,8 @@ Also show # params and compute time for each
 
 */
 
+*/
+
 #figure(
   image("/figures/svg/20251008144755528.svg"),
   caption: [Hard changepoints are difficult, best we can do are steep slopes.],
@@ -441,8 +779,7 @@ Also show # params and compute time for each
 ==== Neural networks again.
 The marginalization above was first done by #pcite(<Cho2009>) in the context of infinite-width neural networks in the style of #pcite(<Neal1996>) #pcite(<Williams1998>). This viewpoint also allows for going beyond a depth 1 network by iteration of the $arccos$ kernel.#footnote[Kernel composition (reiteration) is indeed a valid kernel operation in general, as recently emphasized by @Dutordoir2020.]
 
-==== 
-Why not go infinite depth?
+==== Why not go infinite depth?
 Different character from increasing width; effective depth of deep GPs. If stable limit, it becomes independent of inputs @Diaconis1999. Seen often in DGPs as input independency, "forgetting inputs". Though one might counteract that going to infinite width also has similar "unfortunate" consequences (MacKay's baby with the bath water): "features are not learned", basis functions are fixed. This shows that kernel hyperparameters must encode (most of) features. We do this via sparse multiple kernel learning; ie static kernels on the Yoshii-grid mechanism; our hyperparams are $(T, tau, "OQ")$, ie 3 dim grid.
 
 ==== Why not spline models?
