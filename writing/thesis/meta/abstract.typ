@@ -1,6 +1,6 @@
 A reliable and accurate white-box model of speech is still something of a holy grail in phonetics, forensics, and clinical medicine.
 The difficulty is that fitting such models to microphone recordings is a blind inverse problem, known as glottal inverse filtering, which requires inferring both source signal and filter simultaneously from a single waveform.
-Because the problem is severely underdetermined, we must lean hard on our prior information to constrain the set of mathematically possible solutions: they must adhere to what we already know to be plausible or true.
+Because the problem is severely underdetermined, we must lean hard on prior information to constrain the set of mathematically possible solutions: they must adhere to what we already know to be plausible or true.
 I will show how nonparametric Gaussian processes let us bake such prior knowledge directly into the model
 by (1) deriving a nonstationary kernel that can model the glottal cycle, (2) specializing that kernel into a surrogate model learned from simulated source signals via interdomain features, and (3) proposing a new and general framework for specifying arbitrary prior information about the filter;
 and how this improves reliability and accuracy at inference time.

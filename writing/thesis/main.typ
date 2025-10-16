@@ -108,6 +108,7 @@
 )
 
 #set heading(numbering: "1.1.1")
+#show heading.where(level: 1): set heading(supplement: [Chapter])
 
 #set math.equation(
   numbering: "(1)",
@@ -149,19 +150,4 @@ Gridding over OQ also done in @Fu2006
 Can check GCI accuracy with that Hilbert transform database with ~100% correct annotated GCIs
 */
 
-= Conclusion
-<chapter:conclusion>
-
-Possible improvements/future directions:
-- $p(a)$ not as a delta function in IKLP
-- work in spectral domain completely
-- model $h(t)$ as a GP conditional on $e(t)$ given: alternate optimization
-- interframe correlations as in @Mehta2012
-
-/*
-From @Drugman2019
-
-Glottal characterization has also been shown to be helpful in another
-biomedical problem: the classification of clinical depression in speech. In
-(Ozdas et al. (2004))
-*/
+#include "./chapter/conclusion/main.typ"

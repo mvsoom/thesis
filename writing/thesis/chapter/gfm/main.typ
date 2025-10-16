@@ -276,7 +276,7 @@ It may sound like a stretch to relate polynomial GFMs to neural nets, but this v
     gnuplot(read("./fig/repu3.gp")),
   ),
   placement: auto,
-  caption: [*The RePU activation functions* $(t)_+^d$ for $d in {0,1,2,3}$. After #pcite(<Cho2009>).],
+  caption: [*The RePU activation functions* #box(baseline: -3pt)[#line(length: 1.5em, stroke: 1.3pt + blue)] $(t)_+^d$ for $d in {0,1,2,3}$. /*After #pcite(<Cho2009>).*/],
 ) <fig:repu>
 
 === Regression view
@@ -297,7 +297,7 @@ $
 the general parametric model during /*both open and closed phase*/ the open phase becomes simply
 $
   bm(u') = bm(Phi) bm(a).
-$
+$ <eq:udphia>
 This is linear in the amplitudes $bm(a)$ given $bm(Phi)$, so the model is rather constrained at this point.
 Indeed, $bm(a)$ is currently the only source of variability and power in this model because we assume all other parameters fixed.
 Which prior then for $bm(a)$ should we choose?
@@ -311,30 +311,35 @@ $ <eq:pab>
 The closure constraint @eq:closure-constraint becomes
 $
   integral_0^T u'_H (t) dif t = sum_(h=1)^H a_h integral_0^t_c phi.alt_h (t) dif t = sum_(h=1)^H a_h r_h = 0,
-$
+$ <eq:arh-constraint>
 with $r_h = (t_c - b_h)^(d+1)\/(d+1)$.
 Observe that the prior @eq:pab already satisfies the closure constraint in expectation:
 $
   bb(E)_(bm(a)|bm(b)) [sum_(h=1)^H a_h r_h] = sum_(h=1)^H bb(E)_(bm(a)|bm(b))[a_h] thin r_h = 0.
 $
 This motivates setting the prior mean of the $bm(a)$ to zero, otherwise than symmetry of ignorance around $bm(a) = bm(0)$.
-We can also enforce it:
+We can also enforce it:#footnote[
+  The general solution is given by $argmin_f D_"KL" [f(bm(a)) || p(bm(a) | bm(b))]$ under the constraint @eq:arh-constraint, but the closure under linear conditioning of Gaussian distributions allow us to take a shortcut here.
+]
 $
-  sum_(h=1)^H a_h r_h = 0 ==> p(bm(a) | bm(b), thin bm(r)^top bm(a) = 0) = mono("Normal")(bm(a) | 0, sigma_a^2 (bm(I) - bm(q) bm(q)^top))
-$
+  sum_(h=1)^H a_h r_h = 0 ==> p(bm(a) | bm(b), thin bm(r)^top bm(a) = 0) = mono("Normal")(bm(a) | bm(0), sigma_a^2 (bm(I) - bm(q) bm(q)^top))
+$ <eq:arh-prior>
 where $bm(r) = (r_1, dots, r_H)^top$ and $bm(q) = bm(r)/(||bm(r)||)$.
 A convenient way to a sample from this updated prior makes use of the fact that this is a rank-one projection:
 $
-  &bm(a) &equiv& (bm(q) bm(q)^top) bm(a) + (bm(I) - bm(q) bm(q)^top) bm(a) quad &~& quad p(bm(a) | bm(b)) \
-  ==> &bm(a)^* &=& (bm(I) - bm(q) bm(q)^top) bm(a) &~& quad p(bm(a) | bm(b), thin bm(r)^top bm(a) = 0)
+  &bm(a) &equiv& (bm(q) bm(q)^top) bm(a) + &(&bm(I) - bm(q) bm(q)^top) &bm(a)& quad &~& quad p(bm(a) & | & bm(b)) \
+  ==> &bm(a)_perp &=& &(&bm(I) - bm(q) bm(q)^top) &bm(a)& quad &~& quad p(bm(a) & | & bm(b), thin bm(r)^top bm(a) = 0).
 $
-This is a linear constraint on the $a$, so we can update the prior to always respect the constraint. A single constraint projects out the component of $a$ along $b$, so the resulting covariance matrix is degenerate and has rank $K - 1$. A Bayesian way to derive this would make use updating the prior via $D_"KL"$.
-
-This shows how prior of $a$ can encode properties we care about. This is a central theme in what follows: we will find that our priors for the linear amplitude can encode a host of features such as differentiability, closure, ... in other words, the gross features of the expected spectrum of the DGF.
-
+How does this look in data space?
+Compared to samples from the isotropic prior @eq:pab,
+the anisotropic prior @eq:arh-prior induces glottal flows $bm(u)$ that tend to look more pulse-like.
+// TODO: figure here
 /* picture of triangular pulse model with K=2 ... K = 5 with t_k chosen uniformly and respecting the closure constraint */
+Likewise, regression with the latter ensures that posterior mass vanishes at solutions $bm(u)$ that violate the closure constraint.
 
-All polynomial models of @sec:classic-polynomial-models can be expressed in this way, with the constraint on $a$ taking into account the closure constraint automatically rather than deriving it for each model (as e.g. in @Doval2006).
+This illustrates how linear constraints on the amplitudes $bm(a)$ in the linear model @eq:udphia can encode GFM properties at the cost of just a few rank-one downdates.
+Moving on from linear models to Gaussian processes, these linear constraints become linear functionals called _interdomain features_, which may be used to impose structure directly in function space, without touching rank, but more challenging mathematically.
+In @chapter:pack, we will use the interdomain approach to learn spectral features of nonparametric GFMs directly from synthetic data rather than hardcoding them as in @eq:arh-constraint.
 
 #figure(
   grid(
@@ -345,34 +350,36 @@ All polynomial models of @sec:classic-polynomial-models can be expressed in this
     [#include "./fig/nn-polynomial-a.typ"], [#include "./fig/nn-polynomial-b.typ"],
     [(a)], [(b)],
   ),
-  placement: top,
+  placement: auto,
   kind: image,
   caption: [
     *Neural network view.*
     (a) The triangular pulse model as a tiny neural network with a single hidden layer, linear readout and $t^0_+$ activation.
-    (b) The general parametric polynomial model of degree $n$ with order $H$ with weights $bm(w) = {bm(a), bm(t), bm(c)} in bb(R)^(3 H)$ and RePU activation function $t_+^n$.
+    (b) The general parametric polynomial model of degree $n$ with order $H$ with weights $bm(w) = {bm(a), bm(b), bm(c)} in bb(R)^(3 H)$ and RePU activation function $t_+^n$.
   ],
   gap: 1em,
 ) <fig:nn-polynomial>
 
-==== How good of a GFM is this?
 
-// maybe put this in summary
-
-Before doing so, we take a look at how much of viable candidates @eq:udH still are as GFMs.
-
-Differentiable: yes
-
-Domain: yes
-
-No return phase unless very lucky, tiny support
-
-Closure constraint: we could restrict this analytically
-
-Putting priors will enable us to trace out a family of GFMs
+Finally, observe that the analytical solution @eq:arh-prior to the closure constraint is valid for any degree $d >= 0$ and order $H >= 1$, so the classic polynomial models listed in @sec:classic-polynomial-models can all be expressed in our linear model framework given suitable choices of $bm(b)$ and $t_c$.
 
 === Connection to neural networks
 <sec:connection-to-neural-networks>
+
+In fact, due to connection with neural networks, it is easy to see that not only polynomial but _general_ GFMs can be expressed with sufficients $H(d)$ where for a given level of approximation $epsilon$ the number $H(d)$ needed depends on $d$.
+
+As said before, this model is very constrained to lie on submanifold of dim $H$.
+even rank $K-1$ with the constraint
+we should add more expressiveness
+we can do so to add a prior for $bm(b)$ so we don't have to assume anymore that this is fixed
+and go to a full rank GP (rank goes to $N$, not $H$)
+for this we will loose the closure constraint for now but reimpose it in the next chapter
+
+/*
+we invoked linearity on the bm(a) to justify gaussian priors, but the bm(t) are also additive within neural network lense
+and this suggest a bm(c) parameter to modulate t
+*/
+
 
 Moving on to data space, the prior probability of $bm(u')$ is also Gaussian,
 $
@@ -385,16 +392,6 @@ $
   expval(bm(u') bm(u')^top) & = bm(Phi) expval(bm(a) bm(a)^top) bm(Phi)^top = sigma_a^2 bm(Phi) bm(Phi)^top.
 $
 where the expectations $expval(dot)$ were taken with respect to @eq:pab.
-As said before, this model is very constrained to lie on submanifold of dim $H$.
-
-we should add more expreissiblitly
-
-we can do so to add a prior for $bm(b)$ so we don't have to assume anymore that this is fixed
-
-/*
-we invoked linearity on the bm(a) to justify gaussian priors, but the bm(t) are also additive within neural network lense
-and this suggest a bm(c) parameter to modulate t
-*/
 
 In a modern lens, these models can be seen as a neural net with a single hidden layer in the regression setting. $H(t) t$ is a ReLU, etc. This is good, because already a single hidden layer has the universality property. Encouraged, this also suggests the prior $t_k ~ N(0, sigma_t^2)$ truncated to $t_k in [t_0, t_e]$: these are biases in the neural net picture, and we truncate to remain in the open phase.
 
@@ -811,3 +808,20 @@ LPC just proclaims s(t) = e(t) * h(t) and shoves radiation into the source such 
 since differentiation is ~ i2pi x => zero, not a pole
 so we are generalizing LPC, so also choose e(t) => u(t) * r(t)
 */
+
+
+==== How good of a GFM is this?
+
+// maybe put this in summary
+
+Before doing so, we take a look at how much of viable candidates @eq:udH still are as GFMs.
+
+Differentiable: yes
+
+Domain: yes
+
+No return phase unless very lucky, tiny support
+
+Closure constraint: we could restrict this analytically
+
+Putting priors will enable us to trace out a family of GFMs
