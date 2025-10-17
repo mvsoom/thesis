@@ -113,15 +113,15 @@ for n in range(3):
 # %%
 from numpy.random import randn
 
-n = 0
+n = 1
 
 N = 1000
 z = randn(N)
 x = np.linspace(-1, 1, N)
 dx = x[1] - x[0]
 
-sigma0 = 0.1
-sigmax = 10.0
+sigma0 = 0.5
+sigmax = 1.0
 rho = 0.1
 Sigma = np.array(
     [[sigma0**2, sigmax * sigma0 * rho], [sigmax * sigma0 * rho, sigmax**2]]

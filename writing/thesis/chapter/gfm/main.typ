@@ -539,6 +539,11 @@ To close, recall that there are two distinct averages at play:
 (2) the $1/H$ average in the kernel estimator $hat(K)_H (t, t')$, which ensures that the empirical kernel converges to $K(t, t')$.
 The first governs the distribution over functions, the second governs the convergence of their covariance. Together they give the Gaussian process limit with kernel $sigma_a^2 K(t, t')$.
 
+The correspondence is:
+$
+  K(t,t') = sigma_a^2/2 k^((d)) (bm(Sigma)^(1/2) bm(x)_t, bm(Sigma)^(1/2) bm(x)_(t'))
+$
+
 ==== What happened?
 It is worth pausing to ask what really happened here.
 At first sight, taking $H -> oo$ might seem like an act of reckless generalization: we blow up the number of parameters without bound, yet somehow end up with something *simpler*—a single Gaussian process with a fixed kernel. Conditional on the random features, the model was already Gaussian, so the only effect of the limit is that the *random design itself* stops being random. The empirical kernel freezes to its mean, and with it the whole architecture of the network becomes a static, deterministic map from inputs to covariances.

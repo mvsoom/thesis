@@ -22,94 +22,165 @@ Matern kernels and others do not take into account Nyquist information, whereas 
 
 == The compact Yaglom or compact bitransform
 
-This Section is devoted to calculating the compact Fourier bitransform, also known as the Yaglom transform in the context of kernels, of the temporal arc cosine kernel:
+This Section is devoted to calculating the compact Fourier bitransform, also known as the Yaglom transform in the context of kernels, of the standard temporal arc cosine kernel:
 $
   tilde(k)^((d)) (f,f'; C) = integral.double_C k^((d)) (t, t') thin exp{- i 2 pi f t} exp{i 2 pi f' t'} dif t dif t'
+$ <eq:yaglom>
+where $C = (t_1, t_2) times (t_1, t_2)$ and $k^((d))$ is the standard temporal arc cosine kernel (TACK).
 $
-where $C = (t_1, t_2) times (t_1, t_2)$ and $k^((d))$
-/*
+  k^((d)) (t, t) = 1/pi (1+t^2)^(d/2) (1+t'^2)^(d/2) J_d (theta)
 $
-  bm(tau)(t) = mat(sigma_b, 0; 0, sigma_c) vec(1, t) = vec(sigma_b, sigma_c t) in bb(R)^2
+"Standard" means that the prior variances $sigma_a = sigma_b = sigma_c = 1$.
+Later we generalize the calculation by means of an affine transformation of @eq:yaglom.
+From the previous Chapter, the TACK is just the 1D bias-augmented version of the arc cosine kernel (ACK) of @Cho2009:
 $
-*/
-is temporal arc cosine kernel (TACK).
-$
-  k^((d)) (t, t) = 1/pi ||1 + t^2||^(d/2) ||1 + t'^2||^(d/2) J_d (theta)
+  k^((d)) (bm(x), bm(x')) = 1/pi ||bm(x)||^d ||bm(x')||^d J_d (theta)
+  
 $
 where
 $
-  bm(x)_t = vec(1, t), quad bm(x)_(t') = vec(1, t').
+  theta = arccos (bm(x)^top bm(x'))/(||bm(x)|| ||bm(x')||) = "angle between" bm(x) "and" bm(x') in [0,pi]
 $
-and
-$
-  k^((d))_bm(Sigma) (t, t') = k^((d)) (bm(Sigma)^(1/2) bm(x)_t, bm(Sigma)^(1/2) bm(x)_(t'))
-$
-and
-$
-  theta & = arccos(bm(u)^top bm(u')) \
-        & = |arctan(t) - arctan(t')| in [0, pi)
-$
-and the zonal kernel for RePU degree $d$ is given by @Cho2009
+and the $J_d$ expression is given by the generator expression
 $
   J_d (theta) = (-1)^d (sin theta)^(2d + 1)
   ( 1 / (sin theta) dif/(dif theta) )^d
-  ( (pi - theta) / (sin theta) )
+  ( (pi - theta) / (sin theta) ).
 $
-The first four expressions for the kernels are:
+The first four expressions are:
 $
   J_0(theta) & = pi - theta \
   J_1(theta) & = sin theta + (pi - theta) cos theta \
   J_2(theta) & = 3 sin theta cos theta + (pi - theta)(1 + 2 cos^2 theta) \
   J_3(theta) & = 15 sin theta - 11 sin^3 theta + (pi - theta)(9 cos theta + 6 cos^3 theta)
 $
+Here $theta in [0, pi]$ due to image of $arccos$; and these formulas are not valid for $theta < 0$.
 
-
-==== Harmonic expansion of the zonal kernel
-Due to the fact that $J_d(theta)$ is isotropic, we have the general zonal expansion
+So the TACK is just
 $
-  J_d (theta) = sum_(m in bb(Z)) c_m^((d)) e^(i m Delta_psi)
+  k^((d)) (t, t') = k^((d)) (bm(x)_t, bm(x)_(t'))
+$
+with
+$
+  bm(x)_t = vec(1, t), quad bm(x)_(t') = vec(1, t').
+$
+Generalizing to arbitrary $bm(Sigma)$:
+$
+  k^((d))_bm(Sigma) (t, t') = k^((d)) (bm(Sigma)^(1/2) bm(x)_t, bm(Sigma)^(1/2) bm(x)_(t')).
+$
+
+=== Harmonic expansion of the zonal kernel
+// From FT of arccos kernl.pdf on reMarkable
+
+Define
+$
+  bm(u)_t = bm(x)_t/(||bm(x)_t||) = vec(1/sqrt(1+t^2), t/sqrt(1 + t^2)) in S^1 quad "(circle)"
+$
+This vector lies on the circle so we express it as
+$
+  bm(u)_t = vec(cos psi_t, sin psi_t)
+$
+with the neat one-to-one correspondence
+$
+  psi_t = arctan t in (-pi/2, pi/2)
+$
+afforded by 1 dim plus unit bias combination unique to our problem.
+
+With this parametrization, $theta = arccos("angle between" bm(x)_t "and" bm(x)_(t'))$ reduces to
+$
+  theta & = arccos bm(u)_t^top bm(u)_(t') \
+        & = |psi_t - psi_t'| := |Delta_psi| in [0, pi)
+$
+/* this needs a circle illustration */
+This means that $J_d (theta)$ looks like an isotropic kernel disguise;
+$
+  J_d (theta) = J_d (|psi_t - psi_t'|) = J_d (|Delta_psi|)
+$ <eq:jdtheta>
+However, it isn't a proper kernel, because it is not symmetric nor PSD.
+Define
+$
+  J_d^"ext" (theta) = J_d (|theta|)
+$
+as the natural extension of $J_d (theta)$ by even reflection; this extends the domain $[0,pi]$ to $[-pi,pi]$ and makes it a proper compact kernel.
+$J_d^"ext" (theta)$ is an angular zonal kernel: isotropic on $S^1$ @Dutordoir2020.
+Observe that at $theta = plus.minus pi$ we have $J_d^"ext" (theta) = 0$, so gluing copies end-to-end yields a $2 pi$-periodic continuous function for free.
+It is an idea candidate for a harmonic expansion into Fourier series.
+It is also real and even so its Fourier series consists only of cosine terms:
+$
+  J_d^"ext" (Delta_psi) &= sum_(m in bb(Z)) c_m^((d)) e^(i m Delta_psi) \
+  c_m^((d)) &= 1/(2pi) integral_(-pi)^pi J_d^"ext" (Delta_psi) exp{-i m Delta_psi} dif Delta_psi, quad m in bb(Z),
 $
 where
 $
-  c^((d))_(-m) = c^((d))_m^* = c^((d))_m in bb(R)
+  c^((d))_(-m) = [c^((d))_m]^* = c^((d))_m in bb(R).
 $
+/*
+Such kernels are called _zonal kernels_ @Dutordoir2020.
+The translation invariance implies that its Fourier transform is 1D (Bochner's theorem):
+$
+  J_d (theta) = sum_(m in bb(Z)) c_m^((d)) e^(i m |Delta_psi|)
+$
+where
+$
+  c^((d))_(-m) = [c^((d))_m]^* = c^((d))_m in bb(R).
+$
+*/
+where $z^*$ denotes complex conjugate.
+These coefficients can be computed analytically and can be precomputed and stored for various values of $d$ once and for all.
+Convergence is extremely fast, can get away with $M <= 30$ terms for $d = 0$ and even less for higher $d$.
 
-== Strategy for $H_(m,n)(f)$
+This is the harmonic expansion of a zonal kernel: a discrete Fourier series, not infinite Fourier transform, because we are on $S^1$.
 
-$
-  H_(m,n)(f) = integral_a^b (1 + x^2)^(n/2) exp{i m arctan x} exp{- i 2 pi f x} dif x
-$
+==== Harmonic expansion for $d = 0$
+Slowest convergence at $O(m^(-2))$
 
-where $m in bb(Z)$ and $n in bb(N)_>=0$. Note immediately that
+
+
+== The $H_m^((d))(f)$ function
+Back to @eq:yaglom:
 $
-  H_(-m,n)(f) = overline(H_(m,n)(-f)).
+  tilde(k)^((d)) (f,f'; C) &= integral.double_C k^((d)) (t, t') thin exp{- i 2 pi f t} exp{i 2 pi f' t'} dif t dif t' \
+  &= integral.double_C (1+t^2)^(d/2) (1+t'^2)^(d/2) sum_(m in bb(Z)) c^((d))_m exp{i m (psi_t - psi_t')} exp{- i 2 pi (f t - f' t')} dif t dif t' \
+  &= sum_(m in bb(Z)) c_m^((d)) [integral_(t_1)^(t_2) (1+t^2)^(d/2) exp{i m psi_t} exp{-i 2pi f t} dif t] times \
+  &quad quad quad [integral_(t_1)^(t_2) (1+t'^2)^(d/2) exp{-i m psi_t'} exp{i 2pi f' t'} dif t'] \
+  &= sum_(m in bb(Z)) c_m^((d)) thin H_m^((d))(f) thin overline(H_m^((d))(f'))
 $
-Set $theta = arctan x$. Then
+This is a Mercer expansion of the $tilde(k)^((d)) (f,f'; C)$ kernel; an inverse Fourier transform of this expression yields a direct Mercer expansion of the original kernel.
+
+The calculation has been simplified to evaluating
 $
-  H_(m,n)(f) = integral_(theta_1)^(theta_2) sec^(n+2) theta
+  H_m^((d))(f) = integral_(t_1)^(t_2) (1 + t^2)^(d/2) exp{i m arctan t} exp{- i 2 pi f t} dif t
+$
+where $m in bb(Z)$ and $d in bb(N)_>=0$. Note immediately that
+$
+  H_(-m)^((d))(f) = overline(H_m^((d))(-f)).
+$
+Set $theta = arctan t$. Then
+$
+  H_m^((d))(f) = integral_(theta_1)^(theta_2) sec^(d+2) theta
   exp{i m theta} exp{- i 2 pi f tan theta} dif theta,
 $
-where $(theta_1, theta_2) = (arctan a, arctan b)$.
+where $(theta_1, theta_2) = (arctan t_1, arctan t_2)$.
 
 In general,
 $
-  H_(m,n)(f) = (1 / (i 2 pi f))
-  [ upright("constant") + upright("LC")(H_(m+1,n-1)(f), H_(m-1,n-1)(f)) ] ,
+  H_m^((d))(f) = (1 / (i 2 pi f))
+  [ upright("constant") + upright("LC")(H_(m+1)^((d-1))(f), H_(m-1)^((d-1))(f)) ] ,
 $
 where the constant is
 $
-  - sec^n theta exp{i m theta} exp{- i 2 pi f tan theta} |_(theta_1)^(theta_2) .
+  lr(- sec^d theta exp{i m theta} exp{- i 2 pi f tan theta} |, size: #150%)_(theta_1)^(theta_2) .
 $
 
-This exhibits the derivative operator $(i 2 pi f)^(-1)$ linking order $n$ to $n-1$ (in a nontrivial way) and implies differentiability of the sample paths.
+This exhibits the derivative operator $(i 2 pi f)^(-1)$ linking degree $d$ to $d-1$ (in a nontrivial way) and implies differentiability of the sample paths.
 
-We have a general recursion in $n$, so it suffices to compute the base cases
+We have a general recursion in $d$, so it suffices to compute the base cases
 $
-  (n,m) = (0,0), (0,1), (0,3), dots
+  (d,m) = (0,0), (0,1), (0,3), dots
 $
 and by reflection in $-f$ we may restrict to $m >= 0$ since
 $
-  H_(-m,n)(f) = overline(H_(m,n)(-f)).
+  H_(-m,n)(f) = overline(H_m^((d))(-f)).
 $
 
 /*
