@@ -223,33 +223,33 @@ the important concepts involved.
 
 The #emph[input] to the system is the source $u (t)$. The system has two
 #emph[transfer functions] which determine how the amplitudes and phase
-of the frequencies present in the input $tilde(u)(x)$ are modified or
+of the frequencies present in the input $tilde(u)(f)$ are modified or
 filtered by the system to produce the #emph[output];. That frequency
 decomposition
 $
-  tilde(u)(x) = cal(F) [u(t)](x) = integral_(-oo)^oo u(t) exp{-i 2 pi x t} dif t
+  tilde(u)(f) = cal(F) [u(t)](f) = integral_(-oo)^oo u(t) exp{-i 2 pi f t} dif t
 $ <eq:ux>
 is obtained by the Fourier transform $cal(F)$ of $u (t)$. Note that the
 system's transfer function is assumed to be independent from its input:
 source-filter theory assumes source and filter to be decoupled.
 
-The vocal tract transfer function $tilde(h)(x)$ describes the
+The vocal tract transfer function $tilde(h)(f)$ describes the
 resonances and antiresonances of the vocal tract (comprising the throat,
 mouth and nasal cavity), while the radiation characteristic
-$tilde(r)(x)$ describes the lip radiation effect. These transfer
+$tilde(r)(f)$ describes the lip radiation effect. These transfer
 functions can be described equivalently in the time domain by the
 #emph[impulse responses]
 $
-  h(t) & = cal(F)^(-1)[tilde(h)(x)](t) & = integral_(-oo)^oo tilde(h)(x) exp{i 2 pi t x} dif x \
-  r(t) & = cal(F)^(-1)[tilde(r)(x)](t) & = integral_(-oo)^oo tilde(r)(x) exp{i 2 pi t x} dif x
+  h(t) & = cal(F)^(-1)[tilde(h)(f)](t) & = integral_(-oo)^oo tilde(h)(f) exp{i 2 pi f t} dif x \
+  r(t) & = cal(F)^(-1)[tilde(r)(f)](t) & = integral_(-oo)^oo tilde(r)(f) exp{i 2 pi f t} dif x
 $ <eq:hrt>
 using the inverse Fourier transform $cal(F)^(- 1)$.
 Unlike $u (t)$ and $h (t)$, $r (t)$ is assumed fixed and known: the lip
 radiation effect is modeled in the GIF literature as a standard 6
 dB/octave high pass filter @Stevens2000[p.~128] which has transfer
-function $tilde(r)(x) = i 2 pi x$. This corresponds to
+function $tilde(r)(f) = i 2 pi x$. This corresponds to
 differentiation in the time domain as @eq:hrt yields
-$r (t) = delta' (t)$.#footnote[Convolution of a test function $f (x)$
+$r (t) = delta' (t)$.#footnote[Convolution of a test function $f (f)$
   with the derivative of the Dirac delta function is equivalent to
   differentiation: $f (t) * delta' (t) = f' (t)$. This can be justified
   by distribution theory @Lighthill1958.]
@@ -258,7 +258,7 @@ The _output_ of the system is the speech pressure signal $s (t)$
 $
                   s(t) & = && u(t)        & * & h(t)        & * & r(t)        & quad quad & "(time domain)" \
   //tag{ref{eq:lti-full}}
-  ==> quad tilde(s)(x) & = && tilde(u)(x) &   & tilde(h)(x) &   & tilde(r)(x) &           & "(frequency domain)"
+  ==> quad tilde(s)(f) & = && tilde(u)(f) && tilde(h)(f) && tilde(r)(f) && "(frequency domain)"
 $ <eq:lti-x>
 
 assumed to be measured in the free field (that is,
@@ -270,17 +270,17 @@ the time domain @eq:lti-full.
 The meaning of these equations is best understood in the frequency
 domain. During speech production, the source drives the air in the vocal
 tract such that it vibrates with some initial distribution over
-frequencies $tilde(u)(x)$. Excited, the vocal tract filter
-$tilde(h)(x)$ reacts: frequencies in $tilde(u)(x)$ close to its
+frequencies $tilde(u)(f)$. Excited, the vocal tract filter
+$tilde(h)(f)$ reacts: frequencies in $tilde(u)(f)$ close to its
 resonance frequencies are emphasized,#footnote[The vocal tract filter is
-  #emph[passive];, meaning that $|tilde(h)(x)| \< 1$ for all frequencies
+  #emph[passive];, meaning that $|tilde(h)(f)| \< 1$ for all frequencies
   $x$ @Flanagan1965. The resonances of the vocal tract do not actively
   amplify frequencies; frequencies close to the resonance frequencies are
   just less dampened relative to neighbouring frequency bands.] while
-frequencies in $tilde(u)(x)$ close to its antiresonance frequencies are
+frequencies in $tilde(u)(f)$ close to its antiresonance frequencies are
 (often brutally) suppressed. The result of this spectral imprinting is
 then radiated from the lips into the free field. This radiation effect
-is contained within $tilde(r)(x)$: high frequencies are emphasized,
+is contained within $tilde(r)(f)$: high frequencies are emphasized,
 essentially because the lips act like small (passive) tweeters
 @Schroeder1999. We are able to #emph[hear] the spectral imprint of the
 speaker's vocal tract on the initial energy distribution @Klatt1986,
@@ -311,7 +311,7 @@ Equation @eq:suh is the basis for the nonparametric
 generative model of $s (t)$ which we use to separate speech data \[noisy
 samples of $s (t)$\] into source $u' (t)$ \[equivalently $u (t)$ via
 @eq:udu\] and filter $h (t)$ \[equivalently
-$tilde(h)(x)$ via @eq:hrt\].
+$tilde(h)(f)$ via @eq:hrt\].
 
 With the general picture laid out, we now discuss the $u (t)$, $h (t)$
 and $s (t)$ waveforms in further detail, and present a high-level
@@ -376,7 +376,7 @@ prior.
 
 Source-filter theory asserts that the physical resonances and
 antiresonances of the vocal tract show up as local maxima and minima in
-the envelope of the power spectrum $|tilde(h)(x)|^2$ of the vocal
+the envelope of the power spectrum $|tilde(h)(f)|^2$ of the vocal
 tract transfer function. These extrema are known as #emph[formants] and
 #emph[antiformants];, respectively, and their amplitudes, frequencies
 and bandwidths give a compact description of the resonant and damping
@@ -388,7 +388,7 @@ produce the desired vowel or consonant. Humans really are master
 musicians of the vocal instrument.
 
 The standard LTI assumption and canonical approach in source-filter
-theory is that $tilde(h)(x)$ is a #emph[rational transfer function]
+theory is that $tilde(h)(f)$ is a #emph[rational transfer function]
 whose #emph[poles] and #emph[zeros] are identified with the
 aforementioned formants and antiformants, respectively @Stevens2000. We
 adopt this assumption in this thesis but without the one-to-one
@@ -396,13 +396,13 @@ correspondence between (formants and pole pairs) and (antiformants and
 zero pairs). Instead, a single formant may be modeled by one or more
 poles while some 'spectrum shaping' poles need not correspond to
 formants at all; and similarly for antiformants and zeros. For this
-reason we prefer to think of $tilde(h)(x)$ as a parametric rational
+reason we prefer to think of $tilde(h)(f)$ as a parametric rational
 #emph[expansion] of the true underlying vocal tract transfer function.
 The parameters controlling this Padé expansion are its order, an overall
 gain factor and a vector of poles and zeros. All of these can be
 inferred from speech data.
 
-A (strictly proper) rational transfer function $tilde(h)(x)$ in the
+A (strictly proper) rational transfer function $tilde(h)(f)$ in the
 frequency domain implies through @eq:hrt that the
 impulse response $h (t)$ in the time domain consists of a real-valued
 superposition of exponentially decaying sinusoids. This real-valued
@@ -490,7 +490,7 @@ intricate covariance structure of voiced speech. Accordingly, the
 samples shown in Figure~@fig:ssamples are nothing but draws from a
 high-dimensional multivariate normal distribution. BNGIF infers the
 source $u' (t)$ \[equivalently $u (t)$ via @eq:udu\]
-and filter $h (t)$ \[equivalently $tilde(h)(x)$ via
+and filter $h (t)$ \[equivalently $tilde(h)(f)$ via
 @eq:hrt\] from @eq:suh by
 learning the kernel that best describes the given speech data. This is a
 challenging but ultimately standard GP inference task that can be done
@@ -517,14 +517,14 @@ methods, which holds most of the popular GIF methods used today such as
 closed phase analysis @Wong1979 and iterative adaptive inverse filtering
 @Alku1992. The inverse filtering approach aims to recover the glottal
 source signal $u (t)$ by extracting from the speech data $bm(d)$ an
-estimate of the vocal tract filter $hat(tilde(h))(x)$ and then
-digitally filtering $bm(d)$ by $1 \/ hat(tilde(h))(x)$, the inverse of
+estimate of the vocal tract filter $hat(tilde(h))(f)$ and then
+digitally filtering $bm(d)$ by $1 \/ hat(tilde(h))(f)$, the inverse of
 that (hopefully nonzero) estimate. These methods are based on efficient
 digital signal processing algorithms. Most of them rely on LP analysis
 and differ mainly in how the all-pole vocal tract transfer function
-$tilde(h)(x)$ is estimated @Kadiri2021. No explicit parametric form of
+$tilde(h)(f)$ is estimated @Kadiri2021. No explicit parametric form of
 $u (t)$ is assumed because $u (t)$ is recovered by applying the digital
-filter $1\/hat(tilde(h))(x)$ to a vector of speech samples $bm(d)$.
+filter $1\/hat(tilde(h))(f)$ to a vector of speech samples $bm(d)$.
 
 ==== Joint source-filter optimization
 <sec:joint-source-filter-methods>
@@ -532,7 +532,7 @@ filter $1\/hat(tilde(h))(x)$ to a vector of speech samples $bm(d)$.
 GIF methods, a logical consequence of the increased computing power
 available in the 1980s. With joint source-filter optimization methods
 the fit of a parametric model to the speech data $bm(d)$ is optimized
-to estimate both source $u (t)$ and filter $tilde(h)(x)$
+to estimate both source $u (t)$ and filter $tilde(h)(f)$
 simultaneously (as opposed to consecutively as in the first class).
 These methods involve the nonconvex optimization of an objective
 function to determine the parameters $bold(theta)$ of some assumed
@@ -548,9 +548,9 @@ Although we are not aware of any study that compares the performance of
 these two approaches systematically, it is possible to make a few
 general statements. Inverse filtering methods are generally efficient
 and nonparametric, while joint source-filter optimization methods have
-the distinct advantage of cleanly separating $u (t)$ and $tilde(h)(x)$
+the distinct advantage of cleanly separating $u (t)$ and $tilde(h)(f)$
 from the outset. In doing so they avoid having to derive $u (t)$
-directly from a filter estimate $hat(tilde(h))(x)$ that inevitably
+directly from a filter estimate $hat(tilde(h))(f)$ that inevitably
 contains pronounced effects from the former @Auvinen2014, to which
 #cite(<Schroeder1999>, form: "prose", supplement: [p.~94]) refers as a "suspiciously circular sounding
 'bootstrap' method."
@@ -621,7 +621,7 @@ that is of course what BNGIF does,#footnote[Or rather: tries to do, as
 various GIF-derived statistics such as the open quotient (OQ) and first
 formant frequency ($F_1$) then reduces to calculating the empirical mean
 $plus.minus$ standard deviation of these statistics directly from
-posterior samples of $u (t)$ and $tilde(h)(x)$.
+posterior samples of $u (t)$ and $tilde(h)(f)$.
 
 Despite their appeal for uncertainty quantification, Bayesian approaches
 to GIF are rare in the literature, and next to BNGIF we know of only
@@ -647,7 +647,7 @@ aforementioned IAIF algorithm @Alku1992, which implements heuristic GCI
 estimation as part of its iterative structure.
 
 On the other hand, BNGIF infers GCIs alongside and simultaneously with
-the source $u (t)$ and filter $tilde(h)(x)$, which allows newly
+the source $u (t)$ and filter $tilde(h)(f)$, which allows newly
 discovered information (during inference) about either one of these to
 constrain the others. This adaptive strategy helps to 'bootstrap' the
 GCIs from the speech signal, since GCIs are instrumental in recovering
@@ -670,7 +670,7 @@ short-time Fourier transform (STFT) in acoustic phonetics @Little2011.
 In the case of voiced speech, the providence of GIF, these inertial
 constraints produce correlations across #emph[dozens] of pitch periods
 /*(as we verify empirically in Chapters~@chapter:2 and @chapter:4)*/. The
-source $u (t)$ and filter $tilde(h)(x)$ constituents of voiced speech
+source $u (t)$ and filter $tilde(h)(f)$ constituents of voiced speech
 are both inherently nonstationary yet strongly correlated at the level
 of neighbouring pitch periods. We can actually #emph[hear] this fact:
 pitch and timbre are perceptual renditions of these statistical
@@ -683,7 +683,7 @@ leads to faster exploration of plausible hypotheses).
 Figures~@fig:usamples and @fig:ssamples illustrate the local inertia and
 nonstationarity of $u (t)$ and $s (t)$ respectively. But BNGIF also
 takes into account 'filter correlations'; that is, the constrained
-variation of $tilde(h)(x)$ from pitch period to pitch period. A
+variation of $tilde(h)(f)$ from pitch period to pitch period. A
 pleasant consequence of this approach is probabilistic (anti)formant
 tracking, which we discuss just below.
 
@@ -713,13 +713,13 @@ smooth trajectories.
 
 In the case of BNGIF, formant tracking happens during inference and is
 achieved by exploiting the inertial correlations of the filter
-$tilde(h)(x)$, as discussed above. That is, pole pairs are subjected
+$tilde(h)(f)$, as discussed above. That is, pole pairs are subjected
 to inter-pitch period correlations, and this takes care of 'trajectory
 smoothing' automatically while avoiding an ad-hoc post-processing step.
 
 The same is true for the zero pairs: antiformant tracking is implicitly
 enabled in the case of a pole-zero expansion of the rational transfer
-function $tilde(h)(x)$. We are not aware of other GIF methods with
+function $tilde(h)(f)$. We are not aware of other GIF methods with
 this ability, since GIF methods almost invariably assume all-pole
 transfer functions @Alku2011@Kadiri2021@Bleyer2017, even though spectral
 zeros occur during the open phase of the glottis due to coupling to the
@@ -813,7 +813,7 @@ pitch
 
 Another important example of a downstream statistic are the familiar
 formants: these are derived from peak picking methods from the posterior
-over power spectrums $|tilde(h)(x)|^2$.
+over power spectrums $|tilde(h)(f)|^2$.
 
 Measuring formants is standard in acoustic phonetics and usually used
 for scientific inference. We want to model this entire process with
