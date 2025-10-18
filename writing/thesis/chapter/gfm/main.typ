@@ -233,6 +233,7 @@ We now look at the simplest of the polynomial models in more detail. We will use
 */
 
 === The triangular pulse model
+<sec:triangular-pulse-model>
 
 #figure(
   gnuplot(read("./fig/alku2002.gp")),
@@ -374,6 +375,12 @@ This illustrates how linear constraints on the amplitudes $bm(a)$ in the linear 
 Moving on from linear models to Gaussian processes, these linear constraints become linear functionals known as _interdomain features_, which may be used to impose structure directly in function space, without touching rank, but more challenging mathematically.
 In @chapter:pack, we will use the interdomain approach to learn spectral features of nonparametric GFMs directly from data rather than hardcoding them as in @eq:arh-constraint.
 
+==== Connection to classic polynomial models
+Observe that the analytical solution @eq:arh-prior to the closure constraint is valid for any degree $d >= 0$ and order $H >= 1$, so each classic polynomial model listed in @table:polys can be expressed in our linear model framework given suitable choices of $bm(b)$ and $t_c$, without specialized derivations.
+
+=== Connection to neural networks
+<sec:connection-to-neural-networks>
+
 #figure(
   grid(
     columns: 2,
@@ -388,17 +395,35 @@ In @chapter:pack, we will use the interdomain approach to learn spectral feature
   caption: [
     *Neural network view.*
     (a) The triangular pulse model as a tiny neural network with a single hidden layer, linear readout and $t^0_+$ activation.
-    (b) The general parametric polynomial model of degree $n$ with order $H$ with weights $bm(w) = {bm(a), bm(b), bm(c)} in bb(R)^(3 H)$ and RePU activation function $t_+^n$.
+    (b) The general parametric polynomial model of degree $d$ with order $H$ with weights ${bm(a), bm(b), bm(c)} in bb(R)^(3 H)$ and RePU activation function $t_+^d$.
   ],
   gap: 1em,
 ) <fig:nn-polynomial>
 
-==== Connection to classic polynomial models
-Observe that the analytical solution @eq:arh-prior to the closure constraint is valid for any degree $d >= 0$ and order $H >= 1$, so each classic polynomial model listed in @table:polys can be expressed in our linear model framework given suitable choices of $bm(b)$ and $t_c$, without specialized derivations.
+@fig:nn-polynomial illustrates that the triangular pulse model of @sec:triangular-pulse-model be seen as a tiny neural network.
+Likewise, the general parametric piecewise polynomial model @eq:udH can be recast as a single hidden layer of width $H$ with a RePU activation and a linear readout:
+$
+  u'_H (t) = sum_(h=1)^H a_h (c_h t - b_h)_+^d.
+$
+Each unit computes $(bm(w)_h^top bm(x)_t)_+^d$ with $bm(w)_h = (c_h, -b_h)^top$ and $bm(x)_t = (1, t)^top$, exactly like a _bias-augmented_ hidden neuron.
+The $3H$ parameters of the neural net are thus $bm(a)$ and $bm(b)$ (as before) and newly acquired degrees of freedom $bm(c) = (c_1, dots, c_H)^top$.
 
-=== Connection to neural networks
-<sec:connection-to-neural-networks>
+Once seen from this point of view, a natural symmetry appears.
+We argued that the output weights $bm(a)$ are best assigned an uninformative Gaussian prior.
+But the hidden parameters ${bm(b), bm(c)}$ now stand on equal footing:
+they enter linearly inside the activation, so the same argument applies and we are compelled to assign Gaussian priors for them, too:
+$
+  bm(b) ~ mono("Normal")(bm(0), sigma_b^2 bm(I)), quad bm(c) ~ mono("Normal")(bm(0), sigma_c^2 bm(I)).
+$
+This step is not obvious from the classical polynomial view, where changepoints $bm(b)$ were fixed hyperparameters; here they become degrees of freedom.
+Assuming $t_c$ is known, the remaining hyperparameters to describe the open phase are the three scales ${sigma_a, sigma_b, sigma_c}$ controlling amplitude, typical hinge location, and horizontal stretch, respectively.
+The closure constraint @eq:closure-constraint remains a linear condition on $bm(a)$, so it can still be enforced analytically without disturbing these priors. // TODO: this is not correct
 
+The network view also clarifies expressivity.
+Even a shallow RePU layer can approximate any smooth waveform on a bounded interval, and the required width $H(d)$ depends on the desired precision rather than the functional form.
+What used to be a rigid combination of a few piecewise polynomials now becomes a flexible scaffold: by adjusting ${sigma_a, sigma_b, sigma_c}$, the same model can represent the entire family of glottal flow derivatives — from triangular pulses to LF-type exponentials — without changing its mathematical structure. In this sense, the connection to neural networks does not just modernize notation; it exposes a hidden continuum between old parametric GFMs and the more general, data-driven models that follow.
+
+/*
 In fact, due to connection with neural networks, it is easy to see that not only polynomial but _general_ GFMs can be expressed with sufficients $H(d)$ where for a given level of approximation $epsilon$ the number $H(d)$ needed depends on $d$.
 
 As said before, this model is very constrained to lie on submanifold of dim $H$.
@@ -407,11 +432,6 @@ we should add more expressiveness
 we can do so to add a prior for $bm(b)$ so we don't have to assume anymore that this is fixed
 and go to a full rank GP (rank goes to $N$, not $H$)
 for this we will loose the closure constraint for now but reimpose it in the next chapter
-
-/*
-we invoked linearity on the bm(a) to justify gaussian priors, but the bm(t) are also additive within neural network lense
-and this suggest a bm(c) parameter to modulate t
-*/
 
 
 Moving on to data space, the prior probability of $bm(u')$ is also Gaussian,
@@ -429,6 +449,7 @@ where the expectations $expval(dot)$ were taken with respect to @eq:pab.
 In a modern lens, these models can be seen as a neural net with a single hidden layer in the regression setting. $H(t) t$ is a ReLU, etc. This is good, because already a single hidden layer has the universality property. Encouraged, this also suggests the prior $t_k ~ N(0, sigma_t^2)$ truncated to $t_k in [t_0, t_e]$: these are biases in the neural net picture, and we truncate to remain in the open phase.
 
 To summarize what we did: we formulated all classic polynomial DGF models as linear polynomial changepoint models, where the $bold(t)$ changepoints were given hyperparameters. Changepoints are encoded as RePU functions; the closure constraint can be imposed analytically. Next we will bring the $bold(t)$ from hyperparameters to ordinary parameters.
+*/
 
 /* now we got a prior for t_k: we can show samples */
 /* K, n picture */

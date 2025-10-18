@@ -4,10 +4,10 @@
     node  [shape=circle, fixedsize=true, width=0.30];
     edge  [dir=none, penwidth=0.8];
 
-    h1 [label="t_+^n"];
-    h2 [label="t_+^n"];
+    h1 [label="t_+^d"];
+    h2 [label="t_+^d"];
     h3 [label="..."];
-    hK [label="t_+^n"];
+    hK [label="t_+^d"];
     u [label="u'"];
 
     1 -> h1 [label="b_1"]

@@ -105,7 +105,7 @@ as the natural extension of $J_d (theta)$ by even reflection; this extends the d
 $J_d^"ext" (theta)$ is an angular zonal kernel: isotropic on $S^1$ @Dutordoir2020.
 Observe that at $theta = plus.minus pi$ we have $J_d^"ext" (theta) = 0$, so gluing copies end-to-end yields a $2 pi$-periodic continuous function for free.
 It is an idea candidate for a harmonic expansion into Fourier series.
-It is also real and even so its Fourier series consists only of cosine terms:
+It is also even so its Fourier series consists only of cosine terms:
 $
   J_d^"ext" (Delta_psi) &= sum_(m in bb(Z)) c_m^((d)) e^(i m Delta_psi) \
   c_m^((d)) &= 1/(2pi) integral_(-pi)^pi J_d^"ext" (Delta_psi) exp{-i m Delta_psi} dif Delta_psi, quad m in bb(Z),
