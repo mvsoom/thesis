@@ -497,9 +497,14 @@ $
   p(bm(u'))
   &= integral mono("Normal")(bm(u') | bm(0), sigma_a^2 bm(Phi) bm(Phi)^top) thin p(bm(b)) thin p(bm(c)) dif bm(b) dif bm(c)
 $ <eq:uprime-mix>
+
+[rank stuff about H and expressivity and other preliminaries]
+
+=== Calculate the first two moments
+
 As mentioned before, thus mixture has no simple closed form.
 Its mean and covariance, however, can be computed analytically by taking expectations over $bm(b)$ and $bm(c)$.
-Because the conditional mean of $bm(u')$ is zero, the first two moments admit a simple structure:
+Because the conditional expecation of $bm(u')$ given b,c is simple, the first two moments admit a simple structure:
 $
   bb(E)[bm(u')] & = bb(E)_(bm(b),bm(c))[bb(E)_(bm(a)|bm(b),bm(c))[bm(u')]] = bm(0), \
   bb(E)[bm(u') bm(u')^top]
@@ -522,6 +527,29 @@ $
 $
 where $phi.alt(t\; b, c) = (c t - b)_+^d$.
 
+[emphasize iid necessity here, also how closure constraint prior for a would make things too complicated]
+
+=== The arc cosine kernel
+
+define it here
+
+
+=== Show that this is a GP
+
+We've shown that in data space mean and covariance of $bm(u')$ is easily calculated.
+
+But we can show that converges to a Gaussian by taking $H -> oo$ and rescaling by $1/H$ to keep variance O(1).
+
+To show that higher central moments of $bm(u')$ are all zero, we return to the mixture representation:
+$
+  p(bm(u)'_H)
+  = integral mono("Normal")(bm(0), sigma_a^2 bm(Q)) p(bm(Q)) dif bm(Q),
+$
+where $p(bm(Q)) = integral delta(Q - bm(Phi) bm(Phi)^top) p(bm(b)) thin p(bm(c)) dif p(bm(b)) p(bm(c))$ is the density induced by the mapping $(bm(b), bm(c)) mapsto bm(Q)_H$.
+
+Then show that $1/H Q -> K$ etc so we rescale $sigma_a$ and see that $bm(u')$ is a GP!
+
+/*
 To make the limiting behavior explicit, it helps to rewrite the model in terms of normalized random features.
 Let $bm(v)_h in bb(R)^N$ denote the $h$–th column of $bm(Phi)$ evaluated at $(b_h, c_h)$.
 Then
@@ -566,6 +594,8 @@ The Gaussian mixture in @eq:mixQ therefore collapses to a single Gaussian with c
   By the standard continuity theorem, $bm(u)'_H$ converges in distribution to this Gaussian.
 ]
 Since the argument holds for any finite set of evaluation points ${t_1, dots, t_N}$, the limiting process is a Gaussian process with covariance $sigma_a^2 K_d (t, t')$.
+
+*/
 
 ==== Rank matters
 A linear model with a higher rank is more expressive, but the priors still limit the full reach of possibly generated data on the dimension-$H$ hyperplane;
