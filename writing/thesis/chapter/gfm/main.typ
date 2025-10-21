@@ -327,7 +327,7 @@ $ <eq:phi-iverson>
 where /*we used an Iverson bracket $[0 < t <= t_c]$ to bake in the compact support during the open phase, and*/ the changepoints $bm(b)$ and $t_c$ are treated as given.
 Collecting these into the design matrix $bm(Phi) in bb(R)^(N times H)$ with
 $
-  Phi_(n h) = phi.alt_h (t_n),
+  [bm(Phi)]_(n h) = phi.alt_h (t_n),
 $
 the general parametric model during /*both open and closed phase*/ the open phase becomes simply
 $
@@ -442,7 +442,7 @@ Assuming $t_c$ is known, the remaining hyperparameters to describe the open phas
 Turning to data space again and having assigned priors to all parameters, we can now do a full marginalization unlike the conditional in @eq:udashgauss.
 Updating the design matrix $bm(Phi)$ to
 $
-  Phi_(n h) = phi_h (t_n) = (c_h t_n - b_h)_+^d,
+  [bm(Phi)]_(n h) = phi_h (t_n) = (c_h t_n - b_h)_+^d,
 $
 and assuming the isotropic priors @eq:priora and @eq:priorbc
 we have
@@ -467,7 +467,7 @@ $
   p(bm(u') | mono("closure")) = integral mono("Normal")(bm(u') | bm(0), sigma_a^2 bm(Phi) (bm(I) - bm(q) bm(q)^top) bm(Phi)^top) thin p(bm(b)) thin p(bm(c)) dif bm(b) dif bm(c).
 $
 Here both $bm(q) = bm(r)/(||bm(r)||)$ and $bm(Phi)$ depend on ${bm(b), bm(c)}$.
-This integral has no closed form for $H -> oo$, but we can still impose the closure constraint on @eq:pu-gaussmixture indirectly via interdomain Fourier features as done in @chapter:pack.
+This integral has no closed form for $H -> oo$, but we can still impose the closure constraint on @eq:pu-gaussmixture indirectly in the spectral domain via interdomain features (@chapter:pack).
 
 // TODO: samples of this are shown in Fig XXX
 
