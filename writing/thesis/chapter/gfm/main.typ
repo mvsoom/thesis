@@ -492,110 +492,143 @@ for this we will loose the closure constraint for now but reimpose it in the nex
 <sec:nonparametric-piecewise>
 
 It thus makes sense to consider the limit $H -> oo$.
-Going back the marginal prior probability for $bm(u')$ without the closure constraint:
+We start again from the marginal prior probability for $bm(u')$ in the open phase, this time without the closure constraint:
 $
   p(bm(u'))
-  &= integral mono("Normal")(bm(u') | bm(0), sigma_a^2 bm(Phi) bm(Phi)^top) thin p(bm(b)) thin p(bm(c)) dif bm(b) dif bm(c)
+  = integral mono("Normal")(bm(u') | bm(0), sigma_a^2 bm(Phi) bm(Phi)^top)
+  thin p(bm(b)) thin p(bm(c))
+  dif bm(b) dif bm(c).
 $ <eq:uprime-mix>
+The covariance of each mixture component depends on the random hidden weights ${bm(b), bm(c)}$ through the design matrix $bm(Phi)$.
+The mean of all components is zero.
+For any finite $H$, the model therefore represents a _Gaussian mixture with varying covariances_ and
+rank at most $H$ (or $H - 1$ if the closure constraint were active).
+Its expressivity in data space grows with $H$, and the Gaussian-process limit will correspond to the case where the effective rank saturates the $N$ time samples.
 
-[rank stuff about H and expressivity and other preliminaries]
+=== Expected covariance
 
-=== Calculate the first two moments
-
-As mentioned before, thus mixture has no simple closed form.
-Its mean and covariance, however, can be computed analytically by taking expectations over $bm(b)$ and $bm(c)$.
-Because the conditional expecation of $bm(u')$ given b,c is simple, the first two moments admit a simple structure:
+While the mixture @eq:uprime-mix has no closed form, its first two moments can be computed analytically by averaging over ${bm(b), bm(c)}$.
+Because the conditional expectation of $bm(u')$ given ${bm(b), bm(c)}$ is simple, we have
 $
-  bb(E)[bm(u')] & = bb(E)_(bm(b),bm(c))[bb(E)_(bm(a)|bm(b),bm(c))[bm(u')]] = bm(0), \
+  bb(E)[bm(u')]
+  = bb(E)_(bm(b),bm(c))[bb(E)_(bm(a)|bm(b),bm(c))[bm(u')]]
+  = bm(0),
+$
+and
+$
   bb(E)[bm(u') bm(u')^top]
-  & = bb(E)_(bm(b),bm(c))[bb(E)_(bm(a)|bm(b),bm(c))[bm(u') bm(u')^top]] = sigma_a^2 bb(E)_(bm(b),bm(c))
-    [bm(Phi) bm(Phi)^top].
+  = bb(E)_(bm(b),bm(c))[bb(E)_(bm(a)|bm(b),bm(c))[bm(u') bm(u')^top]]
+  = sigma_a^2 bb(E)_(bm(b),bm(c))[bm(Phi) bm(Phi)^top].
 $ <eq:covexpval>
-Higher order moments are in general nonzero.
-This defines the *population covariance* of the model,
+This defines the _population covariance_ of the model,
 $
-  bm(K)_d
-  = bb(E)_(bm(b),bm(c))[bm(Phi) bm(Phi)^top],
+  bm(K)_d = bb(E)_(bm(b),bm(c))[bm(Phi) bm(Phi)^top].
 $
-whose entries are
+Writing the basis function as
 $
-  [bm(K)_d]_(n m) & = bb(E)_(bm(b),bm(c))
-                    [sum_(h=1)^H phi.alt_h (t_n) phi.alt_h (t_m)] \
-                  & = sum_(h=1)^H bb(E)_(b_h, c_h) [phi.alt_h (t_n) phi.alt_h (t_m)] \
-                  & = sum_(h=1)^H bb(E)_(b, c) [phi.alt(t_n\; b, c) phi.alt(t_m\; b, c)] \
-                  & = H thin k_d (t_n, t_m)
+  phi.alt(t\; b, c) = (c t - b)_+^d,
 $
-where $phi.alt(t\; b, c) = (c t - b)_+^d$.
-
-[emphasize iid necessity here, also how closure constraint prior for a would make things too complicated]
-
-=== The arc cosine kernel
-
-define it here
-
-
-=== Show that this is a GP
-
-We've shown that in data space mean and covariance of $bm(u')$ is easily calculated.
-
-But we can show that converges to a Gaussian by taking $H -> oo$ and rescaling by $1/H$ to keep variance O(1).
-
-To show that higher central moments of $bm(u')$ are all zero, we return to the mixture representation:
+we obtain for the entries
 $
-  p(bm(u)'_H)
-  = integral mono("Normal")(bm(0), sigma_a^2 bm(Q)) p(bm(Q)) dif bm(Q),
+  [bm(K)_d]_(n m)
+  = bb(E)_(bm(b),bm(c)) [sum_(h=1)^H phi.alt_h (t_n) phi.alt_h (t_m)]
+  = sum_(h=1)^H bb(E)_(b, c) [phi.alt(t_n\; b, c) phi.alt(t_m\; b, c)]
+  = H thin k_d(t_n, t_m),
 $
-where $p(bm(Q)) = integral delta(Q - bm(Phi) bm(Phi)^top) p(bm(b)) thin p(bm(c)) dif p(bm(b)) p(bm(c))$ is the density induced by the mapping $(bm(b), bm(c)) mapsto bm(Q)_H$.
-
-Then show that $1/H Q -> K$ etc so we rescale $sigma_a$ and see that $bm(u')$ is a GP!
-
-/*
-To make the limiting behavior explicit, it helps to rewrite the model in terms of normalized random features.
-Let $bm(v)_h in bb(R)^N$ denote the $h$–th column of $bm(Phi)$ evaluated at $(b_h, c_h)$.
-Then
+where
 $
-  bm(u)'_H = 1/sqrt(H) sum_(h=1)^H a_h bm(v)_h,
+  k_d(t, t') = bb(E)_(b,c) [phi.alt(t\; b, c) phi.alt(t\; b, c)].
+$
+Hence, for any finite $H$, the expected covariance in data space scales linearly with $H$ and is proportional to a kernel $k_d$ indexed by the sample times ${t_n, t_m}$.
+This shows that even before taking any limit, the _expected structure_ of the prior already mirrors that of a kernel regression model.
+
+Because the summands are i.i.d., this result hinges critically on the independence assumption for ${b_h, c_h}$ across hidden units.
+The closure-constrained prior of @eq:arh-prior would couple these parameters linearly, destroying that independence and making the derivation intractable, which is why we temporarily set it aside.
+
+=== The arc-cosine kernel
+
+The expectation $k_d(t, t')$ above can be evaluated in closed form.
+Defining the affine augmentations
+$
+  bm(x)_t = (1, t)^top,
   quad
+  bm(w) = (c, -b)^top,
+  quad
+  bm(Sigma) = "diag"(sigma_c^2, sigma_b^2),
+$
+we can write
+$
+  k_d(t, t')
+  = bb(E)_(bm(w)~mono("Normal")(bm(0), bm(Sigma)))
+  [(bm(w)^top bm(x)_t)_+^d (bm(w)^top bm(x)_(t'))_+^d].
+$
+This is the degree-$d$ arc-cosine kernel of #pcite(<Cho2009>) up to a factor $1/2$ due to the Heaviside convention,
+so the expected covariance of the finite model already takes the form
+$
+  bb(E)[bm(u') bm(u')^top]
+  = (H sigma_a^2 / 2)
+  k_"arc"^((d)) (bm(Sigma)^(1/2) bm(x)_t, bm(Sigma)^(1/2) bm(x)_(t')).
+$
+
+=== From expectation to convergence
+
+So far we have shown that the _expectation_ of the data-space covariance equals $H bm(K)_d$.
+But for a single random draw of ${bm(b), bm(c)}$, the empirical covariance
+$
+  bm(Q)_H = sum_(h=1)^H bm(v)_h bm(v)_h^top,
+  quad [bm(v)_h]_n = (c_h t_n - b_h)_+^d,
+$
+still fluctuates around its expectation with variance of order $H$.
+Increasing $H$ without rescaling merely amplifies these fluctuations.
+To reach a well-defined infinite-width limit we must therefore _renormalize_ the model.
+
+Dividing the summation in @eq:uNN by $sqrt(H)$ gives the normalized version
+$
+  u'_"NN" (t)
+  = 1/sqrt(H) sum_(h=1)^H a_h (c_h t - b_h)_+^d,
+$
+which induces the corresponding normalized covariance
+$
   bm(Q)_H = 1/H sum_(h=1)^H bm(v)_h bm(v)_h^top.
 $
-Conditioned on $(bm(b), bm(c))$, this again yields
+Its expectation is now constant,
 $
-  p(bm(u)'_H | bm(b), bm(c))
-  = mono("Normal")(bm(0), sigma_a^2 bm(Q)_H).
+  bb(E)[bm(Q)_H] = bm(K)_d,
 $
-The marginal prior over data is thus an integral over positive–semidefinite matrices:
+and by the strong law of large numbers each matrix element converges almost surely:
 $
-  p(bm(u)'_H)
-  = integral mono("Normal")(bm(0), sigma_a^2 bm(Q)) p(bm(Q)) dif bm(Q),
-$ <eq:mixQ>
-where $p(bm(Q))$ is the density induced by the mapping $(bm(b), bm(c)) mapsto bm(Q)_H$.
+  [bm(Q)_H]_(n m)
+  = 1/H sum_(h=1)^H (c_h t_n - b_h)_+^d (c_h t_m - b_h)_+^d
+  -> bb(E)_(b,c) [(c t_n - b)_+^d (c t_m - b)_+^d]
+  = [bm(K)_d]_(n m).
+$
+Equivalently, the induced density $p_H(bm(Q))$ of covariance matrices collapses weakly to a Dirac delta at $bm(K)_d$:
+$
+  p_H(bm(Q)) --> delta(bm(Q) - bm(K)_d).
+$
 
-Each entry of $bm(Q)_H$ is an empirical average of $H$ i.i.d. random terms with finite variance, so by the strong law of large numbers,
-$
-  bm(Q)_H -> bb(E)[bm(v) bm(v)^top] = bm(K)_d
-  quad "almost surely" quad (H -> oo).
-$
-Intuitively, as the number of features increases, the empirical covariance $bm(Q)_H$ stabilizes at its expected value $bm(K)_d$ and its random fluctuations vanish as $O(1/sqrt(H))$.
-The Gaussian mixture in @eq:mixQ therefore collapses to a single Gaussian with covariance $sigma_a^2 bm(K)_d$.
-#footnote[
-  This can be made precise using a similar argument used to prove the central limit theorem.
-  The characteristic function of $bm(u)'_H$ is
-  $
-    phi.alt_H (bm(lambda))
-    = bb(E)[exp(i bm(lambda)^top bm(u)'_H)]
-    = bb(E)[exp(-1/2 sigma_a^2 bm(lambda)^top bm(Q)_H bm(lambda))].
-  $
-  Since $0 <= exp(-1/2 sigma_a^2 bm(lambda)^top bm(Q)_H bm(lambda)) <= 1$ and $bm(Q)_H -> bm(K)_d$ almost surely, bounded convergence ensures that
-  $
-    phi.alt_H (bm(lambda))
-    -> exp(-1/2 sigma_a^2 bm(lambda)^top bm(K)_d bm(lambda)).
-  $
-  This is the characteristic function of $mono("Normal")(bm(0), sigma_a^2 bm(K)_d)$.
-  By the standard continuity theorem, $bm(u)'_H$ converges in distribution to this Gaussian.
-]
-Since the argument holds for any finite set of evaluation points ${t_1, dots, t_N}$, the limiting process is a Gaussian process with covariance $sigma_a^2 K_d (t, t')$.
+=== The Gaussian-process limit
 
-*/
+Because $bm(u')$ is conditionally Gaussian given $bm(Q)_H$, the full marginal is a mixture
+$
+  p(bm(u'))
+  = integral mono("Normal")(bm(0), sigma_a^2 bm(Q)) thin p_H(bm(Q)) dif bm(Q).
+$
+As $H -> oo$, the measure $p_H(bm(Q))$ collapses and the integral reduces to a single Gaussian:
+$
+  p(bm(u')) -> mono("Normal")(bm(0), sigma_a^2 bm(K)_d).
+$
+In other words, not only the expectation of the covariance but the entire _law_ of $bm(u')$ converges to that of a Gaussian.
+All higher central moments vanish as $O(1/sqrt(H))$ because the covariance fluctuations themselves decay at that rate.
+Since this argument holds for any finite collection of times ${t_1, dots, t_N}$, the limiting process is a Gaussian process
+$
+  u'_"NN" (t) ~ mono("GP")(0, sigma_a^2 K_d (t, t')).
+$
+The function family thereby reaches full rank in data space and becomes nonparametric.
+The hyperparameters $(sigma_a, sigma_b, sigma_c, d)$ retain their familiar roles:
+overall scale, typical changepoint location, horizontal stretch, and polynomial order.
+In @chapter:pack we will reincorporate the closure constraint into this process.
+
 
 ==== Rank matters
 A linear model with a higher rank is more expressive, but the priors still limit the full reach of possibly generated data on the dimension-$H$ hyperplane;
@@ -663,7 +696,7 @@ and define the random-feature representation
 $
   u'_H (t) = (1/sqrt(H)) sum_(h=1)^H a_h phi.alt (t; b_h, c_h),
 $
-where $phi.alt (t; b, c) = (c t - b)_+^d$.
+where $phi.alt (t\; b, c) = (c t - b)_+^d$.
 The factor $1/sqrt(H)$ ensures that the total variance of $u'_H (t)$ stays of order one as $H$ grows.
 
 ==== Conditional Gaussian
@@ -717,7 +750,7 @@ Since this holds for any finite set of evaluation points, the limiting process i
 The limit $H -> oo$ does not create Gaussianity—it is already there, conditional on the features. What the limit does is remove the randomness in the empirical kernel by letting the Monte Carlo average converge to its population mean:
 $
   (1/H) sum_h phi.alt (t; b_h, c_h) phi.alt (t'; b_h, c_h)
-  --> E_(b,c) [phi.alt (t; b, c) phi.alt (t'; b, c)].
+  --> E_(b,c) [phi.alt (t\; b, c) phi.alt (t'; b, c)].
 $
 This is the only real effect of the limit: it fixes the covariance function once and for all.
 
@@ -729,7 +762,7 @@ $
 $
 so that
 $
-  phi.alt (t; b, c) = (tilde(w)^top tilde(x)(t))_+^d.
+  phi.alt (t\; b, c) = (tilde(w)^top tilde(x)(t))_+^d.
 $
 With the Gaussian prior
 $
@@ -818,7 +851,7 @@ $
 $
 with
 $
-  phi.alt (t; b, c) = [0 < t <= t_c] (c t - b)_+^d.
+  phi.alt (t\; b, c) = [0 < t <= t_c] (c t - b)_+^d.
 $
 Each term is a random feature—one draw from the population of piecewise polynomial responses.
 Given the priors defined earlier for $a_h, b_h, c_h$, all draws are i.i.d.
@@ -846,7 +879,7 @@ $
 Hence each additional hidden unit adds another sample from the same base measure, refining the empirical estimate of the kernel.
 Writing
 $
-  K_d (t, t') = E_(b, c)[phi.alt (t; b, c) phi.alt (t'; b, c)]
+  K_d (t, t') = E_(b, c)[phi.alt (t\; b, c) phi.alt (t'; b, c)]
   = [0 < t <= t_c][0 < t' <= t_c] E_(b, c)[(c t - b)_+^d (c t' - b)_+^d],
 $
 we have
@@ -871,7 +904,7 @@ Defining augmented variables
 $
   tilde(w) = (c, -b), quad tilde(x) = (t, 1),
 $
-we can write $phi.alt (t; b, c) = (tilde(w)^top tilde(x))_+^d$.
+we can write $phi.alt (t\; b, c) = (tilde(w)^top tilde(x))_+^d$.
 Under the Gaussian base measure for $tilde(w)$ this becomes the *degree-$d$ arc-cosine kernel* of #pcite(<Cho2009>):
 $
   K_d(t, t') = [0 < t <= t_c][0 < t' <= t_c] k_d (tilde(x), tilde(x')).
@@ -881,7 +914,7 @@ $
 WAIT still need to scale $k(sigma_c t, sigma_c)$ or the like because prior is NOT N(0,1).
 */
 
-Unlike in the original derivation of #pcite(<Williams1998>), bounded transfer functions are not required; it suffices that $phi.alt (t; b, c)$ has finite variance under the Gaussian weight prior, which holds for any finite $d$ #pcite(<Matthews2018>).
+Unlike in the original derivation of #pcite(<Williams1998>), bounded transfer functions are not required; it suffices that $phi.alt (t\; b, c)$ has finite variance under the Gaussian weight prior, which holds for any finite $d$ #pcite(<Matthews2018>).
 
 In this view, increasing $H$ increases the *Monte Carlo resolution* with which the regression model samples its feature space.
 The nonparametric limit replaces explicit random changepoints with their continuous Gaussian measure, yielding a Gaussian process prior over $u'(t)$ whose covariance is the arc-cosine kernel restricted to the open phase of the glottal cycle.
@@ -911,7 +944,7 @@ In data space,
 $
   E_bm(w)[u'_H (t)] &= sum_(h=1)^H E_a [a_h] E_(b,c)[phi.alt_h (t; b_h, c_h)] = 0 \
   E_bm(w)[u'_H (t) u'_H (t')] &= sum_(h=1)^H sum_(ell=1)^H E_a [a_h a_ell] E_(b, c)[phi.alt_h (t; b_h, c_h) phi.alt_ell (t'; b_ell, c_ell)] \
-  &= sum_(h=1)^H sigma_a^2 E_(b,c)[phi.alt_h (t; b, c) phi.alt_ell (t'; b, c)] \
+  &= sum_(h=1)^H sigma_a^2 E_(b,c)[phi.alt_h (t\; b, c) phi.alt_ell (t'; b, c)] \
   &= H sigma_a^2 K_phi.alt(t, t')
 $
 Here $u'_H$ has zero mean because $a_h$ is zero mean and independent of $b_h, c_h$.
