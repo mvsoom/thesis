@@ -4,6 +4,14 @@
 = The periodic arc cosine kernel
 <chapter:pack>
 
+/* NORMALIZED KERNELS
+
+Expression is always k(x,x') = J(x,x')/J(0)
+Samples tend to horizontal asymptotes left and right
+Need to look into this
+
+*/
+
 The periodic arc cosine kernel (PACK)
 
 We will characterize the $arccos$ glottal flow model (AGFM) in the spectral domain, as these models are best described there. Plus, at DC frequency we can already impose the closure constraint.
@@ -68,6 +76,14 @@ Generalizing to arbitrary $bm(Sigma)$:
 $
   k^((d))_bm(Sigma) (t, t') = k^((d)) (bm(Sigma)^(1/2) bm(x)_t, bm(Sigma)^(1/2) bm(x)_(t')).
 $
+
+/*
+
+We can absorb $sigma_a$ into $Sigma$, as $arccos$ is homogenous for global rescaling, which is equivalent to rescaling $Sigma -> alpha Sigma$. What is excellent: we managed to push one layer of hyperparameters into the amplitudes! Since we marginalized them away, we end up with a nonparametric polynomial DGF model. We have only three hyperparameters: $sigma$, $sigma_1$, $sigma_2$ instead of $O(H)$ amount. This is the key to fast multiple kernel learning.
+
+But we can allow $bm(Sigma) = mat(sigma_b^2, 0; 0, sigma_t^2)$ as this is important to model behavior of kernel. Introducing a third parameter $rho$ (correlation in $Sigma$) breaks our FT derivation (the $tan "/" arctan$ trick), which assumes no correlation between bias and $t$. So individual rescaling is as far as we can go and probably more than enough. So we can proceed with the $N(0,I)$ case as in @Cho2009. // https://chatgpt.com/s/t_68dfa3181bf88191a3183a8138bf2969
+
+*/
 
 === Harmonic expansion of the zonal kernel
 // From FT of arccos kernl.pdf on reMarkable

@@ -554,67 +554,145 @@ $
   &= sum_(h=1)^H bb(E)_(bm(b),bm(c)) [phi.alt_h (t_n) phi.alt_h (t_m)] \
   &= sum_(h=1)^H bb(E)_(b, c) [phi.alt(t_n\; b, c) phi.alt(t_m\; b, c)] \
   &= H thin bb(E)_(b,c) [phi.alt(t_n\; b, c) phi.alt(t_m\; b, c)] \
-  &= H thin k^((d)) (t_n, t_m).
+  &= H thin k^((d))_bm(Sigma) (t_n, t_m).
 $
-where we define the _temporal arc cosine kernel_ of degree $d$ as
+We have defined the _temporal arc cosine kernel_ of degree $d$ as
 $
-  k^((d)) (t, t') &:= bb(E)_(b,c) [phi.alt(t\; b, c) phi.alt(t'\; b, c)].
-$
+  k^((d))_bm(Sigma) (t, t')
+  &:= bb(E)_(b,c) [phi.alt(t\; b, c) phi.alt(t'\; b, c)] \
+  &equiv integral phi.alt(t\; bm(w)) phi.alt(t'\; bm(w)) mono("Normal")(bm(w) | bm(0), bm(Sigma)) dif bm(w),
+$ <eq:tack-e>
+where $bm(Sigma) = mat(sigma_b^2, 0; 0, sigma_c^2)$ describes the variance of the hidden weights $bm(w) = (-b, c)^top$.
+
 To recapitulate, the first and second central moments of the mixture @eq:uprime-mix are known:
 $
   bb(E)[bm(u')]
   &= bm(0), \
   bb(E)[bm(u') bm(u')^top]
-  &= sigma_a^2 thin H thin k^((d)) (t, t').
+  &= sigma_a^2 thin H thin k^((d))_bm(Sigma) (t, t').
 $
 The third, fourth, ... central moments are in general nonzero and difficult to compute.
-They will vanish however when $H -> oo$.
-Nevertheless, we have shown that even before taking any limit, the _expected structure_ of the prior already mirrors that of a kernel regression model.
+They will vanish, however, when $H -> oo$.
+At this point we have shown that even before taking any limit, the _expected structure_ of the prior already mirrors that of a kernel regression model.
 Note that this result hinges critically on the independence assumption for ${b_h, c_h}$ in @eq:motherwavelet.
 The closure-constrained prior of @eq:ccbmu would couple these parameters nonlinearly, destroying that independence and making the derivation intractable, which is why we temporarily set it aside.
 
-=== The temporal arc-cosine kernel
+=== The temporal arc cosine kernel
+<sec:temporal-ack>
 
-The expectation $k_d(t, t')$ above can be evaluated in closed form.
-Defining the affine augmentations
-$
-  bm(x)_t = (1, t)^top,
-  quad
-  bm(w) = (c, -b)^top,
-  quad
-  bm(Sigma) = "diag"(sigma_c^2, sigma_b^2),
-$
-we can write
-$
-  k_d(t, t')
-  = bb(E)_(bm(w)~mono("Normal")(bm(0), bm(Sigma)))
-  [(bm(w)^top bm(x)_t)_+^d (bm(w)^top bm(x)_(t'))_+^d].
-$
-This is the degree-$d$ arc-cosine kernel of #pcite(<Cho2009>) up to a factor $1/2$ due to the Heaviside convention,
-so the expected covariance of the finite model already takes the form
-$
-  bb(E)[bm(u') bm(u')^top]
-  = (H sigma_a^2 / 2)
-  k_"arc"^((d)) (bm(Sigma)^(1/2) bm(x)_t, bm(Sigma)^(1/2) bm(x)_(t')).
-$
+Of course, we would not have the courage to attempt this whole calculation had we not already known that a very similar limit has been evaluated in the neural network Gaussian process literature. 
+The marginalization we performed above is, in fact, a one-dimensional variant of the classic infinite-width limit of feedforward networks studied by #pcite(<Neal1996>) #pcite(<Williams1998>) and later generalized by #pcite(<Cho2009>). 
 
+In these works, the expectation over random weights $bm(w)$ with $mono("Normal")(bm(w) | bm(0), bm(Sigma))$ priors gives rise to a family of kernels which describe an infinitely wide Bayesian network,
+and which differ with respect to the activation function used and the imposed correlation $bm(Sigma)$.
+This same reasoning will now allow us to identify our expected covariance @eq:tack-e with a time-domain specialization of the degree-$d$ arc cosine family.
+
+@table:acks organizes the three kernels we will now introduce.
+Note that to save on mathematical symbols we use a trick from programming languages: we overload the $k^((d))$ symbol to change meaning based on the type of its arguments.
+
+#figure(
+  tablem(
+    columns: (.9fr, 0.35fr, 0.35fr, 1.1fr, 0.2fr),
+    align: left,
+    fill: (_, y) => if calc.odd(y) { rgb("#eeeeee89") },
+    stroke: frame(rgb("21222C")),
+  )[
+    | *Name* | | *Form* |  | *Eq.* |
+    | ------------- | ------- | ----------- | --------- | --- |
+    | arc cosine kernel | ACK | $k^((d)) (bm(x), bm(x'))$ | $= 1/pi ||bm(x)||^d ||bm(x')||^d J_d (theta)$ | @eq:ack |
+    | temporal arc cosine kernel | TACK | $k^((d))_bm(Sigma) (t, t')$ | $= 1/(2pi) ||bm(Sigma)^(1/2) bm(x)_t||^d ||bm(Sigma)^(1/2) bm(x)_t'||^d J_d (theta)$ | @eq:tack |
+    | standard arc cosine kernel | STACK | $k^((d)) (t, t')$ | $= 1/(2pi) (1+t^2)^(d/2) (1+t'^2)^(d/2) J_d (theta)$ | @eq:stack |
+  ],
+  placement: auto,
+  caption: [
+    *Arc cosine kernels* of order $d$ introduced in this section.
+    The arc cosine kernel (ACK) defined on arbitrary input dimension $D >= 1$ was originally proposed by #pcite(<Cho2009>).
+    The TACK and STACK are simple modifications of ACK for 1D time series.
+  ],
+) <table:acks>
+
+==== The arc cosine kernel (ACK)
+of degree $d$ proposed by #pcite(<Cho2009>) is defined as the expected inner product between infinite-dimensional random RePU features of $D$-dimensional inputs $bm(x), bm(x') in bb(R)^D$:
+$
+  k^((d)) (bm(x), bm(x')) 
+  = 2 integral (bm(w)^top bm(x))_+^d (bm(w)^top bm(x'))_+^d 
+    mono("Normal")(bm(w) | bm(0), bm(I)_D) dif bm(w),
+$
+where the hidden weights $bm(w) in R^D$, and $bm(I)_D$ is the $D times D$ identity matrix.
+This integral representation makes it clear that this is indeed a valid positive definite kernel in any input dimension $D >= 1$.
+It admits a beautiful closed form:
+$
+  k^((d)) (bm(x), bm(x')) 
+  = 1/pi ||bm(x)||^d ||bm(x')||^d J_d (theta),
+$ <eq:ack>
+where
+$
+  theta = arccos ((bm(x)^top bm(x'))/(||bm(x)|| ||bm(x')||)) in [0, pi]
+$
+is the positive angle between $bm(x)$ and $bm(x')$, and the $J_d (theta)$ is given by #pcite(<Cho2009>, supplement: [Eq.~4]) as the generator expression
+$
+  J_d (theta) = (-1)^d (sin theta)^(2d + 1)
+  ( 1 / (sin theta) dif/(dif theta) )^d
+  ( (pi - theta) / (sin theta) ).
+$
+The first few instances are
+$
+  J_0(theta) & = pi - theta, \
+  J_1(theta) & = sin theta + (pi - theta) cos theta, \
+  J_2(theta) & = 3 sin theta cos theta + (pi - theta)(1 + 2 cos^2 theta), \
+  J_3(theta) & = 15 sin theta - 11 sin^3 theta + (pi - theta)(9 cos theta + 6 cos^3 theta).
+$
+Compared to the familiar Matérn kernels, the ACK is a rather atypical kernel, and probably only sparingly used in machine learning applications.
+It is, for one, blatantly nonstationary, and it neatly separates the magnitude and angular dependencies of the inner product -- unlike, for example, the RBF kernel.
+The closed form @eq:ack shows that the integral representation decomposes as the product of a polynomial term $k_"poly"^((d)) (bm(x), bm(x')) = ||bm(x)||^d ||bm(x')||^d$, which controls the overall scale or dynamic range, and an angular term $J_d (theta)$, which captures the nonlinear thresholding effect of the RePU activation.
+
+==== The temporal arc cosine kernel (TACK)
+is the kernel which describes $bb(E)[bm(u') bm(u')^top]$.
+We can cast it as an affine shift of the bias augmented ACK on the input dimension $D = 2$.
+Define the auxiliary vectors
+$
+  bm(x)_t = vec(1, t), quad
+  bm(w) = vec(-b, c).
+$
+and the covariance matrix for the hidden weights ${b, c}$
+$
+  bm(Sigma) = mat(sigma_c^2, 0; 0, sigma_b^2).
+$
+Then, by substituting these into @eq:ack and integrating with respect to the Gaussian weight prior $mono("Normal")(bm(w) | bm(0), bm(Sigma))$, we obtain the TACK:
+$
+  k^((d))_bm(Sigma) (t, t')
+  &= bb(E)_(b,c) [phi.alt(t\; b, c) phi.alt(t'\; b, c)] \
+  &= integral (bm(w)^top bm(x)_t)_+^d (bm(w)^top bm(x)_t')_+^d 
+     mono("Normal")(bm(w) | bm(0), bm(Sigma)) dif bm(w) \
+  &= 1/2 thin k^((d)) (bm(Sigma)^(1/2) bm(x)_t, bm(Sigma)^(1/2) bm(x)_t') \
+  &= 1/(2pi) ||bm(Sigma)^(1/2) bm(x)_t||^d ||bm(Sigma)^(1/2) bm(x)_t'||^d J_d (theta),
+$ <eq:tack>
+where the factor $1\/2$ follows from the Heaviside convention used in #pcite(<Cho2009>).
+Here,
+$
+  theta = arccos((bm(x)_t^top bm(Sigma) bm(x)_t')/
+          (sqrt(bm(x)_t^top bm(Sigma) bm(x)_t) sqrt(bm(x)_t'^top bm(Sigma) bm(x)_t'))),
+$
+is the angle between $bm(x)_t$ and $bm(x)_t'$ in the geometry induced by $bm(Sigma)$.
+This anisotropic variant was also used in the context of $D $-dimensional feature extraction by #pcite(<Pandey2014>).
+
+==== The standard temporal arc cosine kernel (STACK)
+simplifies the TACK with the particular choice
+$bm(Sigma) := bm(I)_2$, which yields
+$
+  k^((d)) (t, t')
+  &≡ k^((d))_bm(I)_2 (t, t') \
+  &= 1/(2pi) (1+t^2)^(d/2) (1+t'^2)^(d/2) J_d (theta),
+$ <eq:stack>
+where
+$
+  theta = arccos ((1 + t t')/(sqrt(1 + t^2) sqrt(1 + t'^2))).
+$
 /*
-Unlike in the original derivation of #pcite(<Williams1998>), we do not require the hidden-unit transfer functions to be bounded; it is sufficient that their outputs have finite variance under the weight prior as was shown in #pcite(<Matthews2018>). For $(C t - B)_+^d$ with Gaussian weights $B, C$, this holds for any finite $d$ and $t$, and the infinite-width limit then yields the degree-$d$ arc-cosine kernel #pcite(<Cho2009>).
-
-$
-  K_(i j) & = sigma_a^2 sum_(h=1)^H phi_h (t_i) phi_h (t_j) \
-  & = sigma_a^2 sum_(h=1)^H phi(w_(h 2) t_i + w_(h 1)) phi(w_(h 2) t_j + w_(h 1)) \
-  &prop sigma_a^2 integral phi(w_(2) t_i + w_(1)) phi(w_(2) t_j + w_(1)) cal(N)(w_1 divides 0, sigma_1^2) cal(N)(w_2 divides 0,sigma_2^2) dif w_1 dif w_2 "as" H -> oo \
-  &= arccos_n {bm(Sigma)^(1/2) vec(1, t_i), bm(Sigma)^(1/2) vec(1, t_j) }
-$
-where $Sigma = "diag"(sigma_1^2, sigma_2^2)$ and the weights are defined in @fig:nn-polynomial. This is the generalized "covariance" arc cosine kernel from @Cho2009 @Pandey2014.
-
-We can absorb $sigma_a$ into $Sigma$, as $arccos$ is homogenous for global rescaling, which is equivalent to rescaling $Sigma -> alpha Sigma$. What is excellent: we managed to push one layer of hyperparameters into the amplitudes! Since we marginalized them away, we end up with a nonparametric polynomial DGF model. We have only three hyperparameters: $sigma$, $sigma_1$, $sigma_2$ instead of $O(H)$ amount. This is the key to fast multiple kernel learning.
-
-But we can allow $bm(Sigma) = mat(sigma_b^2, 0; 0, sigma_t^2)$ as this is important to model behavior of kernel. Introducing a third parameter $rho$ (correlation in $Sigma$) breaks our FT derivation (the $tan "/" arctan$ trick), which assumes no correlation between bias and $t$. So individual rescaling is as far as we can go and probably more than enough. So we can proceed with the $N(0,I)$ case as in @Cho2009. // https://chatgpt.com/s/t_68dfa3181bf88191a3183a8138bf2969
-
-// @Pandey2014: covariance arccos kernel: to go wide or deep in NNs?
-// https://upcommons.upc.edu/server/api/core/bitstreams/bf52946e-0904-4e3d-afb7-d85d8a33c46a/content page 13
+Unlike in the original derivation of @Williams1998, we do not require the hidden-unit activation $(c t - b)_+^d$ to be bounded.
+It is sufficient that its output has finite variance under the Gaussian weight prior, as shown by @Matthews2018.
+For $(c t - b)_+^d$ with $b, c ~ N(0, sigma^2)$, this condition holds for any finite degree $d$ and time $t$, 
+so the infinite-width limit indeed yields the degree-$d$ arc-cosine kernel of @Cho2009.
 */
 
 === From expectation to convergence
@@ -676,34 +754,6 @@ The hyperparameters $(sigma_a, sigma_b, sigma_c, d)$ retain their familiar roles
 overall scale, typical changepoint location, horizontal stretch, and polynomial order.
 In @chapter:pack we will reincorporate the closure constraint into this process.
 
-Unlike in the original derivation of #pcite(<Williams1998>), bounded transfer functions are not required; it suffices that $phi.alt (t\; b, c)$ has finite variance under the Gaussian weight prior, which holds for any finite $d$ #pcite(<Matthews2018>).
-
-/*
-It remains to compute $K_d (t, t')$.
-Introduce the affine augmentation $bm(x)_t = (1, t)^top$ and $bm(w) = (c, -b)^top$ with $bm(w) ~ mono("Normal")(bm(0), bm(Sigma))$ and $bm(Sigma) = "diag"(sigma_c^2, sigma_b^2)$.
-Then
-$
-  K_d (t, t')
-  = bb(E)_(bm(w))
-  [(bm(w)^top bm(x)_t)_+^d (bm(w)^top bm(x)_(t'))_+^d].
-$
-Rescaling $bm(w) = bm(Sigma)^(1/2) bm(z)$ with $bm(z) ~ mono("Normal")(bm(0), bm(I))$ yields the arc-cosine form of #pcite(<Cho2009>).
-Up to a factor $1/2$ due to the Heaviside convention we obtain
-$
-  k^((d))_(bm(Sigma)) (t, t')
-  = (sigma_a^2 / 2)
-  k_"arc"^((d)) (bm(Sigma)^(1/2) bm(x)_t, bm(Sigma)^(1/2) bm(x)_(t')),
-$ <eq:kdsigma-final>
-where $k_"arc"^((d))$ is the degree-$d$ arc-cosine kernel and the angle inside it is defined by
-$
-  cos(theta)
-  = bm(x)_t^top bm(Sigma) bm(x)_(t')
-  /
-  (||bm(Sigma)^(1/2) bm(x)_t|| ||bm(Sigma)^(1/2) bm(x)_(t')||).
-$
-
-*/
-
 In summary, the path mirrors the classical data-space derivation of Gaussian processes.
 For fixed $(bm(b), bm(c))$ the prior on $bm(u')$ is Gaussian with low-rank covariance.
 Marginalizing over $(bm(b), bm(c))$ produces a Gaussian mixture.
@@ -713,168 +763,6 @@ The hyperparameters $(sigma_a, sigma_b, sigma_c, d)$ retain their roles as outpu
 We will fold the closed phase and the closure constraint back into this process in @chapter:pack.
 
 
-
-/*
-We now let the number of polynomial pieces go to infinity and study what this limit accomplishes. The finite model in @eq:udH is linear in its amplitudes and thus a standard linear regression model once the changepoints are fixed. The next step is to assign independent Gaussian priors to all parameters and ask what happens when the number of terms becomes large.
-
-$
-  k^((d))_bold(theta) (t, t')
-$
-
-==== Random feature model
-As suggested by the analogy to neural networks in the previous section, we take independent Gaussian priors
-$
-  a_h ~^"i.i.d." mono("Normal")(0, sigma_a^2), quad
-  b_h ~^"i.i.d." mono("Normal")(0, sigma_b^2), quad
-  c_h ~^"i.i.d." mono("Normal")(0, sigma_c^2),
-$
-and define the random-feature representation
-$
-  u'_H (t) = (1/sqrt(H)) sum_(h=1)^H a_h phi.alt (t; b_h, c_h),
-$
-where $phi.alt (t\; b, c) = (c t - b)_+^d$.
-The factor $1/sqrt(H)$ ensures that the total variance of $u'_H (t)$ stays of order one as $H$ grows.
-
-==== Conditional Gaussian
-Let $bm(t) = (t_1, dots, t_m)$ be a set of input points and $bm(Phi)$ the corresponding feature matrix introduced earlier, with entries
-$
-  Phi_(n h) = phi.alt (t_n; b_h, c_h).
-$
-Given the random features $\{(b_h, c_h)\}_(h=1)^H$, the vector $u'_H (bm(t))$ is a linear combination of Gaussian amplitudes. It is therefore exactly
-$
-  u'_H (bm(t)) | \{(b_h, c_h)\}
-  ~ mono("Normal")(bm(0), (sigma_a^2/H) bm(Phi) bm(Phi)^top).
-$
-We define
-$
-  bm(Q)_H (bm(t)) = (1/H) bm(Phi) bm(Phi)^top
-$
-as the _empirical kernel matrix_ for the chosen feature realization.
-
-==== Law of large numbers and the population kernel
-
-Each entry of $bm(Q)_H (bm(t))$ is an empirical average of independent terms
-$
-  [bm(Q)_H (bm(t))]_(n n') = (1/H) sum_(h=1)^H phi.alt (t_n; b_h, c_h) phi.alt (t_(n'); b_h, c_h).
-$
-By the law of large numbers this converges almost surely to its expectation under the feature prior:
-$
-  bm(Q)_H (bm(t)) --> bm(K)(bm(t)) "a.s.",
-  quad [bm(K)(bm(t))]_(n n') = E_(b,c) [phi.alt (t_n; b, c) phi.alt (t_(n'); b, c)].
-$
-This expectation is what we call the _population kernel_: it is the covariance of one random feature evaluated at two input points. The only role of the limit $H -> oo$ is to make the Monte Carlo estimate $bm(Q)_H (bm(t))$ converge to this known quantity.
-
-==== Degenerating mixture --> single Gaussian
-
-Unconditionally, $u'_H (bm(t))$ is a mixture of Gaussians because its covariance depends on the randomly drawn features:
-$
-  p(u'_H (bm(t))) =
-  integral mono("Normal")(bm(0), sigma_a^2 bm(Q)_H (bm(t))) thin p(bm(Q)_H (bm(t))) thin dif bm(Q)_H.
-$
-As $H$ increases, the distribution of $bm(Q)_H (bm(t))$ concentrates around its expectation $bm(K)(bm(t))$. In the limit, it collapses to a point mass:
-$
-  p(bm(Q)_H (bm(t))) --> delta(bm(Q)_H - bm(K)).
-$
-The mixture thus _degenerates_: the only remaining randomness is due to the Gaussian amplitudes. The marginal distribution becomes
-$
-  u'_H (bm(t)) --> mono("Normal")(bm(0), sigma_a^2 bm(K)(bm(t))).
-$
-Since this holds for any finite set of evaluation points, the limiting process is a Gaussian process with covariance $sigma_a^2 K(t, t')$.
-
-==== What the limit actually accomplishes
-
-The limit $H -> oo$ does not create Gaussianity—it is already there, conditional on the features. What the limit does is remove the randomness in the empirical kernel by letting the Monte Carlo average converge to its population mean:
-$
-  (1/H) sum_h phi.alt (t; b_h, c_h) phi.alt (t'; b_h, c_h)
-  --> E_(b,c) [phi.alt (t\; b, c) phi.alt (t'; b, c)].
-$
-This is the only real effect of the limit: it fixes the covariance function once and for all.
-
-==== Arc-cosine kernel with affine augmentation
-
-To make this explicit, write the affine feature parameters as
-$
-  tilde(w) = (c, -b), quad tilde(x)(t) = (t, 1),
-$
-so that
-$
-  phi.alt (t\; b, c) = (tilde(w)^top tilde(x)(t))_+^d.
-$
-With the Gaussian prior
-$
-  tilde(w) ~ mono("Normal")(bm(0), "diag"(sigma_c^2, sigma_b^2)),
-$
-the population kernel becomes
-$
-  K(t, t') =
-  E_(tilde(w)) [(tilde(w)^top tilde(x)(t))_+^d (tilde(w)^top tilde(x)(t'))_+^d].
-$
-Up to a constant scaling determined by $(sigma_b^2, sigma_c^2)$ and the degree $d$, this is the degree-$d$ _arc-cosine kernel_ of #pcite(<Cho2009>) on the augmented inputs $(t, 1)$. A fixed rescaling of inputs or outputs can absorb the constant, so we drop it below.
-
-==== Two kinds of averaging
-
-To close, recall that there are two distinct averages at play:
-(1) the $1/sqrt(H)$ average in the definition of the function $u'_H (t)$, which keeps its variance finite, and
-(2) the $1/H$ average in the kernel estimator $hat(K)_H (t, t')$, which ensures that the empirical kernel converges to $K(t, t')$.
-The first governs the distribution over functions, the second governs the convergence of their covariance. Together they give the Gaussian process limit with kernel $sigma_a^2 K(t, t')$.
-
-The correspondence is:
-$
-  K(t,t') = sigma_a^2/2 k^((d)) (bm(Sigma)^(1/2) bm(x)_t, bm(Sigma)^(1/2) bm(x)_(t'))
-$
-
-==== What happened?
-It is worth pausing to ask what really happened here.
-At first sight, taking $H -> oo$ might seem like an act of reckless generalization: we blow up the number of parameters without bound, yet somehow end up with something *simpler*—a single Gaussian process with a fixed kernel. Conditional on the random features, the model was already Gaussian, so the only effect of the limit is that the *random design itself* stops being random. The empirical kernel freezes to its mean, and with it the whole architecture of the network becomes a static, deterministic map from inputs to covariances.
-
-This is the peculiar balance of the Gaussian process limit. The randomness of finite networks (the accident of which features you drew) disappears, while the *expressive field* of possible functions becomes infinite. What looks like a loss of freedom in one space is a gain of freedom in another. You trade a random, high-dimensional parameterization for a deterministic law over an infinite-dimensional function space. The model collapses in its parameter dimension but expands in its functional reach. That is the sense in which the GP limit achieves “infinite resolution”: it no longer needs to enumerate features to approximate every smooth behavior the kernel supports. The prior already spans that continuum.
-
-This connects directly to the remark by MacKay (1998) about “throwing out the baby with the bathwater.”
-MacKay warned that when one marginalizes out parameters too early—when one keeps only the covariance structure and discards the explicit representation of weights—one may lose intuition about how learning actually works. In our case, the GP limit *is* that marginalization, pushed to its logical extreme. The baby (the random feature machinery) is gone, but its bathwater—the covariance it left behind—turns out to be everything. The Gaussian process is the distilled trace of that infinite hidden layer, the residual law that remains once we have averaged over all its possible microscopic configurations. The cost is that we can no longer “see” the mechanism that created a particular function; the benefit is that the resulting prior is perfectly well-defined, smooth, and tractable.
-
-So the infinite-width limit does not so much simplify the neural network as *clarify* it: by letting the network’s structural noise disappear, it reveals the underlying stochastic law that every large random feature model was already approximating in miniature.
-
-/*
-CHATGPT QUESTION
-
-Given iid Gaussian priors for $a, b, c$,
-$
-  phi(t) = a phi.alt (t \; b, c)
-$
-is a random feature.
-Thus
-$
-  1/H u'_H (t) = 1/H sum_(h=1)^H phi_h (t)
-$
-is a central limit theorem-kind of sum that will converge to a normal distribution for $H -> oo$.
-Therefore we characterize the marginal of $phi(t)$, ie $p(phi(t))$ by its moments:
-$
-  E_w phi(t) &= 0 \
-  E_w (phi(t) phi(t')) &= sigma_a^2 k(t, t') \
-  E_w (phi(t) phi(t') phi(t'')) &= f(t, t', t'') != 0 "in general" \
-  &"etc."
-$
-Now by CLT the limit
-$
-  lim_(H -> oo) 1/H u'_H (t) ~ mono("Normal")(0, sigma_a^2 k(t,t))
-$
-and higher order moments don't matter anymore; the GP is a full description.
-
-But how could the limit we are actually interested in,
-$
-  lim_(H -> oo) 1/H [u'_H (t) u'_H (t')] = sigma_a^2 k(t,t)
-
-$
-enter the picture in the way I want to develop the story here?
-Is this even correct?
-CLT only talks about marginal variance of a single variable?
-But have $t$ AND $t'$ here... two variables $u'(t)$ and $u'(t')$, not a single one.
-How would you do this?
-I don't want painstaken precision but I do want to be very clear what $H -> oo$ accomplishes, because my prior assumptions on this derivation were kinda misguided.
-
-
-*/
-
 /*
 This is the exact finite case analogue of the GP: nonparametric, so infinite rank: support everywhere
 but priors on the amplitudes determine where on the hyperplane we can reach, and this in GP land is projected as the "kernel character": how smooth, stationary, etc.
@@ -882,33 +770,6 @@ Interestingly, when projecting the GP back to the reduced rank case, again a lin
 */
 
 /*
-We now turn to the limit where the number of changepoints $H$ becomes large.
-Recall the general model
-$
-  u'_H (t) = sum_(h=1)^H a_h phi.alt (t; b_h, c_h),
-$
-with
-$
-  phi.alt (t\; b, c) = [0 < t <= t_c] (c t - b)_+^d.
-$
-Each term is a random feature—one draw from the population of piecewise polynomial responses.
-Given the priors defined earlier for $a_h, b_h, c_h$, all draws are i.i.d.
-
-We can now ask: what happens to this model as $H$ increases?
-
-The mean of $u'_H$ is trivial:
-$
-  E_(bm(w))[u'_H(t)]
-  = sum_(h=1)^H E_(a_h)[a_h] E_(b_h,c_h)[phi.alt (t; b_h, c_h)] = 0.
-$
-The covariance, conditional on $(bm(b), bm(c))$, is
-$
-  Q_(n n') = E_(a)[u'_H(t_n) u'_H(t_{n'}) | bm(b), bm(c)]
-  = sigma_a^2 (bm(Phi) bm(Phi)^top)_(n n'),
-$
-where $Phi_(n h) = phi.alt (t_n; b_h, c_h)$.
-This is just the regression covariance from before, but now the design matrix itself is random.
-
 Averaging also over $(bm(b), bm(c))$ converts the finite sum into a Monte Carlo estimate of a kernel integral:
 $
   E_(bm(b), bm(c))[Q_(n n')]
@@ -950,20 +811,6 @@ $
 */
 
 /*
-questions:
-- transfer functions are not bounded unlike in Williams -- this does not cause problems?
-* answer: no:
-Unlike in the original derivation of #pcite(<Williams1998>), we do not require the hidden-unit transfer functions to be bounded; it is sufficient that their outputs have finite variance under the weight prior as was shown in #pcite(<Matthews2018>). For $(C t - B)_+^d$ with Gaussian weights $B, C$, this holds for any finite $d$ and $t$, and the infinite-width limit then yields the degree-$d$ arc-cosine kernel #pcite(<Cho2009>).
-
-
-- the H -> oo limit only matters to make higher order moments vanish? in this case for any finite H we'd still just have a rescaled arc cosine kernel?
-- so what does that limit actually accomplish here? i thought it would give us infinite resolution (since oo amount of changepoints) but that seems untrue. i am confused as in MacKay 1998 he derivs RBF kernel as sum of RBF basisfunctions taking limit to oo amount. but we do something different here... but i cant put my finger on it. having a hard time to explain this properly to a relatively GP-inexperienced jury
-
-
-
-*/
-
-/*
 
 Here the closure constraint becomes analytically "intractable" at first sight, but can be done for SqExp model analytically, and Matern models via Matern expansion trick @Tronarp2018
 
@@ -980,8 +827,6 @@ Also show # params and compute time for each
 
 */
 
-*/
-
 /*
 #figure(
   image("/figures/svg/20251008144755528.svg"),
@@ -993,21 +838,25 @@ Also show # params and compute time for each
 We now discuss some aspects of the solution @eq:kgfm in greater detail.
 This Section can be safely skipped.
 
-==== Precision
+
+==== What happened?
+It is worth pausing to ask what really happened here.
+At first sight, taking $H -> oo$ might seem like an act of reckless generalization: we blow up the number of parameters without bound, yet somehow end up with something *simpler*—a single Gaussian process with a fixed kernel. Conditional on the random features, the model was already Gaussian, so the only effect of the limit is that the *random design itself* stops being random. The empirical kernel freezes to its mean, and with it the whole architecture of the network becomes a static, deterministic map from inputs to covariances.
+
+This is the peculiar balance of the Gaussian process limit. The randomness of finite networks (the accident of which features you drew) disappears, while the *expressive field* of possible functions becomes infinite. What looks like a loss of freedom in one space is a gain of freedom in another. You trade a random, high-dimensional parameterization for a deterministic law over an infinite-dimensional function space. The model collapses in its parameter dimension but expands in its functional reach. That is the sense in which the GP limit achieves “infinite resolution”: it no longer needs to enumerate features to approximate every smooth behavior the kernel supports. The prior already spans that continuum.
+
+This connects directly to the remark by MacKay (1998) about “throwing out the baby with the bathwater.”
+MacKay warned that when one marginalizes out parameters too early—when one keeps only the covariance structure and discards the explicit representation of weights—one may lose intuition about how learning actually works. In our case, the GP limit *is* that marginalization, pushed to its logical extreme. The baby (the random feature machinery) is gone, but its bathwater—the covariance it left behind—turns out to be everything. The Gaussian process is the distilled trace of that infinite hidden layer, the residual law that remains once we have averaged over all its possible microscopic configurations. The cost is that we can no longer “see” the mechanism that created a particular function; the benefit is that the resulting prior is perfectly well-defined, smooth, and tractable.
+
+So the infinite-width limit does not so much simplify the neural network as *clarify* it: by letting the network’s structural noise disappear, it reveals the underlying stochastic law that every large random feature model was already approximating in miniature.
+
+==== Infinite precision?
 In this view, increasing $H$ increases the _Monte Carlo resolution_ with which the regression model samples its feature space.
 The nonparametric limit replaces explicit random changepoints with their continuous Gaussian measure, yielding a Gaussian process prior over $u'(t)$ whose covariance is the arc-cosine kernel restricted to the open phase of the glottal cycle.
 
-==== Neural networks again.
-The marginalization above was first done by #pcite(<Cho2009>) in the context of infinite-width neural networks in the style of #pcite(<Neal1996>) #pcite(<Williams1998>). This viewpoint also allows for going beyond a depth 1 network by iteration of the $arccos$ kernel.#footnote[Kernel composition (reiteration) is indeed a valid kernel operation in general, as recently emphasized by @Dutordoir2020.]
+There is a caveat however; we got "infinite" precision (meaning full rank), but smoother functions.
+This is the analogue of the amplitude prior of footnote 17 which constrains the ellipsoid.
 
-==== Why not go infinite depth?
-Different character from increasing width; effective depth of deep GPs. If stable limit, it becomes independent of inputs @Diaconis1999. Seen often in DGPs as input independency, "forgetting inputs". Though one might counteract that going to infinite width also has similar "unfortunate" consequences (MacKay's baby with the bath water): "features are not learned", basis functions are fixed. This shows that kernel hyperparameters must encode (most of) features. We do this via sparse multiple kernel learning; ie static kernels on the Yoshii-grid mechanism; our hyperparams are $(T, tau, "OQ")$, ie 3 dim grid.
-
-==== Why not spline models?
-Piecewise spline models are well-known and effective in low-dimensional nonparametric regression. Why not use them? Because they depend on the resolution. As Gaussian process priors, spline kernels produce posterior means that are splines with knots (hingepoints in some derivative) fixed at the observed inputs and nowhere else @MacKay1998[p. 6]. In contrast, the $arccos(n)$ kernel will learn the effective number of hingepoints from the data, which may happily remain $O(1)$ while the amount of datapoints grows indefinitely. Translated to our problem, we want the number of effective change points to be resolution-independent (independent of the sampling frequency) and not confined to the observation locations.
-
-==== Why not Lévy processes?
-These encode Poisson-style jumps $O(1)$ in number in time. But inference in these is always $O("# of jumps")$. So can't really marginalize out these jump points, and we want to avoid MCMC. We want to stack everything in the amplitude marginalization. But, actual discontinuities require Lévy processes; the arc cosine GP alone can only fake it with steep ramps /*(see @fig:steep)*/.
 
 /* main point here: YES, we compromised; we got fast inference, but also diminshed support for true O(1) amount of jumps like a Levy process would. This is a practical question -- need to find out by running nested sampling and see how much support for these jumps is really there -- just calculate! */
 
@@ -1032,6 +881,15 @@ LPC just proclaims s(t) = e(t) * h(t) and shoves radiation into the source such 
 since differentiation is ~ i2pi x => zero, not a pole
 so we are generalizing LPC, so also choose e(t) => u(t) * r(t)
 */
+
+==== Why not go infinite depth?
+Different character from increasing width; effective depth of deep GPs. If stable limit, it becomes independent of inputs @Diaconis1999. Seen often in DGPs as input independency, "forgetting inputs". Though one might counteract that going to infinite width also has similar "unfortunate" consequences (MacKay's baby with the bath water): "features are not learned", basis functions are fixed. This shows that kernel hyperparameters must encode (most of) features. We do this via sparse multiple kernel learning; ie static kernels on the Yoshii-grid mechanism; our hyperparams are $(T, tau, "OQ")$, ie 3 dim grid.
+
+==== Why not spline models?
+Piecewise spline models are well-known and effective in low-dimensional nonparametric regression. Why not use them? Because they depend on the resolution. As Gaussian process priors, spline kernels produce posterior means that are splines with knots (hingepoints in some derivative) fixed at the observed inputs and nowhere else @MacKay1998[p. 6]. In contrast, the $arccos(n)$ kernel will learn the effective number of hingepoints from the data, which may happily remain $O(1)$ while the amount of datapoints grows indefinitely. Translated to our problem, we want the number of effective change points to be resolution-independent (independent of the sampling frequency) and not confined to the observation locations.
+
+==== Why not Lévy processes?
+These encode Poisson-style jumps $O(1)$ in number in time. But inference in these is always $O("# of jumps")$. So can't really marginalize out these jump points, and we want to avoid MCMC. We want to stack everything in the amplitude marginalization. But, actual discontinuities require Lévy processes; the arc cosine GP alone can only fake it with steep ramps /*(see @fig:steep)*/.
 
 == Summary
 
