@@ -28,7 +28,7 @@ $
 $ <eq:yaglom>
 where $C = (t_1, t_2) times (t_1, t_2)$ and $k^((d))$ is the standard temporal arc cosine kernel (TACK).
 $
-  k^((d)) (t, t) = 1/pi (1+t^2)^(d/2) (1+t'^2)^(d/2) J_d (theta)
+  k^((d)) (t, t') = 1/pi (1+t^2)^(d/2) (1+t'^2)^(d/2) J_d (theta)
 $
 "Standard" means that the prior variances $sigma_a = sigma_b = sigma_c = 1$.
 Later we generalize the calculation by means of an affine transformation of @eq:yaglom.

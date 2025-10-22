@@ -2,6 +2,8 @@
 #import "/writing/thesis/lib/gnuplot.typ": gnuplot
 
 #import "@preview/tablem:0.3.0": tablem, three-line-table
+#import "@preview/equate:0.3.2": equate, share-align
+#show: equate.with()
 
 #let frame(stroke) = (x, y) => (
   left: if x > 0 { 0pt } else { stroke },
@@ -374,8 +376,8 @@ $ <eq:arh-prior>
 where $bm(r) = (r_1, dots, r_H)^top$ and $bm(q) = bm(r)/(||bm(r)||)$.
 A convenient way to a sample from this updated prior makes use of the fact that this is a rank-one projection:
 $
-  &bm(a) &equiv& (bm(q) bm(q)^top) bm(a) + &(&bm(I) - bm(q) bm(q)^top) &bm(a)& quad &~& quad p(bm(a) & | & bm(b)) \
-  ==> & bm(a)_perp & = && ( & bm(I) - bm(q) bm(q)^top) & bm(a) & quad & ~ & quad p(bm(a) & | & mono("closure"), bm(b)).
+  bm(a)        &= (bm(q) bm(q)^top) bm(a) + &(bm(I) - bm(q) bm(q)^top) bm(a) quad ~ quad & p(bm(a) | bm(b)) \
+  ==> bm(a)_perp &= &(bm(I) - bm(q) bm(q)^top) bm(a)                       quad ~ quad  & p(bm(a) | mono("closure"), bm(b)).
 $
 How does this look in data space?
 By the same calculation @eq:abexpval, marginalizing over $bm(a)$ yields
@@ -389,7 +391,7 @@ the anisotropic prior @eq:udashani induces glottal flows $bm(u)$ that tend to lo
 /* picture of triangular pulse model with K=2 ... K = 5 with t_k chosen uniformly and respecting the closure constraint */
 Likewise, regression with the latter ensures that posterior mass vanishes at solutions $bm(u)$ that violate the closure constraint.
 
-This illustrates how linear constraints on the amplitudes $bm(a)$ in the linear model @eq:udphia can encode GFM properties at the cost of just a few rank-one downdates.
+This illustrates how linear constraints on the amplitudes $bm(a)$ in the linear model @eq:udphia can encode GFM properties at the cost of just a single rank-one downdate per constraint.
 Moving on from linear models to Gaussian processes, these linear constraints become linear functionals known as _interdomain features_, which may be used to impose structure directly in function space, without touching rank, but more challenging mathematically.
 In @chapter:pack, we will use the interdomain approach to learn spectral features of nonparametric GFMs directly from data rather than hardcoding them as in @eq:arh-constraint.
 
@@ -442,8 +444,8 @@ Assuming $t_c$ is known, the remaining hyperparameters to describe the open phas
 Turning to data space again and having assigned priors to all parameters, we can now do a full marginalization unlike the conditional in @eq:udashgauss.
 Updating the design matrix $bm(Phi)$ to
 $
-  [bm(Phi)]_(n h) = phi_h (t_n) = (c_h t_n - b_h)_+^d,
-$
+  [bm(Phi)]_(n h) = phi.alt_h (t_n) = (c_h t_n - b_h)_+^d,
+$ <eq:nnphi>
 and assuming the isotropic priors @eq:priora and @eq:priorbc
 we have
 $
@@ -465,7 +467,7 @@ where $p(bm(a) | mono("closure"), bm(b), bm(c))$ is identical to @eq:arh-prior b
 This prior yields a mixture in data space that is similar to @eq:pu-gaussmixture:
 $
   p(bm(u') | mono("closure")) = integral mono("Normal")(bm(u') | bm(0), sigma_a^2 bm(Phi) (bm(I) - bm(q) bm(q)^top) bm(Phi)^top) thin p(bm(b)) thin p(bm(c)) dif bm(b) dif bm(c).
-$
+$ <eq:ccbmu>
 Here both $bm(q) = bm(r)/(||bm(r)||)$ and $bm(Phi)$ depend on ${bm(b), bm(c)}$.
 This integral has no closed form for $H -> oo$, but we can still impose the closure constraint on @eq:pu-gaussmixture indirectly in the spectral domain via interdomain features (@chapter:pack).
 
@@ -474,78 +476,104 @@ This integral has no closed form for $H -> oo$, but we can still impose the clos
 ==== Connection to LF and other GFMs
 The neural network view of the parametric polynomial model also clarifies expressivity.
 It is well known that a single RePU layer of sufficient width can approximate any continuous waveform on a bounded interval @Hornik1993.
-Therefore, with its analytical closure constraint @eq:abc-closure and the ability to represent sharp changepoint behavior, the parametric piecewise polynomial model in the form @eq:uNN effectively unifies the entire family of GFMs encountered in the literature, from triangular pulses to LF-type exponentials, given /*a precision tolerance and a*/ sufficiently large $H$.
+Therefore, with its analytical closure constraint @eq:abc-closure and the ability to represent sharp changepoint behavior, the parametric piecewise polynomial model in the form @eq:uNN effectively unifies the entire family of GFMs encountered in the literature, from triangular pulses to LF-type exponentials and sinusoids, given /*a precision tolerance and a*/ sufficiently large $H$.
 
 /* now we got a prior for t_k: we can show samples */
 /* K, n picture */
 
-/*
-As said before, this model is very constrained to lie on submanifold of dim $H$.
-even rank $K-1$ with the constraint
-we should add more expressiveness
-we can do so to add a prior for $bm(b)$ so we don't have to assume anymore that this is fixed
-and go to a full rank GP (rank goes to $N$, not $H$)
-for this we will loose the closure constraint for now but reimpose it in the next chapter
-*/
-
 == Nonparametric piecewise polynomial models
 <sec:nonparametric-piecewise>
 
-It thus makes sense to consider the limit $H -> oo$.
-We start again from the marginal prior probability for $bm(u')$ in the open phase, this time without the closure constraint:
+The correspondence of piecewise polynomials GFMs with a single hidden layer shows that their expressivity depends mostly on the order $H$, as model order is equivalent to layer width in the neural network picture.
+Indeed, _parametric_ linear models have a finite representation capacity determined primarily by rank because the modeled function can only explore the subspace spanned by the basisfunctions.
+#footnote[
+  More precisely: a higher rank naturally enlarges the subspace of attainable functions, but the prior over amplitudes still constrains where probability mass is placed within that subspace.
+Geometrically, the model explores an $H$-dimensional ellipsoid like @eq:udashgauss or @eq:udashani rather than the entire hyperplane.
+When data accumulate, the prior constraints are eventually overwhelmed and the model can move freely on that plane.
+Random kitchen sinks @Rahimi2008 take these two ideas to the extreme: forgo specialized modeling; just use $H$ _random_ basis functions with uninformative priors and rely on the fact that an entire $H$-dimensional hyperplane is reachable with high probability.
+]
+_Nonparametric_ models grow capacity as the number of datapoints increases;
+in the case of Gaussian processes, posterior inference given $N$ datapoints is equivalent to Bayesian linear regression with $N$ linearly independent basisfunctions, hence full-rank @Rasmussen2006.
+
+It thus makes sense to consider the limit $H -> oo$ in our search for more expressive GFMs. //,  for the neural network model @eq:uNN in data space.
+Continuing where we left, we already saw in @eq:pu-gaussmixture that $p(bm(u'))$ is a nontrivial Gaussian covariance mixture weighed by the isotropic priors defined in @eq:priorbc.
+This can be made explicit:
 $
   p(bm(u'))
-  = integral mono("Normal")(bm(u') | bm(0), sigma_a^2 bm(Phi) bm(Phi)^top)
-  thin p(bm(b)) thin p(bm(c))
-  dif bm(b) dif bm(c).
+  &= integral mono("Normal")(bm(u') | bm(0), sigma_a^2 bm(Phi) bm(Phi)^top)
+     thin p(bm(b)) thin p(bm(c)) dif bm(b) dif bm(c) \
+  &= integral mono("Normal")(bm(u') | bm(0), bm(Q))
+     thin p(bm(Q)) dif bm(Q),
 $ <eq:uprime-mix>
-The covariance of each mixture component depends on the random hidden weights ${bm(b), bm(c)}$ through the design matrix $bm(Phi)$.
-The mean of all components is zero.
-For any finite $H$, the model therefore represents a _Gaussian mixture with varying covariances_ and
-rank at most $H$ (or $H - 1$ if the closure constraint were active).
-Its expressivity in data space grows with $H$, and the Gaussian-process limit will correspond to the case where the effective rank saturates the $N$ time samples.
+where we defined the push forward
+$
+  p(bm(Q)) = integral delta(bm(Q) - sigma_a^2 bm(Phi) bm(Phi)^top) thin p(bm(b)) thin p(bm(c)) dif bm(b) dif bm(c)
+$
+which essentially counts the number of ${bm(b), bm(c)}$ configurations that give rise to a given $bm(Q)$.
+#share-align[
+  Thus each random draw of ${bm(b), bm(c)} in bb(R)^(2H)$ drawn from @eq:priorbc induces in data space a random covariance matrix $bm(Q) in bb(R)^(N times N)$,
+  $ 
+    {bm(b), bm(c)} mapsto bm(Q), quad quad &"rank"(bm(Q)) &<= H&
+  $
+  and hence a Gaussian component with weight $p(bm(Q))$ in the mixture @eq:uprime-mix.
+  Below we will show that by rescaling $sigma_a -> sigma_a\/sqrt(H)$ and letting $H -> oo$, the density of states degenerates to
+  $ 
+   p(bm(Q)) --> delta(bm(Q) - bm(K)), quad quad &"rank"(bm(K)) &= N& "almost surely",
+  $
+  for some $bm(K) in bb(R)^(N times N)$ to be derived, causing the mixture to collapse to a single Gaussian and thus completing the transition to a Gaussian process with kernel $bm(K)$.
+]
 
 === Expected covariance
 
-While the mixture @eq:uprime-mix has no closed form, its first two moments can be computed analytically by averaging over ${bm(b), bm(c)}$.
-Because the conditional expectation of $bm(u')$ given ${bm(b), bm(c)}$ is simple, we have
+While the mixture @eq:uprime-mix has no closed form for finite $H$, progress can be made by computing its mean and covariance:
 $
   bb(E)[bm(u')]
-  = bb(E)_(bm(b),bm(c))[bb(E)_(bm(a)|bm(b),bm(c))[bm(u')]]
-  = bm(0),
-$
-and
-$
+  &= bb(E)_(bm(b),bm(c))[bb(E)_(bm(a)|bm(b),bm(c))[bm(u')]]
+  = bm(0), \
   bb(E)[bm(u') bm(u')^top]
-  = bb(E)_(bm(b),bm(c))[bb(E)_(bm(a)|bm(b),bm(c))[bm(u') bm(u')^top]]
+  &= bb(E)_(bm(b),bm(c))[bb(E)_(bm(a)|bm(b),bm(c))[bm(u') bm(u')^top]]
   = sigma_a^2 bb(E)_(bm(b),bm(c))[bm(Phi) bm(Phi)^top].
 $ <eq:covexpval>
-This defines the _population covariance_ of the model,
+Define the _expected covariance_
 $
-  bm(K)_d = bb(E)_(bm(b),bm(c))[bm(Phi) bm(Phi)^top].
+  bm(K) &= bb(E)_(bm(b),bm(c))[bm(Phi) bm(Phi)^top] in bb(R)^(N times N)
 $
-Writing the basis function as
+Then we obtain elementwise for $bm(K)$:
 $
-  phi.alt(t\; b, c) = (c t - b)_+^d,
+  [bm(K)]_(n m)
+  &= bb(E)_(bm(b),bm(c)) [sum_(h=1)^H phi.alt_h (t_n) phi.alt_h (t_m)]
 $
-we obtain for the entries
+where $phi.alt_h (t) = (c_h t - b_h)_+^d $ for the neural network model $u'_"NN" (t)$ was defined in @eq:nnphi.
+Since the $phi.alt_h (t)$ are statistically equivalent under i.i.d. priors like @eq:priorbc, define a single "mother wavelet" without index $h$ as
 $
-  [bm(K)_d]_(n m)
-  = bb(E)_(bm(b),bm(c)) [sum_(h=1)^H phi.alt_h (t_n) phi.alt_h (t_m)]
-  = sum_(h=1)^H bb(E)_(b, c) [phi.alt(t_n\; b, c) phi.alt(t_m\; b, c)]
-  = H thin k_d(t_n, t_m),
+  phi.alt(t\; b, c) = (c t - b)_+^d, &quad b ~ mono("Normal")(0, sigma_b^2), quad c ~ mono("Normal")(0, sigma_c^2).
+$ <eq:motherwavelet>
+so the elements of $bm(Phi) bm(Phi)^top$ become sums of $H$ i.i.d. random variables, and their expectation $bm(K)$ factorizes across $h$:
 $
-where
+  [bm(K)]_(n m)
+  &= sum_(h=1)^H bb(E)_(bm(b),bm(c)) [phi.alt_h (t_n) phi.alt_h (t_m)] \
+  &= sum_(h=1)^H bb(E)_(b, c) [phi.alt(t_n\; b, c) phi.alt(t_m\; b, c)] \
+  &= H thin bb(E)_(b,c) [phi.alt(t_n\; b, c) phi.alt(t_m\; b, c)] \
+  &= H thin k^((d)) (t_n, t_m).
 $
-  k_d(t, t') = bb(E)_(b,c) [phi.alt(t\; b, c) phi.alt(t\; b, c)].
+where we define the _temporal arc cosine kernel_ of degree $d$ as
 $
-Hence, for any finite $H$, the expected covariance in data space scales linearly with $H$ and is proportional to a kernel $k_d$ indexed by the sample times ${t_n, t_m}$.
-This shows that even before taking any limit, the _expected structure_ of the prior already mirrors that of a kernel regression model.
+  k^((d)) (t, t') &:= bb(E)_(b,c) [phi.alt(t\; b, c) phi.alt(t'\; b, c)].
+$
+To recapitulate, the first and second central moments of the mixture @eq:uprime-mix are known:
+$
+  bb(E)[bm(u')]
+  &= bm(0), \
+  bb(E)[bm(u') bm(u')^top]
+  &= sigma_a^2 thin H thin k^((d)) (t, t').
+$
+The third, fourth, ... central moments are in general nonzero and difficult to compute.
+They will vanish however when $H -> oo$.
+Nevertheless, we have shown that even before taking any limit, the _expected structure_ of the prior already mirrors that of a kernel regression model.
+Note that this result hinges critically on the independence assumption for ${b_h, c_h}$ in @eq:motherwavelet.
+The closure-constrained prior of @eq:ccbmu would couple these parameters nonlinearly, destroying that independence and making the derivation intractable, which is why we temporarily set it aside.
 
-Because the summands are i.i.d., this result hinges critically on the independence assumption for ${b_h, c_h}$ across hidden units.
-The closure-constrained prior of @eq:arh-prior would couple these parameters linearly, destroying that independence and making the derivation intractable, which is why we temporarily set it aside.
-
-=== The arc-cosine kernel
+=== The temporal arc-cosine kernel
 
 The expectation $k_d(t, t')$ above can be evaluated in closed form.
 Defining the affine augmentations
@@ -570,17 +598,36 @@ $
   k_"arc"^((d)) (bm(Sigma)^(1/2) bm(x)_t, bm(Sigma)^(1/2) bm(x)_(t')).
 $
 
+/*
+Unlike in the original derivation of #pcite(<Williams1998>), we do not require the hidden-unit transfer functions to be bounded; it is sufficient that their outputs have finite variance under the weight prior as was shown in #pcite(<Matthews2018>). For $(C t - B)_+^d$ with Gaussian weights $B, C$, this holds for any finite $d$ and $t$, and the infinite-width limit then yields the degree-$d$ arc-cosine kernel #pcite(<Cho2009>).
+
+$
+  K_(i j) & = sigma_a^2 sum_(h=1)^H phi_h (t_i) phi_h (t_j) \
+  & = sigma_a^2 sum_(h=1)^H phi(w_(h 2) t_i + w_(h 1)) phi(w_(h 2) t_j + w_(h 1)) \
+  &prop sigma_a^2 integral phi(w_(2) t_i + w_(1)) phi(w_(2) t_j + w_(1)) cal(N)(w_1 divides 0, sigma_1^2) cal(N)(w_2 divides 0,sigma_2^2) dif w_1 dif w_2 "as" H -> oo \
+  &= arccos_n {bm(Sigma)^(1/2) vec(1, t_i), bm(Sigma)^(1/2) vec(1, t_j) }
+$
+where $Sigma = "diag"(sigma_1^2, sigma_2^2)$ and the weights are defined in @fig:nn-polynomial. This is the generalized "covariance" arc cosine kernel from @Cho2009 @Pandey2014.
+
+We can absorb $sigma_a$ into $Sigma$, as $arccos$ is homogenous for global rescaling, which is equivalent to rescaling $Sigma -> alpha Sigma$. What is excellent: we managed to push one layer of hyperparameters into the amplitudes! Since we marginalized them away, we end up with a nonparametric polynomial DGF model. We have only three hyperparameters: $sigma$, $sigma_1$, $sigma_2$ instead of $O(H)$ amount. This is the key to fast multiple kernel learning.
+
+But we can allow $bm(Sigma) = mat(sigma_b^2, 0; 0, sigma_t^2)$ as this is important to model behavior of kernel. Introducing a third parameter $rho$ (correlation in $Sigma$) breaks our FT derivation (the $tan "/" arctan$ trick), which assumes no correlation between bias and $t$. So individual rescaling is as far as we can go and probably more than enough. So we can proceed with the $N(0,I)$ case as in @Cho2009. // https://chatgpt.com/s/t_68dfa3181bf88191a3183a8138bf2969
+
+// @Pandey2014: covariance arccos kernel: to go wide or deep in NNs?
+// https://upcommons.upc.edu/server/api/core/bitstreams/bf52946e-0904-4e3d-afb7-d85d8a33c46a/content page 13
+*/
+
 === From expectation to convergence
 
-So far we have shown that the _expectation_ of the data-space covariance equals $H bm(K)_d$.
-But for a single random draw of ${bm(b), bm(c)}$, the empirical covariance
+So far we have shown that the _expectation_ of the data-space covariance equals $H bm(K)$.
+But for a _single_ random draw of ${bm(b), bm(c)}$, the empirical covariance
 $
   bm(Q)_H = sum_(h=1)^H bm(v)_h bm(v)_h^top,
   quad [bm(v)_h]_n = (c_h t_n - b_h)_+^d,
 $
-still fluctuates around its expectation with variance of order $H$.
+still fluctuates around its expectation with elementwise variance of $O(H)$.
 Increasing $H$ without rescaling merely amplifies these fluctuations.
-To reach a well-defined infinite-width limit we must therefore _renormalize_ the model.
+To reach a well-defined infinite-width limit we must therefore normalize the model.
 
 Dividing the summation in @eq:uNN by $sqrt(H)$ gives the normalized version
 $
@@ -593,18 +640,18 @@ $
 $
 Its expectation is now constant,
 $
-  bb(E)[bm(Q)_H] = bm(K)_d,
+  bb(E)[bm(Q)_H] = bm(K),
 $
 and by the strong law of large numbers each matrix element converges almost surely:
 $
   [bm(Q)_H]_(n m)
   = 1/H sum_(h=1)^H (c_h t_n - b_h)_+^d (c_h t_m - b_h)_+^d
   -> bb(E)_(b,c) [(c t_n - b)_+^d (c t_m - b)_+^d]
-  = [bm(K)_d]_(n m).
+  = [bm(K)]_(n m).
 $
-Equivalently, the induced density $p_H(bm(Q))$ of covariance matrices collapses weakly to a Dirac delta at $bm(K)_d$:
+Equivalently, the induced density $p_H(bm(Q))$ of covariance matrices collapses weakly to a Dirac delta at $bm(K)$:
 $
-  p_H(bm(Q)) --> delta(bm(Q) - bm(K)_d).
+  p_H(bm(Q)) --> delta(bm(Q) - bm(K)).
 $
 
 === The Gaussian-process limit
@@ -616,31 +663,20 @@ $
 $
 As $H -> oo$, the measure $p_H(bm(Q))$ collapses and the integral reduces to a single Gaussian:
 $
-  p(bm(u')) -> mono("Normal")(bm(0), sigma_a^2 bm(K)_d).
+  p(bm(u')) -> mono("Normal")(bm(0), sigma_a^2 bm(K)).
 $
 In other words, not only the expectation of the covariance but the entire _law_ of $bm(u')$ converges to that of a Gaussian.
 All higher central moments vanish as $O(1/sqrt(H))$ because the covariance fluctuations themselves decay at that rate.
 Since this argument holds for any finite collection of times ${t_1, dots, t_N}$, the limiting process is a Gaussian process
 $
   u'_"NN" (t) ~ mono("GP")(0, sigma_a^2 K_d (t, t')).
-$
+$ <eq:kgfm>
 The function family thereby reaches full rank in data space and becomes nonparametric.
 The hyperparameters $(sigma_a, sigma_b, sigma_c, d)$ retain their familiar roles:
 overall scale, typical changepoint location, horizontal stretch, and polynomial order.
 In @chapter:pack we will reincorporate the closure constraint into this process.
 
-
-==== Rank matters
-A linear model with a higher rank is more expressive, but the priors still limit the full reach of possibly generated data on the dimension-$H$ hyperplane;
-(ie we are on ellipses, not points moving freely on hyperplanes)
-so rank isnt everything when prior information on the amplitudes is strong.
-In the opposite regime given enough data the prior constraints are eventually overwhelmed and we are free to move on the hyperplane#footnote[
-  The idea of random kitchen sinks takes this idea to the extreme: use random basis functions with uninformative priors and depend on the fact that the entire hyperplane is reachable
-]
-This is the exact finite case analogue of the GP: nonparametric, so infinite rank: support everywhere
-but priors on the amplitudes determine where on the hyperplane we can reach, and this in GP land is projected as the "kernel character": how smooth, stationary, etc.
-Interestingly, when projecting the GP back to the reduced rank case, again a linear model is found and the amplitudes again determine the character to great extent, encoding properties like closure constraint, differentiability, and spectral properties.
-
+Unlike in the original derivation of #pcite(<Williams1998>), bounded transfer functions are not required; it suffices that $phi.alt (t\; b, c)$ has finite variance under the Gaussian weight prior, which holds for any finite $d$ #pcite(<Matthews2018>).
 
 /*
 It remains to compute $K_d (t, t')$.
@@ -671,7 +707,7 @@ $
 In summary, the path mirrors the classical data-space derivation of Gaussian processes.
 For fixed $(bm(b), bm(c))$ the prior on $bm(u')$ is Gaussian with low-rank covariance.
 Marginalizing over $(bm(b), bm(c))$ produces a Gaussian mixture.
-As $H$ increases, the empirical covariance $bm(Q)_H$ converges to its population mean $bm(K)_d$, the mixture integral collapses, and the limit is a single Gaussian with covariance $sigma_a^2 bm(K)_d$.
+As $H$ increases, the empirical covariance $bm(Q)_H$ converges to its population mean $bm(K)$, the mixture integral collapses, and the limit is a single Gaussian with covariance $sigma_a^2 bm(K)$.
 Equivalently, the function prior converges to a Gaussian process with kernel /*@eq:kdsigma-final*/ over the open phase.
 The hyperparameters $(sigma_a, sigma_b, sigma_c, d)$ retain their roles as output scale, typical hinge location, horizontal stretch, and polynomial sharpness.
 We will fold the closed phase and the closure constraint back into this process in @chapter:pack.
@@ -838,9 +874,11 @@ I don't want painstaken precision but I do want to be very clear what $H -> oo$ 
 
 
 */
+
 /*
-note: it is possible to use the hard closure constraint prior for $a$ and derive a GP with same kernel minus rank 1 term, but the derivaiton is cleaner this way
-AND we will do this in a generalized way for soft closure constraint in next section
+This is the exact finite case analogue of the GP: nonparametric, so infinite rank: support everywhere
+but priors on the amplitudes determine where on the hyperplane we can reach, and this in GP land is projected as the "kernel character": how smooth, stationary, etc.
+Interestingly, when projecting the GP back to the reduced rank case, again a linear model is found and the amplitudes again determine the character to great extent, encoding properties like closure constraint, differentiability, and spectral properties.
 */
 
 /*
@@ -909,64 +947,6 @@ Under the Gaussian base measure for $tilde(w)$ this becomes the *degree-$d$ arc-
 $
   K_d(t, t') = [0 < t <= t_c][0 < t' <= t_c] k_d (tilde(x), tilde(x')).
 $
-
-/*
-WAIT still need to scale $k(sigma_c t, sigma_c)$ or the like because prior is NOT N(0,1).
-*/
-
-Unlike in the original derivation of #pcite(<Williams1998>), bounded transfer functions are not required; it suffices that $phi.alt (t\; b, c)$ has finite variance under the Gaussian weight prior, which holds for any finite $d$ #pcite(<Matthews2018>).
-
-In this view, increasing $H$ increases the *Monte Carlo resolution* with which the regression model samples its feature space.
-The nonparametric limit replaces explicit random changepoints with their continuous Gaussian measure, yielding a Gaussian process prior over $u'(t)$ whose covariance is the arc-cosine kernel restricted to the open phase of the glottal cycle.
-
-*/
-
-
-/*
-
-Following @Williams1998 @Neal1993
-$
-  u'_H (t) = sum_(h=1)^H a_h phi.alt_h (t; b_h, c_h)
-$
-where
-$
-  p(bm(a)) & = mono("Normal")(bm(a) | bm(0), sigma_a^2 I), \
-  p(bm(b)) & = mono("Normal")(bm(b) | bm(0), sigma_b^2 I), \
-  p(bm(c)) & = mono("Normal")(bm(c) | bm(0), sigma_c^2 I)
-$
-Denote all weights by $bm(w) = {bm(a), bm(b), bm(c)}$.
-$
-  a_j ~^"i.i.d." a ~ mono("Normal")(0, sigma_a^2), \
-  b_j ~^"i.i.d." b ~ mono("Normal")(0, sigma_b^2), \
-  c_j ~^"i.i.d." c ~ mono("Normal")(0, sigma_c^2),
-$
-In data space,
-$
-  E_bm(w)[u'_H (t)] &= sum_(h=1)^H E_a [a_h] E_(b,c)[phi.alt_h (t; b_h, c_h)] = 0 \
-  E_bm(w)[u'_H (t) u'_H (t')] &= sum_(h=1)^H sum_(ell=1)^H E_a [a_h a_ell] E_(b, c)[phi.alt_h (t; b_h, c_h) phi.alt_ell (t'; b_ell, c_ell)] \
-  &= sum_(h=1)^H sigma_a^2 E_(b,c)[phi.alt_h (t\; b, c) phi.alt_ell (t'; b, c)] \
-  &= H sigma_a^2 K_phi.alt(t, t')
-$
-Here $u'_H$ has zero mean because $a_h$ is zero mean and independent of $b_h, c_h$.
-Likewise, only the diagonal terms with $h = ell$ survive due to independence of amplitudes $a_h, a_ell$.
-Here
-$
-  K_phi.alt(t, t') &= [0 < t <= t_c] times [0 < t' <= t_c] times \
-  integral mono("Normal")(b | 0, sigma_b^2) &mono("Normal")(c | 0, sigma_c^2) (c t - b)_+^d (c t' - b)_+^d dif b dif c \
-  &= [0 < t <= t_c] times [0 < t' <= t_c] times k_d (t, t') \
-$
-Here $k_d (t,t')$ is the arc cosine kernel of @Cho2009.
-Taking the limit $H -> oo$ and letting $sigma_a^2$ scale as $sigma^2\/H$ to keep variance finite, we get
-$
-  lim_(H -> oo) E_bm(w)[u'_H (t)] &= 0 \
-  lim_(H -> oo) E_bm(w)[u'_H (t) u'_H (t')] &= sigma^2 [0 < t <= t_c] times [0 < t' <= t_c] times k_d (t, t') := k(t, t')
-$
-and higher moments are zero due to the central limit theorem.
-Thus in the limit $H -> oo$,
-$
-  lim_(H -> oo) u'_H(t) ~ mono("Gaussian process")(0, sigma^2 k (t, t'))
-$
-
 */
 
 /*
@@ -983,58 +963,10 @@ Unlike in the original derivation of #pcite(<Williams1998>), we do not require t
 
 */
 
-
-
 /*
-
-Note that $bm(u')$ is a Gaussian like @eq:udashgauss for any finite collection of $N$ sample times $bm(t)$.
-This is the defining property of a Gaussian process and therefore $u'_H (t)$ is a Gaussian process of rank $<= H$ with kernel
-$
-  k(t, t') = sigma_a^2 sum_(h=1)^H phi.alt_h (t) phi.alt_h (t').
-$
-
-*/
-
-/*
-$
-  bm(Q)_(n n') = sigma_a^2 sum_(h=1)^H phi.alt_h (t_n) phi.alt_h (t_n')
-$
-*/
-
-/*
-We want to show that inf resolution still goes
-
-But we can't do MacKay completely: he has fixed basisfunctions
-
-We need to write again the expectation <f f'> which he could write as sigma <phi phi'> where phi are fixed, and we can't => this is how we get the expectiation over Gaussian weights and we are done
-
-MacKay integrates first over amplitude weight and THEN integrates over input index h, we integrate BOTH over h (resolution) AND weights (prior) simulteaunisky
-
-*/
-
-/*
-
-$
-  K_(i j) & = sigma_a^2 sum_(h=1)^H phi_h (t_i) phi_h (t_j) \
-  & = sigma_a^2 sum_(h=1)^H phi(w_(h 2) t_i + w_(h 1)) phi(w_(h 2) t_j + w_(h 1)) \
-  &prop sigma_a^2 integral phi(w_(2) t_i + w_(1)) phi(w_(2) t_j + w_(1)) cal(N)(w_1 divides 0, sigma_1^2) cal(N)(w_2 divides 0,sigma_2^2) dif w_1 dif w_2 "as" H -> oo \
-  &= arccos_n {bm(Sigma)^(1/2) vec(1, t_i), bm(Sigma)^(1/2) vec(1, t_j) }
-$
-where $Sigma = "diag"(sigma_1^2, sigma_2^2)$ and the weights are defined in @fig:nn-polynomial. This is the generalized "covariance" arc cosine kernel from @Cho2009 @Pandey2014.
-
-We can absorb $sigma_a$ into $Sigma$, as $arccos$ is homogenous for global rescaling, which is equivalent to rescaling $Sigma -> alpha Sigma$. What is excellent: we managed to push one layer of hyperparameters into the amplitudes! Since we marginalized them away, we end up with a nonparametric polynomial DGF model. We have only three hyperparameters: $sigma$, $sigma_1$, $sigma_2$ instead of $O(H)$ amount. This is the key to fast multiple kernel learning.
-
-But we can allow $bm(Sigma) = mat(sigma_b^2, 0; 0, sigma_t^2)$ as this is important to model behavior of kernel. Introducing a third parameter $rho$ (correlation in $Sigma$) breaks our FT derivation (the $tan "/" arctan$ trick), which assumes no correlation between bias and $t$. So individual rescaling is as far as we can go and probably more than enough. So we can proceed with the $N(0,I)$ case as in @Cho2009. // https://chatgpt.com/s/t_68dfa3181bf88191a3183a8138bf2969
-
-
 
 Here the closure constraint becomes analytically "intractable" at first sight, but can be done for SqExp model analytically, and Matern models via Matern expansion trick @Tronarp2018
 
-// @Pandey2014: covariance arccos kernel: to go wide or deep in NNs?
-// https://upcommons.upc.edu/server/api/core/bitstreams/bf52946e-0904-4e3d-afb7-d85d8a33c46a/content page 13
-
-
-/*
 Kernel support for various GF models without closure constraint
 
 Calculate p(D|k) for k in (arccos, matern, spline) <= nonparametric
@@ -1050,10 +982,20 @@ Also show # params and compute time for each
 
 */
 
+/*
 #figure(
   image("/figures/svg/20251008144755528.svg"),
   caption: [Hard changepoints are difficult, best we can do are steep slopes.],
 ) <fig:steep>
+*/
+
+=== Comments
+We now discuss some aspects of the solution @eq:kgfm in greater detail.
+This Section can be safely skipped.
+
+==== Precision
+In this view, increasing $H$ increases the _Monte Carlo resolution_ with which the regression model samples its feature space.
+The nonparametric limit replaces explicit random changepoints with their continuous Gaussian measure, yielding a Gaussian process prior over $u'(t)$ whose covariance is the arc-cosine kernel restricted to the open phase of the glottal cycle.
 
 ==== Neural networks again.
 The marginalization above was first done by #pcite(<Cho2009>) in the context of infinite-width neural networks in the style of #pcite(<Neal1996>) #pcite(<Williams1998>). This viewpoint also allows for going beyond a depth 1 network by iteration of the $arccos$ kernel.#footnote[Kernel composition (reiteration) is indeed a valid kernel operation in general, as recently emphasized by @Dutordoir2020.]
@@ -1065,7 +1007,7 @@ Different character from increasing width; effective depth of deep GPs. If stabl
 Piecewise spline models are well-known and effective in low-dimensional nonparametric regression. Why not use them? Because they depend on the resolution. As Gaussian process priors, spline kernels produce posterior means that are splines with knots (hingepoints in some derivative) fixed at the observed inputs and nowhere else @MacKay1998[p. 6]. In contrast, the $arccos(n)$ kernel will learn the effective number of hingepoints from the data, which may happily remain $O(1)$ while the amount of datapoints grows indefinitely. Translated to our problem, we want the number of effective change points to be resolution-independent (independent of the sampling frequency) and not confined to the observation locations.
 
 ==== Why not Lévy processes?
-These encode Poisson-style jumps $O(1)$ in number in time. But inference in these is always $O("# of jumps")$. So can't really marginalize out these jump points, and we want to avoid MCMC. We want to stack everything in the amplitude marginalization. But, actual discontinuities require Lévy processes; the arc cosine GP alone can only fake it with steep ramps (see @fig:steep).
+These encode Poisson-style jumps $O(1)$ in number in time. But inference in these is always $O("# of jumps")$. So can't really marginalize out these jump points, and we want to avoid MCMC. We want to stack everything in the amplitude marginalization. But, actual discontinuities require Lévy processes; the arc cosine GP alone can only fake it with steep ramps /*(see @fig:steep)*/.
 
 /* main point here: YES, we compromised; we got fast inference, but also diminshed support for true O(1) amount of jumps like a Levy process would. This is a practical question -- need to find out by running nested sampling and see how much support for these jumps is really there -- just calculate! */
 
@@ -1091,8 +1033,17 @@ since differentiation is ~ i2pi x => zero, not a pole
 so we are generalizing LPC, so also choose e(t) => u(t) * r(t)
 */
 
+== Summary
 
-==== How good of a GFM is this?
+We showed that nonparametric piecewise polynomials are feasible. 
+they correspond to an Infinite width neural network
+
+this is a well known limit which we repurposed for GIF to make the bridge between parametric (joint source-filter estimation) and nonparametric methods (based on filtering without a parametric)
+
+we took great care in this chapter to make that conceptual leap as clear as possible
+
+==== How good of a GFM is this still?
+After all this surgical changes to basic GFMs we run through our checklist to see if this still can a priori represent what we need: the glottal cycle! @fig:glottal-cycle
 
 // maybe put this in summary
 
@@ -1108,4 +1059,3 @@ Closure constraint: we could restrict this analytically
 
 Putting priors will enable us to trace out a family of GFMs
 
-*/
