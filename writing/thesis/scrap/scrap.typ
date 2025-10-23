@@ -1,0 +1,3 @@
+There is extensive evidence from neuroscience for the hemisphere hypothesis @McGilchrist2019 @McGilchrist2021 which asserts that, metaphorically speaking, the left hemisphere of the brain "works reality" like a statistician;
+a modus operandi which renders metaphors like this one incomprehensible to it.
+Understanding metaphors requires a view of the whole, which, according to the hemisphere hypothesis is the domain of the right hemisphere.

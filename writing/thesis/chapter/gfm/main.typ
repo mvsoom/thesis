@@ -508,7 +508,7 @@ $ <eq:uprime-mix>
 where we defined the push forward
 $
   p(bm(Q)) = integral delta(bm(Q) - sigma_a^2 bm(Phi) bm(Phi)^top) thin p(bm(b)) thin p(bm(c)) dif bm(b) dif bm(c)
-$
+$ <eq:Q-push-forward>
 which essentially counts the number of ${bm(b), bm(c)}$ configurations that give rise to a given $bm(Q)$.
 #share-align[
   Thus each random draw of ${bm(b), bm(c)} in bb(R)^(2H)$ drawn from @eq:priorbc induces in data space a random covariance matrix $bm(Q) in bb(R)^(N times N)$,
@@ -562,14 +562,14 @@ $
   &:= bb(E)_(b,c) [phi.alt(t\; b, c) phi.alt(t'\; b, c)] \
   &equiv integral phi.alt(t\; bm(w)) phi.alt(t'\; bm(w)) mono("Normal")(bm(w) | bm(0), bm(Sigma)) dif bm(w),
 $ <eq:tack-e>
-where $bm(Sigma) = mat(sigma_b^2, 0; 0, sigma_c^2)$ describes the variance of the hidden weights $bm(w) = (-b, c)^top$.
+where $bm(Sigma) = mat(sigma_b^2, 0; 0, sigma_c^2)$ describes the covariance of the hidden weights $bm(w) = (-b, c)^top$.
 
 To recapitulate, the first and second central moments of the mixture @eq:uprime-mix are known:
 $
   bb(E)[bm(u')]
   &= bm(0), \
   bb(E)[bm(u') bm(u')^top]
-  &= sigma_a^2 thin H thin k^((d))_bm(Sigma) (t, t').
+  &= sigma_a^2 bm(K) = sigma_a^2 thin H thin k^((d))_bm(Sigma) (t, t').
 $
 The third, fourth, ... central moments are in general nonzero and difficult to compute.
 They will vanish, however, when $H -> oo$.
@@ -580,15 +580,15 @@ The closure-constrained prior of @eq:ccbmu would couple these parameters nonline
 === The temporal arc cosine kernel
 <sec:temporal-ack>
 
-Of course, we would not have the courage to attempt this whole calculation had we not already known that a very similar limit has been evaluated in the neural network Gaussian process literature. 
+Of course, I would not have the courage to attempt this whole calculation had I not already known that a very similar limit has been evaluated succesfully in the neural network Gaussian process literature. 
 The marginalization we performed above is, in fact, a one-dimensional variant of the classic infinite-width limit of feedforward networks studied by #pcite(<Neal1996>) #pcite(<Williams1998>) and later generalized by #pcite(<Cho2009>). 
 
 In these works, the expectation over random weights $bm(w)$ with $mono("Normal")(bm(w) | bm(0), bm(Sigma))$ priors gives rise to a family of kernels which describe an infinitely wide Bayesian network,
-and which differ with respect to the activation function used and the imposed correlation $bm(Sigma)$.
+and which differ only with respect to the activation function used and the imposed a priori covariance $bm(Sigma)$.
 This same reasoning will now allow us to identify our expected covariance @eq:tack-e with a time-domain specialization of the degree-$d$ arc cosine family.
 
-@table:acks organizes the three kernels we will now introduce.
-Note that to save on mathematical symbols we use a trick from programming languages: we overload the $k^((d))$ symbol to change meaning based on the type of its arguments.
+@table:acks organizes the three kernels we will introduce shortly.
+Note that to save on mathematical symbols we use a trick from programming languages: we overload the $k^((d))$ symbol to change meaning based on the type of its arguments. // which we already do with probability p()
 
 #figure(
   tablem(
@@ -629,7 +629,7 @@ where
 $
   theta = arccos ((bm(x)^top bm(x'))/(||bm(x)|| ||bm(x')||)) in [0, pi]
 $
-is the positive angle between $bm(x)$ and $bm(x')$, and the $J_d (theta)$ is given by #pcite(<Cho2009>, supplement: [Eq.~4]) as the generator expression
+is the positive angle between $bm(x)$ and $bm(x')$, and $J_d (theta)$ is given by #pcite(<Cho2009>, supplement: [Eq.~4]) as the generator expression
 $
   J_d (theta) = (-1)^d (sin theta)^(2d + 1)
   ( 1 / (sin theta) dif/(dif theta) )^d
@@ -644,7 +644,7 @@ $
 $
 Compared to the familiar Matérn kernels, the ACK is a rather atypical kernel, and probably only sparingly used in machine learning applications.
 It is, for one, blatantly nonstationary, and it neatly separates the magnitude and angular dependencies of the inner product -- unlike, for example, the RBF kernel.
-The closed form @eq:ack shows that the integral representation decomposes as the product of a polynomial term $k_"poly"^((d)) (bm(x), bm(x')) = ||bm(x)||^d ||bm(x')||^d$, which controls the overall scale or dynamic range, and an angular term $J_d (theta)$, which captures the nonlinear thresholding effect of the RePU activation.
+The closed form @eq:ack shows that the integral representation decomposes as the product of a polynomial factor $||bm(x)||^d ||bm(x')||^d$, which controls the overall scale or dynamic range, and an angular factor $J_d (theta)$, which captures the nonlinear thresholding effect of the RePU activation.
 
 ==== The temporal arc cosine kernel (TACK)
 is the kernel which describes $bb(E)[bm(u') bm(u')^top]$.
@@ -656,7 +656,7 @@ $
 $
 and the covariance matrix for the hidden weights ${b, c}$
 $
-  bm(Sigma) = mat(sigma_c^2, 0; 0, sigma_b^2).
+  bm(Sigma) = mat(sigma_b^2, 0; 0, sigma_c^2).
 $
 Then, by substituting these into @eq:ack and integrating with respect to the Gaussian weight prior $mono("Normal")(bm(w) | bm(0), bm(Sigma))$, we obtain the TACK:
 $
@@ -697,8 +697,38 @@ so the infinite-width limit indeed yields the degree-$d$ arc-cosine kernel of @C
 
 === From expectation to convergence
 
+From @eq:Q-push-forward
+$
+  bm(Q) = sigma_a^2 sum_(h=1)^H phi.alt_h (t_n) phi.alt_h (t_m).
+$
+Its expected value scales as $H$:
+$
+  bb(E)_(bm(b), bm(c))[bm(Q)] = sigma_a^2 bm(K) = sigma_a^2 thin H thin k^((d))_bm(Sigma) (t_n, t_m)
+$ <eq:scales-as-H>
+Since we will let $H$ be unbounded, we renormalize $sigma_a -> sigma_a^* = sigma_a \/ sqrt(H)$ such that
+$
+  bm(Q) -> bm(Q)^* = sigma_a^2/H sum_(h=1)^H phi.alt_h (t_n) phi.alt_h (t_m)
+$
+Observe that this is a Monte Carlo estimate of the scaled TACK $sigma_a^2 k^((d))_bm(Sigma) (t_n, t_m)$ by @eq:scales-as-H.
+Therefore, by the strong law of large numbers we conclude that
+$
+  bm(Q)^* -> bb(E)_(bm(b), bm(c))[bm(Q)^*] = sigma_a^2 k^((d))_bm(Sigma) (t_n, t_m) quad quad "as" H -> oo.
+$
+Equivalently, the induced density $p_H(bm(Q))$ of covariance matrices collapses weakly to a Dirac delta at $bm(K)$:
+$
+  p_H(bm(Q)) --> delta(bm(Q) - bm(K)).
+$
+/*
+$
+  bb(E)_(bm(b), bm(c))[bm(Q)] -> sigma_a^2 thin k^((d))_bm(Sigma) (t_n, t_m)
+$
+*/
+
+///////////////////////
+
+/*
 So far we have shown that the _expectation_ of the data-space covariance equals $H bm(K)$.
-But for a _single_ random draw of ${bm(b), bm(c)}$, the empirical covariance
+But for a _single_ random draw of ${bm(b), bm(c)}$, the empirical covariance is, from @eq:Q-push-forward,
 $
   bm(Q)_H = sum_(h=1)^H bm(v)_h bm(v)_h^top,
   quad [bm(v)_h]_n = (c_h t_n - b_h)_+^d,
@@ -731,6 +761,8 @@ Equivalently, the induced density $p_H(bm(Q))$ of covariance matrices collapses 
 $
   p_H(bm(Q)) --> delta(bm(Q) - bm(K)).
 $
+
+*/
 
 === The Gaussian-process limit
 
