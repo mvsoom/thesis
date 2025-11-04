@@ -516,7 +516,7 @@ which essentially counts the number of ${bm(b), bm(c)}$ configurations that give
     {bm(b), bm(c)} mapsto bm(Q), quad quad &"rank"(bm(Q)) &<= H&
   $
   and hence a Gaussian component with weight $p(bm(Q))$ in the mixture @eq:uprime-mix.
-  Below we will show that by rescaling $sigma_a -> sigma_a\/sqrt(H)$ and letting $H -> oo$, the density of states degenerates to
+  Below we will show that by rescaling $sigma_a -> sigma_a\/sqrt(H)$ and letting $H -> oo$, the density of states @eq:Q-push-forward degenerates to
   $ 
    p(bm(Q)) --> delta(bm(Q) - bm(K)), quad quad &"rank"(bm(K)) &= N& "almost surely",
   $
@@ -548,7 +548,7 @@ Since the $phi.alt_h (t)$ are statistically equivalent under i.i.d. priors like 
 $
   phi.alt(t\; b, c) = (c t - b)_+^d, &quad b ~ mono("Normal")(0, sigma_b^2), quad c ~ mono("Normal")(0, sigma_c^2).
 $ <eq:motherwavelet>
-so the elements of $bm(Phi) bm(Phi)^top$ become sums of $H$ i.i.d. random variables, and their expectation $bm(K)$ factorizes across $h$:
+Then the elements of $bm(Phi) bm(Phi)^top$ become sums of $H$ i.i.d. random variables, and their expectation $bm(K)$ factorizes across $h$:
 $
   [bm(K)]_(n m)
   &= sum_(h=1)^H bb(E)_(bm(b),bm(c)) [phi.alt_h (t_n) phi.alt_h (t_m)] \
@@ -573,7 +573,7 @@ $
 $
 The third, fourth, ... central moments are in general nonzero and difficult to compute.
 They will vanish, however, when $H -> oo$.
-At this point we have shown that even before taking any limit, the _expected structure_ of the prior already mirrors that of a kernel regression model.
+At this point we have shown that even before taking any limit, the first two moments of the prior already mirror a kernel regression model.
 Note that this result hinges critically on the independence assumption for ${b_h, c_h}$ in @eq:motherwavelet.
 The closure-constrained prior of @eq:ccbmu would couple these parameters nonlinearly, destroying that independence and making the derivation intractable, which is why we temporarily set it aside.
 
@@ -585,10 +585,10 @@ The marginalization we performed above is, in fact, a one-dimensional variant of
 
 In these works, the expectation over random weights $bm(w)$ with $mono("Normal")(bm(w) | bm(0), bm(Sigma))$ priors gives rise to a family of kernels which describe an infinitely wide Bayesian network,
 and which differ only with respect to the activation function used and the imposed a priori covariance $bm(Sigma)$.
-This same reasoning will now allow us to identify our expected covariance @eq:tack-e with a time-domain specialization of the degree-$d$ arc cosine family.
+This same reasoning will now allow us to identify our expected covariance @eq:tack-e with a time-domain specialization of the degree-$d$ _arc cosine family_.
 
 @table:acks organizes the three kernels we will introduce shortly.
-Note that to save on mathematical symbols we use a trick from programming languages: we overload the $k^((d))$ symbol to change meaning based on the type of its arguments. // which we already do with probability p()
+Note that to save on mathematical symbols we overload the $k^((d))(dot,dot)$ symbol to change meaning based on the type of its arguments, as we have been doing with the probability density $p(dot)$.
 
 #figure(
   tablem(
@@ -635,7 +635,7 @@ $
   ( 1 / (sin theta) dif/(dif theta) )^d
   ( (pi - theta) / (sin theta) ).
 $
-The first few instances are
+The first few instances of which are
 $
   J_0(theta) & = pi - theta, \
   J_1(theta) & = sin theta + (pi - theta) cos theta, \
@@ -647,7 +647,7 @@ It is, for one, blatantly nonstationary, and it neatly separates the magnitude a
 The closed form @eq:ack shows that the integral representation decomposes as the product of a polynomial factor $||bm(x)||^d ||bm(x')||^d$, which controls the overall scale or dynamic range, and an angular factor $J_d (theta)$, which captures the nonlinear thresholding effect of the RePU activation.
 
 ==== The temporal arc cosine kernel (TACK)
-is the kernel which describes $bb(E)[bm(u') bm(u')^top]$.
+is the kernel which describes $bb(E)[bm(u') bm(u')^top]$ in @eq:covexpval.
 We can cast it as an affine shift of the bias augmented ACK on the input dimension $D = 2$.
 Define the auxiliary vectors
 $
@@ -697,6 +697,14 @@ so the infinite-width limit indeed yields the degree-$d$ arc-cosine kernel of @C
 
 === From expectation to convergence
 
+
+
+Having closed forms for $bb(E)[bm(u') bm(u')^top] = sigma_a^2 bm(K) = sigma_a^2 thin H thin k^((d))_bm(Sigma) (t, t')$
+
+Going back to 
+
+Simply rescaling $sigma_a -> sigma_a\/sqrt(H)$ will convert our moment results 
+
 From @eq:Q-push-forward
 $
   bm(Q) = sigma_a^2 sum_(h=1)^H phi.alt_h (t_n) phi.alt_h (t_m).
@@ -714,9 +722,9 @@ Therefore, by the strong law of large numbers we conclude that
 $
   bm(Q)^* -> bb(E)_(bm(b), bm(c))[bm(Q)^*] = sigma_a^2 k^((d))_bm(Sigma) (t_n, t_m) quad quad "as" H -> oo.
 $
-Equivalently, the induced density $p_H(bm(Q))$ of covariance matrices collapses weakly to a Dirac delta at $bm(K)$:
+Equivalently, the induced density $p(bm(Q))$ of covariance matrices collapses weakly to a Dirac delta at $bm(K)$:
 $
-  p_H(bm(Q)) --> delta(bm(Q) - bm(K)).
+  p(bm(Q)) --> delta(bm(Q) - bm(K)).
 $
 /*
 $
