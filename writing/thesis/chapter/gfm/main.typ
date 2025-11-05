@@ -511,76 +511,81 @@ $
 $ <eq:Q-push-forward>
 which essentially counts the number of ${bm(b), bm(c)}$ configurations that give rise to a given $bm(Q)$.
 #share-align[
-  Thus each random draw of ${bm(b), bm(c)} in bb(R)^(2H)$ drawn from @eq:priorbc induces in data space a random covariance matrix $bm(Q) in bb(R)^(N times N)$,
+  Thus each random sample of ${bm(b), bm(c)} in bb(R)^(2H)$ drawn from @eq:priorbc induces in data space a random covariance matrix $bm(Q) in bb(R)^(N times N)$,
   $ 
-    {bm(b), bm(c)} mapsto bm(Q), quad quad &"rank"(bm(Q)) &<= H&
-  $
+    {bm(b), bm(c)} mapsto bm(Q) = sigma_a^2 bm(Phi) bm(Phi), quad quad &"rank"(bm(Q)) &<= H&
+  $ <eq:define-Q>
   and hence a Gaussian component with weight $p(bm(Q))$ in the mixture @eq:uprime-mix.
-  Below we will show that by rescaling $sigma_a -> sigma_a\/sqrt(H)$ and letting $H -> oo$, the density of states @eq:Q-push-forward degenerates to
+  Below we will show that by choosing $sigma_a prop 1\/sqrt(H)$ and letting $H -> oo$, the density of states @eq:Q-push-forward degenerates to
   $ 
    p(bm(Q)) --> delta(bm(Q) - bm(K)), quad quad &"rank"(bm(K)) &= N& "almost surely",
   $
-  for some $bm(K) in bb(R)^(N times N)$ to be derived, causing the mixture to collapse to a single Gaussian and thus completing the transition to a Gaussian process with kernel $bm(K)$.
+  for some $bm(K) in bb(R)^(N times N)$ derived below in @eq:derive-K, causing the mixture to collapse to a single Gaussian and thus completing the transition to an indexed Gaussian process with covariance matrix $bm(K)$.
 ]
 
-=== Expected covariance
+=== Mean and covariance description
 
-While the mixture @eq:uprime-mix has no closed form for finite $H$, progress can be made by computing its mean and covariance:
+While the mixture @eq:uprime-mix has no closed form for finite $H$, progress can be made by computing its mean and covariance as before in @eq:abexpval:
 $
   bb(E)[bm(u')]
   &= bb(E)_(bm(b),bm(c))[bb(E)_(bm(a)|bm(b),bm(c))[bm(u')]]
   = bm(0), \
   bb(E)[bm(u') bm(u')^top]
   &= bb(E)_(bm(b),bm(c))[bb(E)_(bm(a)|bm(b),bm(c))[bm(u') bm(u')^top]]
-  = sigma_a^2 bb(E)_(bm(b),bm(c))[bm(Phi) bm(Phi)^top].
+  = sigma_a^2 thin bb(E)_(bm(b),bm(c))[bm(Phi) bm(Phi)^top],
 $ <eq:covexpval>
-Define the _expected covariance_
+The mean is zero everywhere due to our zero-mean prior $p(bm(a))$.
+The covariance matrix, however, is nontrivial.
+#share-align[
+To investigate, define
 $
-  bm(K) &= bb(E)_(bm(b),bm(c))[bm(Phi) bm(Phi)^top] in bb(R)^(N times N)
+  bm(C) &:= bb(E)[bm(u') bm(u')^top] in bb(R)^(N times N) 
 $
-Then we obtain elementwise for $bm(K)$:
+with elements
 $
-  [bm(K)]_(n m)
-  &= bb(E)_(bm(b),bm(c)) [sum_(h=1)^H phi.alt_h (t_n) phi.alt_h (t_m)]
+  [bm(C)]_(n m)
+  &= sigma_a^2 thin bb(E)_(bm(b),bm(c)) [sum_(h=1)^H phi.alt_h (t_n) phi.alt_h (t_m)],
 $
+]
 where $phi.alt_h (t) = (c_h t - b_h)_+^d $ for the neural network model $u'_"NN" (t)$ was defined in @eq:nnphi.
-Since the $phi.alt_h (t)$ are statistically equivalent under i.i.d. priors like @eq:priorbc, define a single "mother wavelet" without index $h$ as
+Since the $phi.alt_h (t)$ are statistically equivalent under i.i.d. priors like the ones we adopted in @eq:priorbc, define a single "mother wavelet" _without index $h$_ as
 $
   phi.alt(t\; b, c) = (c t - b)_+^d, &quad b ~ mono("Normal")(0, sigma_b^2), quad c ~ mono("Normal")(0, sigma_c^2).
 $ <eq:motherwavelet>
-Then the elements of $bm(Phi) bm(Phi)^top$ become sums of $H$ i.i.d. random variables, and their expectation $bm(K)$ factorizes across $h$:
+Then the elements of $bm(Phi) bm(Phi)^top$ become sums of $H$ i.i.d. random variables, and their expectation factorizes across $h$:
 $
-  [bm(K)]_(n m)
-  &= sum_(h=1)^H bb(E)_(bm(b),bm(c)) [phi.alt_h (t_n) phi.alt_h (t_m)] \
-  &= sum_(h=1)^H bb(E)_(b, c) [phi.alt(t_n\; b, c) phi.alt(t_m\; b, c)] \
-  &= H thin bb(E)_(b,c) [phi.alt(t_n\; b, c) phi.alt(t_m\; b, c)] \
-  &= H thin k^((d))_bm(Sigma) (t_n, t_m).
-$
-We have defined the _temporal arc cosine kernel_ of degree $d$ as
+  [bm(C)]_(n m)
+  &= sigma_a^2 thin sum_(h=1)^H bb(E)_(bm(b),bm(c)) [phi.alt_h (t_n) phi.alt_h (t_m)] \
+  &= sigma_a^2 thin sum_(h=1)^H bb(E)_(b, c) [phi.alt(t_n\; b, c) phi.alt(t_m\; b, c)] \
+  &= sigma_a^2 thin H thin bb(E)_(b,c) [phi.alt(t_n\; b, c) phi.alt(t_m\; b, c)] \
+  &= sigma_a^2 thin H thin k^((d))_bm(Sigma) (t_n, t_m).
+$ <eq:Ktack>
+Here we anticipate the _temporal arc cosine kernel_ of degree $d$, defined below in @eq:tack:
 $
   k^((d))_bm(Sigma) (t, t')
   &:= bb(E)_(b,c) [phi.alt(t\; b, c) phi.alt(t'\; b, c)] \
   &equiv integral phi.alt(t\; bm(w)) phi.alt(t'\; bm(w)) mono("Normal")(bm(w) | bm(0), bm(Sigma)) dif bm(w),
 $ <eq:tack-e>
-where $bm(Sigma) = mat(sigma_b^2, 0; 0, sigma_c^2)$ describes the covariance of the hidden weights $bm(w) = (-b, c)^top$.
+where $bm(Sigma) := mat(sigma_b^2, 0; 0, sigma_c^2)$ describes the covariance of the hidden weights $bm(w) = (-b, c)^top$.
 
-To recapitulate, the first and second central moments of the mixture @eq:uprime-mix are known:
+To recapitulate, the first and second central moments of the mixture @eq:uprime-mix are known for any $H$:
 $
   bb(E)[bm(u')]
   &= bm(0), \
   bb(E)[bm(u') bm(u')^top]
-  &= sigma_a^2 bm(K) = sigma_a^2 thin H thin k^((d))_bm(Sigma) (t, t').
+  &equiv bm(C) = sigma_a^2 thin H thin k^((d))_bm(Sigma) (t, t').
 $
 The third, fourth, ... central moments are in general nonzero and difficult to compute.
-They will vanish, however, when $H -> oo$.
-At this point we have shown that even before taking any limit, the first two moments of the prior already mirror a kernel regression model.
+They will vanish, however, when $H -> oo$ and we choose $sigma_a prop 1\/sqrt(H)$.
+
+We have shown at this point that even before taking any limit, the first two moments of the prior already "want to" mirror a kernel regression model.
 Note that this result hinges critically on the independence assumption for ${b_h, c_h}$ in @eq:motherwavelet.
 The closure-constrained prior of @eq:ccbmu would couple these parameters nonlinearly, destroying that independence and making the derivation intractable, which is why we temporarily set it aside.
 
 === The temporal arc cosine kernel
 <sec:temporal-ack>
 
-Of course, I would not have the courage to attempt this whole calculation had I not already known that a very similar limit has been evaluated succesfully in the neural network Gaussian process literature. 
+Of course, I wouldn't have had the courage to attempt this whole calculation had I not already known that a very similar limit has been evaluated succesfully in the neural-network-as-a-Gaussian-process literature. 
 The marginalization we performed above is, in fact, a one-dimensional variant of the classic infinite-width limit of feedforward networks studied by #pcite(<Neal1996>) #pcite(<Williams1998>) and later generalized by #pcite(<Cho2009>). 
 
 In these works, the expectation over random weights $bm(w)$ with $mono("Normal")(bm(w) | bm(0), bm(Sigma))$ priors gives rise to a family of kernels which describe an infinitely wide Bayesian network,
@@ -647,7 +652,7 @@ It is, for one, blatantly nonstationary, and it neatly separates the magnitude a
 The closed form @eq:ack shows that the integral representation decomposes as the product of a polynomial factor $||bm(x)||^d ||bm(x')||^d$, which controls the overall scale or dynamic range, and an angular factor $J_d (theta)$, which captures the nonlinear thresholding effect of the RePU activation.
 
 ==== The temporal arc cosine kernel (TACK)
-is the kernel which describes $bb(E)[bm(u') bm(u')^top]$ in @eq:covexpval.
+is the kernel which describes $bm(C) equiv bb(E)[bm(u') bm(u')^top]$ in @eq:covexpval.
 We can cast it as an affine shift of the bias augmented ACK on the input dimension $D = 2$.
 Define the auxiliary vectors
 $
@@ -695,82 +700,44 @@ For $(c t - b)_+^d$ with $b, c ~ N(0, sigma^2)$, this condition holds for any fi
 so the infinite-width limit indeed yields the degree-$d$ arc-cosine kernel of @Cho2009.
 */
 
-=== From expectation to convergence
+=== Taking the limit
 
-
-
-Having closed forms for $bb(E)[bm(u') bm(u')^top] = sigma_a^2 bm(K) = sigma_a^2 thin H thin k^((d))_bm(Sigma) (t, t')$
-
-Going back to 
-
-Simply rescaling $sigma_a -> sigma_a\/sqrt(H)$ will convert our moment results 
-
-From @eq:Q-push-forward
+We turn again to the mixture @eq:uprime-mix.
+Recall from @eq:define-Q that each random draw ${bm(b), bm(c)} in bb(R)^(2H)$ from the prior @eq:priorbc produces a random covariance matrix $bm(Q) in bb(R)^(N times N)$,
+which elementwise decomposes as a sum of $H$ i.i.d. terms:
 $
-  bm(Q) = sigma_a^2 sum_(h=1)^H phi.alt_h (t_n) phi.alt_h (t_m).
+  [bm(Q)]_(n m) = sigma_a^2 sum_(h=1)^H phi.alt_h (t_n) phi.alt_h (t_m).
+$ <eq:bmq83>
+This sum tends to grow as $O(H)$, since from @eq:Ktack
 $
-Its expected value scales as $H$:
-$
-  bb(E)_(bm(b), bm(c))[bm(Q)] = sigma_a^2 bm(K) = sigma_a^2 thin H thin k^((d))_bm(Sigma) (t_n, t_m)
+  bb(E)[bm(Q)] = bm(C) prop H.
 $ <eq:scales-as-H>
-Since we will let $H$ be unbounded, we renormalize $sigma_a -> sigma_a^* = sigma_a \/ sqrt(H)$ such that
+Such growth of the output variance makes the $u'_"NN" (t)$ model @eq:uNN useless as a prior when we want strong inductive bias even for large $H$, which we do.
+Therefore, we couple $sigma_a$ and $H$ by choosing $sigma_a prop 1\/sqrt(H)$, in accordance with the variance-preserving initialization principle @Glorot2010.
+Thus, substituting $sigma_a -> sigma_a\/sqrt(H)$ in @eq:bmq83, we get
 $
-  bm(Q) -> bm(Q)^* = sigma_a^2/H sum_(h=1)^H phi.alt_h (t_n) phi.alt_h (t_m)
+  [bm(Q)]_(n m) = sigma_a^2 times [1/H sum_(h=1)^H phi.alt_h (t_n) phi.alt_h (t_m)].
 $
-Observe that this is a Monte Carlo estimate of the scaled TACK $sigma_a^2 k^((d))_bm(Sigma) (t_n, t_m)$ by @eq:scales-as-H.
+Observe that the quantity between brackets is a Monte Carlo estimate of the TACK @eq:tack.
+#share-align[
 Therefore, by the strong law of large numbers we conclude that
 $
-  bm(Q)^* -> bb(E)_(bm(b), bm(c))[bm(Q)^*] = sigma_a^2 k^((d))_bm(Sigma) (t_n, t_m) quad quad "as" H -> oo.
+  [1/H sum_(h=1)^H phi.alt_h (t_n) phi.alt_h (t_m)] &--> bb(E)_(b,c) [phi.alt(t\; b, c) phi.alt(t'\; b, c)] quad quad &"as" H -> oo, 
 $
-Equivalently, the induced density $p(bm(Q))$ of covariance matrices collapses weakly to a Dirac delta at $bm(K)$:
+with deviations vanishing as $O(1\/sqrt(H))$.
+Therefore from @eq:tack-e
 $
-  p(bm(Q)) --> delta(bm(Q) - bm(K)).
+  [bm(Q)]_(n m) &--> sigma_a^2 thin k^((d))_bm(Sigma) (t_n, t_m) quad quad &"as" H -> oo.
 $
-/*
+Equivalently, the induced density $p(bm(Q))$ of covariance matrices collapses to
 $
-  bb(E)_(bm(b), bm(c))[bm(Q)] -> sigma_a^2 thin k^((d))_bm(Sigma) (t_n, t_m)
+  p(bm(Q)) &--> delta(bm(Q) - bm(K)) quad quad &"as" H -> oo,
 $
-*/
-
-///////////////////////
-
-/*
-So far we have shown that the _expectation_ of the data-space covariance equals $H bm(K)$.
-But for a _single_ random draw of ${bm(b), bm(c)}$, the empirical covariance is, from @eq:Q-push-forward,
+]
+with the _kernel matrix_ is the symmetric PSD matrix $K in bb(R)^(N times N)$ given by
 $
-  bm(Q)_H = sum_(h=1)^H bm(v)_h bm(v)_h^top,
-  quad [bm(v)_h]_n = (c_h t_n - b_h)_+^d,
-$
-still fluctuates around its expectation with elementwise variance of $O(H)$.
-Increasing $H$ without rescaling merely amplifies these fluctuations.
-To reach a well-defined infinite-width limit we must therefore normalize the model.
-
-Dividing the summation in @eq:uNN by $sqrt(H)$ gives the normalized version
-$
-  u'_"NN" (t)
-  = 1/sqrt(H) sum_(h=1)^H a_h (c_h t - b_h)_+^d,
-$
-which induces the corresponding normalized covariance
-$
-  bm(Q)_H = 1/H sum_(h=1)^H bm(v)_h bm(v)_h^top.
-$
-Its expectation is now constant,
-$
-  bb(E)[bm(Q)_H] = bm(K),
-$
-and by the strong law of large numbers each matrix element converges almost surely:
-$
-  [bm(Q)_H]_(n m)
-  = 1/H sum_(h=1)^H (c_h t_n - b_h)_+^d (c_h t_m - b_h)_+^d
-  -> bb(E)_(b,c) [(c t_n - b)_+^d (c t_m - b)_+^d]
-  = [bm(K)]_(n m).
-$
-Equivalently, the induced density $p_H(bm(Q))$ of covariance matrices collapses weakly to a Dirac delta at $bm(K)$:
-$
-  p_H(bm(Q)) --> delta(bm(Q) - bm(K)).
-$
-
-*/
+  [bm(K)]_(n m) = sigma_a^2 thin k^((d))_bm(Sigma) (t_n, t_m).
+$ <eq:derive-K>
 
 === The Gaussian-process limit
 
@@ -779,9 +746,9 @@ $
   p(bm(u'))
   = integral mono("Normal")(bm(0), sigma_a^2 bm(Q)) thin p_H(bm(Q)) dif bm(Q).
 $
-As $H -> oo$, the measure $p_H(bm(Q))$ collapses and the integral reduces to a single Gaussian:
+As $H -> oo$, the measure $p(bm(Q))$ collapses and the integral reduces to a single Gaussian:
 $
-  p(bm(u')) -> mono("Normal")(bm(0), sigma_a^2 bm(K)).
+  p(bm(u')) -> mono("Normal")(bm(0), sigma_a^2 bm(C)).
 $
 In other words, not only the expectation of the covariance but the entire _law_ of $bm(u')$ converges to that of a Gaussian.
 All higher central moments vanish as $O(1/sqrt(H))$ because the covariance fluctuations themselves decay at that rate.
@@ -797,7 +764,7 @@ In @chapter:pack we will reincorporate the closure constraint into this process.
 In summary, the path mirrors the classical data-space derivation of Gaussian processes.
 For fixed $(bm(b), bm(c))$ the prior on $bm(u')$ is Gaussian with low-rank covariance.
 Marginalizing over $(bm(b), bm(c))$ produces a Gaussian mixture.
-As $H$ increases, the empirical covariance $bm(Q)_H$ converges to its population mean $bm(K)$, the mixture integral collapses, and the limit is a single Gaussian with covariance $sigma_a^2 bm(K)$.
+As $H$ increases, the empirical covariance $bm(Q)_H$ converges to its population mean $bm(C)$, the mixture integral collapses, and the limit is a single Gaussian with covariance $sigma_a^2 bm(C)$.
 Equivalently, the function prior converges to a Gaussian process with kernel /*@eq:kdsigma-final*/ over the open phase.
 The hyperparameters $(sigma_a, sigma_b, sigma_c, d)$ retain their roles as output scale, typical hinge location, horizontal stretch, and polynomial sharpness.
 We will fold the closed phase and the closure constraint back into this process in @chapter:pack.
