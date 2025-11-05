@@ -352,7 +352,7 @@ $
   bb(E)_(bm(a)|bm(b))[bm(u')] & = bm(Phi) thin bb(E)_(bm(a)|bm(b))[bm(a)] = 0, \
   bb(E)_(bm(a)|bm(b))[bm(u') bm(u')^top] & = bm(Phi) thin bb(E)_(bm(a)|bm(b))[bm(a) bm(a)^top] thin bm(Phi)^top = sigma_a^2 bm(Phi) bm(Phi)^top.
 $ <eq:abexpval>
-Because $"rank"(bm(Phi) bm(Phi)^top) ≤ H$, prior samples of $bm(u')$ are intrinsically confined to an $H$-dimensional subspace of $bb(R)^N$.
+Because $"rank"(bm(Phi) bm(Phi)^top) <= H$, prior samples of $bm(u')$ are intrinsically confined to an $H$-dimensional subspace of $bb(R)^N$.
 Assuming $H < N$, we thus see that linear models like @eq:udphia are inherently low-rank.
 Their expressivity grows with $H$ and saturates when $H$ reaches $N$.
 
@@ -439,7 +439,7 @@ $
   p(bm(b)) = mono("Normal")(bm(b) | bm(0), sigma_b^2 bm(I)), quad p(bm(c)) = mono("Normal")(bm(c) | bm(0), sigma_c^2 bm(I)).
 $ <eq:priorbc>
 This step is not obvious from the viewpoint of any of the GFMs we've discussed before, where changepoints $bm(b)$ were nonlinear hyperparameters fixed a priori; here they become "active" and "linear" degrees of freedom.
-Assuming $t_c$ is known, the remaining hyperparameters to describe the open phase are thus the three scales ${sigma_a, sigma_b, sigma_c}$ controlling amplitude, typical changepoint location, and horizontal stretch, respectively.
+Assuming $t_c$ is known, the remaining hyperparameters to describe the open phase are thus the three scales $bold(theta)_"NN" = {sigma_a, sigma_b, sigma_c}$ controlling amplitude, typical changepoint location, and horizontal stretch, respectively.
 
 Turning to data space again and having assigned priors to all parameters, we can now do a full marginalization unlike the conditional in @eq:udashgauss.
 Updating the design matrix $bm(Phi)$ to
@@ -574,11 +574,10 @@ $
   &= bm(0), \
   bb(E)[bm(u') bm(u')^top]
   &equiv bm(C) = sigma_a^2 thin H thin k^((d))_bm(Sigma) (t, t').
-$
+$ <eq:firstandsecondmoments>
 The third, fourth, ... central moments are in general nonzero and difficult to compute.
 They will vanish, however, when $H -> oo$ and we choose $sigma_a prop 1\/sqrt(H)$.
-
-We have shown at this point that even before taking any limit, the first two moments of the prior already "want to" mirror a kernel regression model.
+Nevertheless, even before taking any limit, the first two moments of the prior already mirror a kernel regression model.
 Note that this result hinges critically on the independence assumption for ${b_h, c_h}$ in @eq:motherwavelet.
 The closure-constrained prior of @eq:ccbmu would couple these parameters nonlinearly, destroying that independence and making the derivation intractable, which is why we temporarily set it aside.
 
@@ -700,7 +699,7 @@ For $(c t - b)_+^d$ with $b, c ~ N(0, sigma^2)$, this condition holds for any fi
 so the infinite-width limit indeed yields the degree-$d$ arc-cosine kernel of @Cho2009.
 */
 
-=== Taking the limit
+=== Taking the Gaussian-process limit
 
 We turn again to the mixture @eq:uprime-mix.
 Recall from @eq:define-Q that each random draw ${bm(b), bm(c)} in bb(R)^(2H)$ from the prior @eq:priorbc produces a random covariance matrix $bm(Q) in bb(R)^(N times N)$,
@@ -723,7 +722,7 @@ Observe that the quantity between brackets is a Monte Carlo estimate of the TACK
 Therefore, by the strong law of large numbers we conclude that
 $
   [1/H sum_(h=1)^H phi.alt_h (t_n) phi.alt_h (t_m)] &--> bb(E)_(b,c) [phi.alt(t\; b, c) phi.alt(t'\; b, c)] quad quad &"as" H -> oo, 
-$
+$ <eq:dev86>
 with deviations vanishing as $O(1\/sqrt(H))$.
 Therefore from @eq:tack-e
 $
@@ -733,88 +732,45 @@ Equivalently, the induced density $p(bm(Q))$ of covariance matrices collapses to
 $
   p(bm(Q)) &--> delta(bm(Q) - bm(K)) quad quad &"as" H -> oo,
 $
+which in turn collapses the mixture @eq:uprime-mix to
+$
+  p(bm(u')) &--> mono("Normal")(bm(0), bm(K)) quad quad &"as" H -> oo.
+$
 ]
-with the _kernel matrix_ is the symmetric PSD matrix $K in bb(R)^(N times N)$ given by
+Here the _kernel matrix_ is the symmetric PSD matrix $bm(K) in bb(R)^(N times N) prop bm(C)$ given by
 $
   [bm(K)]_(n m) = sigma_a^2 thin k^((d))_bm(Sigma) (t_n, t_m).
 $ <eq:derive-K>
 
-=== The Gaussian-process limit
-
-Because $bm(u')$ is conditionally Gaussian given $bm(Q)_H$, the full marginal is a mixture
+In other words, the marginal $p(bm(u'))$ converges entirely to a Gaussian and the first and second moments in @eq:firstandsecondmoments become _sufficient statistics_ @Jaynes2003.
+All higher central moments vanish as $O(1\/sqrt(H))$ because the covariance fluctuations in @eq:dev86 themselves decay at that rate.
+Since this argument holds for any finite collection of times $bold(t) = {t_n}_(n=1)^N$, the limiting process is indeed officially a Gaussian process:
 $
-  p(bm(u'))
-  = integral mono("Normal")(bm(0), sigma_a^2 bm(Q)) thin p_H(bm(Q)) dif bm(Q).
-$
-As $H -> oo$, the measure $p(bm(Q))$ collapses and the integral reduces to a single Gaussian:
-$
-  p(bm(u')) -> mono("Normal")(bm(0), sigma_a^2 bm(C)).
-$
-In other words, not only the expectation of the covariance but the entire _law_ of $bm(u')$ converges to that of a Gaussian.
-All higher central moments vanish as $O(1/sqrt(H))$ because the covariance fluctuations themselves decay at that rate.
-Since this argument holds for any finite collection of times ${t_1, dots, t_N}$, the limiting process is a Gaussian process
-$
-  u'_"NN" (t) ~ mono("GP")(0, sigma_a^2 K_d (t, t')).
+  u'_"NN" (t) ~ mono("GP")(0, sigma_a^2 thin k^((d))_bm(Sigma) (t_n, t_m)).
 $ <eq:kgfm>
-The function family thereby reaches full rank in data space and becomes nonparametric.
-The hyperparameters $(sigma_a, sigma_b, sigma_c, d)$ retain their familiar roles:
-overall scale, typical changepoint location, horizontal stretch, and polynomial order.
-In @chapter:pack we will reincorporate the closure constraint into this process.
+/*
+The function family thereby reaches full rank for any $N$ in data space and becomes a nonparametric process.
+*/
+It has the same hyperparameters as the neural network model of @sec:connection-to-neural-networks: the scales $bold(theta)_"NN" = {sigma_a, sigma_b, sigma_c}$ describing overall power, typical changepoint location and horizontal stretch, respectively;
+and the two higher-level hyperparameters ${d, t_c}$, which determine the polynomial degree and the instant of glottal closure, respectively.
 
-In summary, the path mirrors the classical data-space derivation of Gaussian processes.
-For fixed $(bm(b), bm(c))$ the prior on $bm(u')$ is Gaussian with low-rank covariance.
-Marginalizing over $(bm(b), bm(c))$ produces a Gaussian mixture.
-As $H$ increases, the empirical covariance $bm(Q)_H$ converges to its population mean $bm(C)$, the mixture integral collapses, and the limit is a single Gaussian with covariance $sigma_a^2 bm(C)$.
-Equivalently, the function prior converges to a Gaussian process with kernel /*@eq:kdsigma-final*/ over the open phase.
-The hyperparameters $(sigma_a, sigma_b, sigma_c, d)$ retain their roles as output scale, typical hinge location, horizontal stretch, and polynomial sharpness.
-We will fold the closed phase and the closure constraint back into this process in @chapter:pack.
+// TODO: show samples from this GP
 
+==== Integrating out changepoints
+Note that $t_c$ is the only changepoint parameter that survived the Gaussian-process limit.
+All other changepoints [each changepoint defined by a pair of amplitude and location parameters ${a_h, b_h}$] have been analytically integrated out.
+That act of marginalization removed the parametric bottleneck of a finite rank models like @eq:lf, @eq:dgf-piece, @eq:udH, @eq:uNN entirely.
+This is surprising, because we pointed out before that changepoint parameters as in @eq:lf-parameters constitute the main "control points" of any GFM expressed in the time domain:
+what previously required a discrete arrangement of control points is now averaged into a continuous covariance structure.
+Even more surprising, perhaps, is that we can still salvage the closure constraint (@chapter:pack).
+
+==== More aspects of @eq:kgfm
+are discussed in greater detail in @chapter:nonparametric-gfm.
 
 /*
 This is the exact finite case analogue of the GP: nonparametric, so infinite rank: support everywhere
 but priors on the amplitudes determine where on the hyperplane we can reach, and this in GP land is projected as the "kernel character": how smooth, stationary, etc.
 Interestingly, when projecting the GP back to the reduced rank case, again a linear model is found and the amplitudes again determine the character to great extent, encoding properties like closure constraint, differentiability, and spectral properties.
-*/
-
-/*
-Averaging also over $(bm(b), bm(c))$ converts the finite sum into a Monte Carlo estimate of a kernel integral:
-$
-  E_(bm(b), bm(c))[Q_(n n')]
-  = H sigma_a^2 E_(b, c)[phi.alt (t_n; b, c) phi.alt (t_{n'}; b, c)].
-$
-Hence each additional hidden unit adds another sample from the same base measure, refining the empirical estimate of the kernel.
-Writing
-$
-  K_d (t, t') = E_(b, c)[phi.alt (t\; b, c) phi.alt (t'; b, c)]
-  = [0 < t <= t_c][0 < t' <= t_c] E_(b, c)[(c t - b)_+^d (c t' - b)_+^d],
-$
-we have
-$
-  E_(bm(w))[Q_(n n')] = H sigma_a^2 K_d (t_n, t_{n'}).
-$
-
-To keep variance finite as $H$ grows, set $sigma_a^2 = sigma^2 / H$.
-Then
-$
-  E_(bm(w))[Q_(n n')] -> sigma^2 K_d (t_n, t_{n'}),
-$
-and the finite sum becomes a Monte Carlo quadrature of the kernel integral in expectation.
-As $H -> oo$, the empirical measure $(1/H) sum_h delta_(b_h, c_h)$ converges to its generating distribution, so the random-feature model converges in distribution to a Gaussian process
-$
-  lim_(H -> oo) u'_H(t) ~ mono("Gaussian process")(0, sigma^2 K_d (t, t')).
-$
-
-The base measure for $(b, c)$ determines the shape of $K_d$.
-Taking $(b, c) ~ mono("Normal")((0, 0), "diag"(sigma_b^2, sigma_c^2))$ maximizes entropy given fixed second moments and admits a closed form.
-Defining augmented variables
-$
-  tilde(w) = (c, -b), quad tilde(x) = (t, 1),
-$
-we can write $phi.alt (t\; b, c) = (tilde(w)^top tilde(x))_+^d$.
-Under the Gaussian base measure for $tilde(w)$ this becomes the *degree-$d$ arc-cosine kernel* of #pcite(<Cho2009>):
-$
-  K_d(t, t') = [0 < t <= t_c][0 < t' <= t_c] k_d (tilde(x), tilde(x')).
-$
 */
 
 /*
@@ -834,83 +790,32 @@ Also show # params and compute time for each
 
 */
 
-/*
-#figure(
-  image("/figures/svg/20251008144755528.svg"),
-  caption: [Hard changepoints are difficult, best we can do are steep slopes.],
-) <fig:steep>
-*/
-
-=== Comments
-We now discuss some aspects of the solution @eq:kgfm in greater detail.
-This Section can be safely skipped.
-
-
-==== What happened?
-It is worth pausing to ask what really happened here.
-At first sight, taking $H -> oo$ might seem like an act of reckless generalization: we blow up the number of parameters without bound, yet somehow end up with something *simpler*—a single Gaussian process with a fixed kernel. Conditional on the random features, the model was already Gaussian, so the only effect of the limit is that the *random design itself* stops being random. The empirical kernel freezes to its mean, and with it the whole architecture of the network becomes a static, deterministic map from inputs to covariances.
-
-This is the peculiar balance of the Gaussian process limit. The randomness of finite networks (the accident of which features you drew) disappears, while the *expressive field* of possible functions becomes infinite. What looks like a loss of freedom in one space is a gain of freedom in another. You trade a random, high-dimensional parameterization for a deterministic law over an infinite-dimensional function space. The model collapses in its parameter dimension but expands in its functional reach. That is the sense in which the GP limit achieves “infinite resolution”: it no longer needs to enumerate features to approximate every smooth behavior the kernel supports. The prior already spans that continuum.
-
-This connects directly to the remark by MacKay (1998) about “throwing out the baby with the bathwater.”
-MacKay warned that when one marginalizes out parameters too early—when one keeps only the covariance structure and discards the explicit representation of weights—one may lose intuition about how learning actually works. In our case, the GP limit *is* that marginalization, pushed to its logical extreme. The baby (the random feature machinery) is gone, but its bathwater—the covariance it left behind—turns out to be everything. The Gaussian process is the distilled trace of that infinite hidden layer, the residual law that remains once we have averaged over all its possible microscopic configurations. The cost is that we can no longer “see” the mechanism that created a particular function; the benefit is that the resulting prior is perfectly well-defined, smooth, and tractable.
-
-So the infinite-width limit does not so much simplify the neural network as *clarify* it: by letting the network’s structural noise disappear, it reveals the underlying stochastic law that every large random feature model was already approximating in miniature.
-
-==== Infinite precision?
-In this view, increasing $H$ increases the _Monte Carlo resolution_ with which the regression model samples its feature space.
-The nonparametric limit replaces explicit random changepoints with their continuous Gaussian measure, yielding a Gaussian process prior over $u'(t)$ whose covariance is the arc-cosine kernel restricted to the open phase of the glottal cycle.
-
-There is a caveat however; we got "infinite" precision (meaning full rank), but smoother functions.
-This is the analogue of the amplitude prior of footnote 17 which constrains the ellipsoid.
-
-
-/* main point here: YES, we compromised; we got fast inference, but also diminshed support for true O(1) amount of jumps like a Levy process would. This is a practical question -- need to find out by running nested sampling and see how much support for these jumps is really there -- just calculate! */
-
-/* This means we should model u(t), not du(t)!
-
-u(t) ~ arccos: arccos is always continuous -- we cant do real jumps
-
-but if we can get du(t) implicitly -- from spectral domain OR via AR pole -- we can maybe cheat this thing
-
-Maybe we can LEARN the radiation characteristic by priming our AR prior to look for that spectral decay of +6db/oct
-
-So we model u(t) * (h(t) * r(t)) and the latter factor of combined VT + radiation impulse response is learned directly
-
-another option is to integrate data (move diff to data) but this possibly nasty
-
-pre-emphasis just flattens spectral slope as to partition poles better -- has nothing to do with radiation factor.
-Radition factor can only be undone by integrating, not further diffing.
-Pre-emphasis tilts the spectrum "up" by emphasizing higher freqs and is a fitting trick
-
-On the other hand
-LPC just proclaims s(t) = e(t) * h(t) and shoves radiation into the source such that h(t) cna remain all-pole
-since differentiation is ~ i2pi x => zero, not a pole
-so we are generalizing LPC, so also choose e(t) => u(t) * r(t)
-*/
-
-==== Why not go infinite depth?
-Different character from increasing width; effective depth of deep GPs. If stable limit, it becomes independent of inputs @Diaconis1999. Seen often in DGPs as input independency, "forgetting inputs". Though one might counteract that going to infinite width also has similar "unfortunate" consequences (MacKay's baby with the bath water): "features are not learned", basis functions are fixed. This shows that kernel hyperparameters must encode (most of) features. We do this via sparse multiple kernel learning; ie static kernels on the Yoshii-grid mechanism; our hyperparams are $(T, tau, "OQ")$, ie 3 dim grid.
-
-==== Why not spline models?
-Piecewise spline models are well-known and effective in low-dimensional nonparametric regression. Why not use them? Because they depend on the resolution. As Gaussian process priors, spline kernels produce posterior means that are splines with knots (hingepoints in some derivative) fixed at the observed inputs and nowhere else @MacKay1998[p. 6]. In contrast, the $arccos(n)$ kernel will learn the effective number of hingepoints from the data, which may happily remain $O(1)$ while the amount of datapoints grows indefinitely. Translated to our problem, we want the number of effective change points to be resolution-independent (independent of the sampling frequency) and not confined to the observation locations.
-
-==== Why not Lévy processes?
-These encode Poisson-style jumps $O(1)$ in number in time. But inference in these is always $O("# of jumps")$. So can't really marginalize out these jump points, and we want to avoid MCMC. We want to stack everything in the amplitude marginalization. But, actual discontinuities require Lévy processes; the arc cosine GP alone can only fake it with steep ramps /*(see @fig:steep)*/.
-
 == Summary
 
-We showed that nonparametric piecewise polynomials are feasible. 
-they correspond to an Infinite width neural network
+We took great care to argue that any _parametric_ glottal flow model formulated of the open phase of the glottal cycle can be expressed as a RePU network with a single hidden layer of width $H$, given $H$ large enough.
 
-this is a well known limit which we repurposed for GIF to make the bridge between parametric (joint source-filter estimation) and nonparametric methods (based on filtering without a parametric)
+Then we showed that in a Bayesian regression context with noninformative priors, the limit $H -> oo$ corresponds to a _nonparametric_ glottal flow model:
+a zero-mean GP with the temporal arc cosine kernel.
+This is a well known limit which we borrowed from classical GP literature to make the bridge between [parametric $<=>$ #link(<sec:joint-source-filter-methods>)[joint source-filter estimation]] and [nonparametric $<=>$ #link(<sec:inverse-filtering-methods>)[inverse filtering]] GIF methods,
+trying to get at the best of both worlds: interpretability and expressivity, respectively.
 
-we took great care in this chapter to make that conceptual leap as clear as possible
+That is, the proposed probabilistic model has support for any parametric glottal flow model while retaining capacity to "let the data speak for itself" if need be.
+In the next Chapters we will refine this support step by step into strong inductive biases by learning features from synthetic glottal flow simulations.
+
+/*
+==== How good of a GFM is this still?
+It remains a valid generative model of the glottal cycle: differentiable, time-localized, and periodic by construction.  
+The closure constraint can be imposed analytically in the finite case and later in functional form through interdomain features.  
+Return-phase behaviour and sharp glottal closures are naturally expressed through steep RePU transitions; genuine discontinuities would require Lévy-style processes, but the present formulation already approximates them closely in practice.
+*/
+
+/*
 
 ==== How good of a GFM is this still?
-After all this surgical changes to basic GFMs we run through our checklist to see if this still can a priori represent what we need: the glottal cycle! @fig:glottal-cycle
 
-// maybe put this in summary
+
+
+After all this surgical changes to basic GFMs we run through our checklist to see if this still can a priori represent what we need: the glottal cycle! @fig:glottal-cycle
 
 Before doing so, we take a look at how much of viable candidates @eq:udH still are as GFMs.
 
@@ -924,3 +829,4 @@ Closure constraint: we could restrict this analytically
 
 Putting priors will enable us to trace out a family of GFMs
 
+*/
