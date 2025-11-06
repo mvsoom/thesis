@@ -580,6 +580,7 @@ They will vanish, however, when $H -> oo$ and we choose $sigma_a prop 1\/sqrt(H)
 Nevertheless, even before taking any limit, the first two moments of the prior already mirror a kernel regression model.
 Note that this result hinges critically on the independence assumption for ${b_h, c_h}$ in @eq:motherwavelet.
 The closure-constrained prior of @eq:ccbmu would couple these parameters nonlinearly, destroying that independence and making the derivation intractable, which is why we temporarily set it aside.
+// footnote: @Neal1996 suggested non idd priors to effectuate possibly more interesting kernels
 
 === The temporal arc cosine kernel
 <sec:temporal-ack>
@@ -589,7 +590,7 @@ The marginalization we performed above is, in fact, a one-dimensional variant of
 
 In these works, the expectation over random weights $bm(w)$ with $mono("Normal")(bm(w) | bm(0), bm(Sigma))$ priors gives rise to a family of kernels which describe an infinitely wide Bayesian network,
 and which differ only with respect to the activation function used and the imposed a priori covariance $bm(Sigma)$.
-This same reasoning will now allow us to identify our expected covariance @eq:tack-e with a time-domain specialization of the degree-$d$ _arc cosine family_.
+This same reasoning will now allow us to identify our expected covariance @eq:tack-e with a time-domain specialization of the _arc cosine kernel family_ of degree $d$.
 
 @table:acks organizes the three kernels we will introduce shortly.
 Note that to save on mathematical symbols we overload the $k^((d))(dot,dot)$ symbol to change meaning based on the type of its arguments, as we have been doing with the probability density $p(dot)$.
@@ -646,9 +647,9 @@ $
   J_2(theta) & = 3 sin theta cos theta + (pi - theta)(1 + 2 cos^2 theta), \
   J_3(theta) & = 15 sin theta - 11 sin^3 theta + (pi - theta)(9 cos theta + 6 cos^3 theta).
 $
-Compared to the familiar Matérn kernels, the ACK is a rather atypical kernel, and probably only sparingly used in machine learning applications.
-It is, for one, blatantly nonstationary, and it neatly separates the magnitude and angular dependencies of the inner product -- unlike, for example, the RBF kernel.
-The closed form @eq:ack shows that the integral representation decomposes as the product of a polynomial factor $||bm(x)||^d ||bm(x')||^d$, which controls the overall scale or dynamic range, and an angular factor $J_d (theta)$, which captures the nonlinear thresholding effect of the RePU activation.
+Compared to the familiar Matérn kernels, the arc-cosine kernel is a rather atypical kernel, and probably only sparingly used in machine learning applications.
+It is, for one, blatantly nonstationary, and unlike stationary kernels such as the RBF, it can represent asymptotic behavior: its posterior mean need not revert to the prior mean outside the data regime, much like a neural network’s response.
+The closed form @eq:ack shows this structure explicitly: the integral representation factors into a polynomial term $||x||^d ||x'||^d$, which controls the overall dynamic range and absorbs asymptotic variance, and an angular term $J_d (theta)$, which captures the nonlinear thresholding of the RePU activation and thus allows for modeling the kind of changepoint structure we know is essential for GFMs.
 
 ==== The temporal arc cosine kernel (TACK)
 is the kernel which describes $bm(C) equiv bb(E)[bm(u') bm(u')^top]$ in @eq:covexpval.
@@ -709,9 +710,9 @@ $
 $ <eq:bmq83>
 This sum tends to grow as $O(H)$, since from @eq:Ktack
 $
-  bb(E)[bm(Q)] = bm(C) prop H.
+  bb(E)_(bm(b),bm(c))[bm(Q)] = bm(C) prop H.
 $ <eq:scales-as-H>
-Such growth of the output variance makes the $u'_"NN" (t)$ model @eq:uNN useless as a prior when we want strong inductive bias even for large $H$, which we do.
+Such growth of the marginal variance of $p(bm(u'))$ makes the $u'_"NN" (t)$ model @eq:uNN useless as a prior when we want strong inductive bias even for large $H$, which we do.
 Therefore, we couple $sigma_a$ and $H$ by choosing $sigma_a prop 1\/sqrt(H)$, in accordance with the variance-preserving initialization principle @Glorot2010.
 Thus, substituting $sigma_a -> sigma_a\/sqrt(H)$ in @eq:bmq83, we get
 $
@@ -746,7 +747,7 @@ In other words, the marginal $p(bm(u'))$ converges entirely to a Gaussian and th
 All higher central moments vanish as $O(1\/sqrt(H))$ because the covariance fluctuations in @eq:dev86 themselves decay at that rate.
 Since this argument holds for any finite collection of times $bold(t) = {t_n}_(n=1)^N$, the limiting process is indeed officially a Gaussian process:
 $
-  u'_"NN" (t) ~ mono("GP")(0, sigma_a^2 thin k^((d))_bm(Sigma) (t_n, t_m)).
+  u'_"NN" (t) ~ mono("GP")(0, sigma_a^2 thin k^((d))_bm(Sigma) (t, t')).
 $ <eq:kgfm>
 /*
 The function family thereby reaches full rank for any $N$ in data space and becomes a nonparametric process.
@@ -758,8 +759,8 @@ and the two higher-level hyperparameters ${d, t_c}$, which determine the polynom
 
 ==== Integrating out changepoints
 Note that $t_c$ is the only changepoint parameter that survived the Gaussian-process limit.
-All other changepoints [each changepoint defined by a pair of amplitude and location parameters ${a_h, b_h}$] have been analytically integrated out.
-That act of marginalization removed the parametric bottleneck of a finite rank models like @eq:lf, @eq:dgf-piece, @eq:udH, @eq:uNN entirely.
+All other changepoints [each changepoint being defined by a pair of amplitude and location parameters ${a_h, b_h}$] have been analytically integrated out.
+That act of marginalization removed the parametric bottleneck carried by finite rank models like @eq:lf, @eq:dgf-piece, @eq:udH, @eq:uNN completely.
 This is surprising, because we pointed out before that changepoint parameters as in @eq:lf-parameters constitute the main "control points" of any GFM expressed in the time domain:
 what previously required a discrete arrangement of control points is now averaged into a continuous covariance structure.
 Even more surprising, perhaps, is that we can still salvage the closure constraint (@chapter:pack).
@@ -792,15 +793,15 @@ Also show # params and compute time for each
 
 == Summary
 
-We took great care to argue that any _parametric_ glottal flow model formulated of the open phase of the glottal cycle can be expressed as a RePU network with a single hidden layer of width $H$, given $H$ large enough.
+Great care was taken to argue that any _parametric_ glottal flow model formulated of the open phase of the glottal cycle can be expressed as a RePU network with a single hidden layer of width $H$, given $H$ large enough.
 
 Then we showed that in a Bayesian regression context with noninformative priors, the limit $H -> oo$ corresponds to a _nonparametric_ glottal flow model:
 a zero-mean GP with the temporal arc cosine kernel.
-This is a well known limit which we borrowed from classical GP literature to make the bridge between [parametric $<=>$ #link(<sec:joint-source-filter-methods>)[joint source-filter estimation]] and [nonparametric $<=>$ #link(<sec:inverse-filtering-methods>)[inverse filtering]] GIF methods,
-trying to get at the best of both worlds: interpretability and expressivity, respectively.
+This well-known limit, borrowed from classical GP literature, is applied here to unify the two dominant approaches to GIF.
+These are [parametric $<=>$ #link(<sec:joint-source-filter-methods>)[joint source-filter estimation]] and [nonparametric $<=>$ #link(<sec:inverse-filtering-methods>)[inverse filtering]], and we attempt here to combine the best of both worlds: parametric interpretability and nonparametric expressivity, respectively.
 
 That is, the proposed probabilistic model has support for any parametric glottal flow model while retaining capacity to "let the data speak for itself" if need be.
-In the next Chapters we will refine this support step by step into strong inductive biases by learning features from synthetic glottal flow simulations.
+In the next Chapters we will refine this initially tiny support gradually into a strong inductive bias by learning features from synthetic glottal flow simulations.
 
 /*
 ==== How good of a GFM is this still?
