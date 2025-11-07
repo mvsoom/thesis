@@ -36,18 +36,20 @@ $
 $ <eq:yaglom>
 where $C = (t_1, t_2) times (t_1, t_2)$ and $k^((d))$ is the standard temporal arc cosine kernel (TACK).
 $
-  k^((d)) (t, t') = 1/pi (1+t^2)^(d/2) (1+t'^2)^(d/2) J_d (theta)
+  k^((d)) (t, t') = 1/(2pi) (1+t^2)^(d/2) (1+t'^2)^(d/2) J_d (theta)
 $
+We need FT over compact domain $C$ because the open phase (cf. @fig:lf) is defined on $[0, t_c]$.
+We generalize this to $[t_1, t_2]$.
 "Standard" means that the prior variances $sigma_a = sigma_b = sigma_c = 1$.
 Later we generalize the calculation by means of an affine transformation of @eq:yaglom.
 From the previous Chapter, the TACK is just the 1D bias-augmented version of the arc cosine kernel (ACK) of @Cho2009:
 $
-  k^((d)) (bm(x), bm(x')) = 1/pi ||bm(x)||^d ||bm(x')||^d J_d (theta)
+  k^((d)) (bm(x), bm(x')) = 1/(2pi) ||bm(x)||^d ||bm(x')||^d J_d (theta)
   
 $
 where
 $
-  theta = arccos (bm(x)^top bm(x'))/(||bm(x)|| ||bm(x')||) = "angle between" bm(x) "and" bm(x') in [0,pi]
+  theta = arccos( (bm(x)^top bm(x'))/(||bm(x)|| ||bm(x')||) ) = "angle between" bm(x) "and" bm(x') in [0,pi]
 $
 and the $J_d$ expression is given by the generator expression
 $
@@ -90,17 +92,20 @@ But we can allow $bm(Sigma) = mat(sigma_b^2, 0; 0, sigma_t^2)$ as this is import
 
 Define
 $
-  bm(u)_t = bm(x)_t/(||bm(x)_t||) = vec(1/sqrt(1+t^2), t/sqrt(1 + t^2)) in S^1 quad "(circle)"
+  bm(u)_t = bm(x)_t/(||bm(x)_t||) = vec(1/sqrt(1+t^2), t/sqrt(1 + t^2)) in S^1
 $
-This vector lies on the circle so we express it as
+This vector lies on the circle $S^1$ so we express it as
 $
   bm(u)_t = vec(cos psi_t, sin psi_t)
 $
 with the neat one-to-one correspondence
+#footnote[
+  Incidentally, this affordance is unique to our problem due to our $(1, t)^top$ instance of the general ACK @eq:ack.
+]
 $
-  psi_t = arctan t in (-pi/2, pi/2)
+  psi_t = arctan t in (-pi/2, pi/2).
 $
-afforded by 1 dim plus unit bias combination unique to our problem.
+
 
 With this parametrization, $theta = arccos("angle between" bm(x)_t "and" bm(x)_(t'))$ reduces to
 $
@@ -118,10 +123,10 @@ $
   J_d^"ext" (theta) = J_d (|theta|)
 $
 as the natural extension of $J_d (theta)$ by even reflection; this extends the domain $[0,pi]$ to $[-pi,pi]$ and makes it a proper compact kernel.
-$J_d^"ext" (theta)$ is an angular zonal kernel: isotropic on $S^1$ @Dutordoir2020.
+$J_d^"ext" (theta)$ is an angular zonal kernel: isotropic on $S^1$ @Dutordoir2020 @Smola2000.
 Observe that at $theta = plus.minus pi$ we have $J_d^"ext" (theta) = 0$, so gluing copies end-to-end yields a $2 pi$-periodic continuous function for free.
-It is an idea candidate for a harmonic expansion into Fourier series.
-It is also even so its Fourier series consists only of cosine terms:
+It is an ideal candidate for a harmonic expansion into Fourier series.
+Being even also, its Fourier series consists only of cosine terms:
 $
   J_d^"ext" (Delta_psi) &= sum_(m in bb(Z)) c_m^((d)) e^(i m Delta_psi) \
   c_m^((d)) &= 1/(2pi) integral_(-pi)^pi J_d^"ext" (Delta_psi) exp{-i m Delta_psi} dif Delta_psi, quad m in bb(Z),
@@ -153,7 +158,7 @@ Slowest convergence at $O(m^(-2))$
 
 
 == The $H_m^((d))(f)$ function
-Back to @eq:yaglom:
+Back to @eq:yaglom, where we can now make the substitution $J_d (theta) -> J_d^"ext" (psi_t - psi_t')$ worry-free (the expansion makes sure that $J_d^"ext" ((psi_t - psi_t') in bb(R)) = J_d (theta in [0, pi])$ such that the domain of $J_d(dot) = [0,pi]$ is never violated) and expand into Fourier series:
 $
   tilde(k)^((d)) (f,f'; C) &= integral.double_C k^((d)) (t, t') thin exp{- i 2 pi f t} exp{i 2 pi f' t'} dif t dif t' \
   &= integral.double_C (1+t^2)^(d/2) (1+t'^2)^(d/2) sum_(m in bb(Z)) c^((d))_m exp{i m (psi_t - psi_t')} exp{- i 2 pi (f t - f' t')} dif t dif t' \
@@ -161,13 +166,13 @@ $
   &quad quad quad [integral_(t_1)^(t_2) (1+t'^2)^(d/2) exp{-i m psi_t'} exp{i 2pi f' t'} dif t'] \
   &= sum_(m in bb(Z)) c_m^((d)) thin H_m^((d))(f) thin overline(H_m^((d))(f'))
 $
-This is a Mercer expansion of the $tilde(k)^((d)) (f,f'; C)$ kernel; an inverse Fourier transform of this expression yields a direct Mercer expansion of the original kernel.
+This is a _Mercer expansion_ of the $tilde(k)^((d)) (f,f'; C)$ kernel; an inverse Fourier transform of this expression yields a direct Mercer expansion of the original kernel, which allows $O(N)$ inference.
 
 The calculation has been simplified to evaluating
 $
   H_m^((d))(f) = integral_(t_1)^(t_2) (1 + t^2)^(d/2) exp{i m arctan t} exp{- i 2 pi f t} dif t
 $
-where $m in bb(Z)$ and $d in bb(N)_>=0$. Note immediately that
+where $m in bb(Z)$ and $d in bb(N)_(>=0)$. Note immediately that
 $
   H_(-m)^((d))(f) = overline(H_m^((d))(-f)).
 $
@@ -188,7 +193,7 @@ $
   lr(- sec^d theta exp{i m theta} exp{- i 2 pi f tan theta} |, size: #150%)_(theta_1)^(theta_2) .
 $
 
-This exhibits the derivative operator $(i 2 pi f)^(-1)$ linking degree $d$ to $d-1$ (in a nontrivial way) and implies differentiability of the sample paths.
+This exhibits the derivative operator $(i 2 pi f)^(-1)$ linking degree $d$ to $d-1$ (in a nontrivial way) and implies differentiability of order $d$ of the sample paths.
 
 We have a general recursion in $d$, so it suffices to compute the base cases
 $
@@ -217,7 +222,7 @@ Alternatively, one may use direct numerical integration (next paragraph). Routes
 With $bm(Sigma) = "diag"(sigma_b^2, sigma_c^2)$ and $bm(x)_t = vec(1, t)$:
 
 - Let $bm(A) = bm(Sigma)^(1/2) = "diag"(sigma_b, sigma_c)$, and define $alpha := sigma_c / sigma_b > 0$.
-- Then $bm(A) bm(x)(t) = (sigma_b, sigma_c t) = sigma_b bm(x)(alpha t)$.
+- Then $bm(A) bm(x)_t = (sigma_b, sigma_c t)^top = sigma_b bm(x)_(alpha t)$.
 - For the degree-$d$ arc-cosine kernel (homogeneous of degree $d$ in each argument),
   $
     k^((d))_bm(Sigma)(t, t') = k^((d))(bm(A) bm(x)(t), bm(A) bm(y)(t'))
