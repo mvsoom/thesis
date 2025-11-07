@@ -139,13 +139,6 @@
 
 #include "./chapter/qpack/main.typ"
 
-= Evaluation
-<chapter:evaluation>
-
-/*
-Gridding over OQ also done in @Fu2006
-
-Can check GCI accuracy with that Hilbert transform database with ~100% correct annotated GCIs
-*/
+#include "./chapter/evaluation/main.typ"
 
 #include "./chapter/conclusion/main.typ"

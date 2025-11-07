@@ -8,10 +8,14 @@
 = Priors for autoregressive filters
 <chapter:arprior>
 
+/*
+Before writing, see obsidian://open?vault=vault&file=projects%2Fthesis%2FAR%2Fregularization
+*/
+
 IKLP requires a Gaussian prior $p(bm(a))$.
 We've shown in IKLP that setting priors can greatly damage or enhance VI runs.
 
-Can we do better than the standard $bm(I)_K$ isotropic Gaussian?
+Can we do better than the standard $bm(I)_P$ isotropic Gaussian?
 Some lore around which ones to use.
 
 In _general context_ we find that quite often this leads to unstable filters.
@@ -20,7 +24,9 @@ In _general context_ we find that quite often this leads to unstable filters.
 In _speech context_ we have plenty of information about the vocal-tract filter, such as resonances spaced about 500 Hz apart
 - We introduce a general framework to "expect" arbitrary spectral features
 
-_Both contexts can be combined._
+Both contexts can be combined into the prior for the AR model of the vocal tract filter.
+
+We also do a study of spectral rolloff for the first time and find that this is consistent with being flat. // old thesis: spectral rolloff measurement from database
 
 == Problems with standard isotropic priors
 
@@ -58,8 +64,7 @@ For an AR($P$) process
 $ x_t = sum_(p = 1)^P a_p thin x_(t - p) + epsilon_t , #h(2em) epsilon_t tilde.op cal(N) (0 , sigma^2) , $
 
 covariance stationarity holds iff the roots of
-$1 - sum_(p = 1)^P a_p z^p$ lie inside the unit disk. The recursion of
-Monahan (1984) provides a smooth bijection
+$1 - sum_(p = 1)^P a_p z^p$ lie inside the unit disk. The recursion of #pcite(<Monahan1984>) provides a smooth bijection
 
 $ T : (- 1 , 1)^P #h(0em) arrow.r #h(0em) cal(A)_P subset bb(R)^P , #h(2em) a = T (phi.alt) , $
 
@@ -130,6 +135,8 @@ sampling, or simple control variates.
 
 === Implications for popular shrinkage rules
 <implications-for-popular-shrinkage-rules>
+
+// Note: I cant find any references to "1/P" folklore in chatgpt history so we have to do a new lit search with gpt
 A common heuristic prior is isotropic
 
 $ p (a) = cal(N) ( a divides 0 , lambda I_P ) $
@@ -149,6 +156,8 @@ principled derivation of #emph[why] such scalings arise:
 Hence $Sigma^star.op$ not only recovers the familiar $1 \/ P$ law but
 also quantifies the #emph[full] covariance structure that the heuristic
 ignores.
+
+Another reason for $1\/P$ covariance matrix scaling is because power roughly goes as $1 + P/2 sigma^2$, so to keep that constant we need $sigma^2 prop 1/P$; this is derived in Obsidian notes: /* obsidian://open?vault=vault&file=projects%2Fthesis%2FAR%2Fregularization */
 
 === Decay behavior: dampening
 <decay-behavior-dampening>
