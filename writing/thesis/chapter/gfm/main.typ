@@ -793,7 +793,7 @@ Also show # params and compute time for each
 
 == Summary
 
-Great care was taken to argue that any _parametric_ glottal flow model formulated of the open phase of the glottal cycle can be expressed as a RePU network with a single hidden layer of width $H$, given $H$ large enough.
+Great care was taken to argue that any _parametric_ glottal flow model of the open phase of the glottal cycle can be expressed as a RePU network with a single hidden layer of width $H$, given $H$ large enough.
 
 Then we showed that in a Bayesian regression context with noninformative priors, the limit $H -> oo$ corresponds to a _nonparametric_ glottal flow model:
 a zero-mean GP with the temporal arc cosine kernel.

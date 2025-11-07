@@ -131,16 +131,13 @@
 
 #include "./chapter/iklp/main.typ"
 
+#include "./chapter/arprior/main.typ"
+
 #include "./chapter/gfm/main.typ"
 
 #include "./chapter/pack/main.typ"
 
 #include "./chapter/qpack/main.typ"
-
-= Learning a nonparametric glottal flow prior
-
-= But what about $p(bm(a))$?
-<chapter:arprior>
 
 = Evaluation
 <chapter:evaluation>
