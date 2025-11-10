@@ -1,6 +1,16 @@
 #import "/writing/thesis/lib/prelude.typ": argmax, argmin, bm, expval, ncite, pcite, section-title-page
 #import "/writing/thesis/lib/gnuplot.typ": gnuplot
 
+/*
+All steps are in:
+https://chatgpt.com/c/690cb0c2-0264-8327-a5d2-568620b33956
+
+Next steps:
+Derive PACK and use in OPENGLOTI and OPENGLOTII experiments and compare to PeriodicSqExp
+
+Then learn features from LF model and see if evaluation improves with this
+*/
+
 = The periodic arc cosine kernel
 <chapter:pack>
 
@@ -9,6 +19,7 @@
 Expression is always k(x,x') = J(x,x')/J(0)
 Samples tend to horizontal asymptotes left and right
 Need to look into this
+Not a priori better I think cos DGF has non-horizontal asymptotes usually for hard GCI
 
 */
 
