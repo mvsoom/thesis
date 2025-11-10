@@ -1,34 +1,38 @@
-import os
-from glob import glob
 from itertools import product
-from pathlib import Path
 from random import Random
 
 rng = Random(112879403)
 
 
-def wav_files():
-    PROJECT_DATA_PATH = os.environ["PROJECT_DATA_PATH"]
-    root_path = f"{PROJECT_DATA_PATH}/OPENGLOT/RepositoryII_*"
-    paths = glob.glob(f"{root_path}/**/*.wav", recursive=True)
-    return paths
-
-
 def configurations():
-    for wav_file, jax_platform_name, jax_enable_64, prior_pi, ell in product(
-        wav_files(),
-        ["gpu"],
-        [False],
+    for (
+        jax_enable_x64,
+        r,
+        beta,
+        alpha_scale,
+        kappa,
+        prior_pi,
+        ell,
+        target_gender,
+    ) in product(
+        [True, False],
+        [5, 10, 15],
+        [0.0, 1.0],
+        [0.1, 1.0],
+        [0.1, 1.0],
         [0.05, 0.5, 0.95],
         [0.5, 1.0, 2.0],
+        ["male", "female"],
     ):
-        stem = Path(wav_file).stem
         yield {
             "seed": rng.randint(0, 2**32 - 1),
-            "wav_file": wav_file,
-            "jax_platform_name": jax_platform_name,
-            "jax_enable_64": jax_enable_64,
+            "jax_enable_x64": jax_enable_x64,
+            "r": r,
+            "beta": beta,
+            "alpha_scale": alpha_scale,
+            "kappa": kappa,
             "prior_pi": prior_pi,
             "ell": ell,
-            "name": f"{stem}_{jax_enable_64}_{prior_pi}_{ell}",
+            "target_gender": target_gender,
+            "name": f"{jax_enable_x64}_{r}_{beta}_{alpha_scale}_{kappa}_{prior_pi}_{ell}_{target_gender}",
         }

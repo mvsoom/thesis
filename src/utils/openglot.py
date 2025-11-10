@@ -273,7 +273,7 @@ class OpenGlotII:
     def wav_files():
         PROJECT_DATA_PATH = os.environ["PROJECT_DATA_PATH"]
         root_path = f"{PROJECT_DATA_PATH}/OPENGLOT/RepositoryII_*"
-        paths = glob.glob(f"{root_path}/**/*.wav", recursive=True)
+        paths = glob(f"{root_path}/**/*.wav", recursive=True)
         return paths
 
     @staticmethod
@@ -293,3 +293,85 @@ class OpenGlotII:
     @staticmethod
     def read_wav(wav_file, target_fs, verbose=True):
         return OpenGlotI.read_wav(wav_file, target_fs, verbose)  # same
+
+    @staticmethod
+    def post_process_run(run, metrics, f0):
+        # TODO: problematic here is that true pitch is not constant
+        # See Fig 3 bottom panel in OPENGLOT paper
+
+        posterior_pi = metrics.E.nu_w / (metrics.E.nu_w + metrics.E.nu_e)
+        sum_theta = (metrics.E.theta).sum()
+
+        a = np.asarray(metrics.a)
+        filter_gain_energy = ar_gain_energy(a)
+        filter_stationary_score = ar_stat_score(a)
+
+        I_eff = active_components(metrics.E.theta)
+        pitch_wrmse, pitch_wmae = weighted_pitch_error(
+            f0, metrics.E.theta, run["true_pitch"]
+        )
+
+        inferred_dgf = metrics.signals[0]
+
+        dt = 1.0 / float(run["target_fs"])
+        maxlag = int(1 / run["true_pitch"] / dt)  # one pitch period
+        best, original = fit_affine_lag_nrmse(
+            inferred_dgf, run["dgf"], maxlag=maxlag
+        )
+        dgf_nrmse = original["nrmse"]
+        dgf_aligned_nrmse = best["nrmse"]
+
+        f, power_db = ar_power_spectrum(metrics.a, run["target_fs"], db=True)
+        centers, bandwidths = estimate_formants(
+            f, power_db, peak_prominence=1.0
+        )
+
+        pairing = match_formants(
+            centers, run["true_formants"], est_bw=bandwidths
+        )
+        estimated_formants = pairing["matched_freqs"]
+
+        formant_rmse = np.sqrt(
+            np.mean((run["true_formants"] - estimated_formants) ** 2)
+        )
+
+        formant_mae = np.mean(np.abs(run["true_formants"] - estimated_formants))
+
+        f1_true, f2_true, f3_true, f4_true = run["true_formants"]
+        f1_est, f2_est, f3_est, f4_est = estimated_formants
+
+        return {
+            "wav_file": run["wav_file"],
+            "vowel": run["vowel"],
+            "true_pitch": run["true_pitch"],
+            "adduction": run["adduction"],
+            "frame_index": run["frame_index"],
+            "restart_index": run["restart_index"],
+            "elbo": metrics.elbo,
+            "num_iterations": metrics.i,
+            "E_nu_w": metrics.E.nu_w,
+            "E_nu_e": metrics.E.nu_e,
+            "sum_theta": sum_theta,
+            "posterior_pi": posterior_pi,
+            "filter_gain_energy": filter_gain_energy,
+            "filter_stationary_score": filter_stationary_score,
+            "I_eff": I_eff,
+            "pitch_wrmse": pitch_wrmse,
+            "pitch_wmae": pitch_wmae,
+            "formant_rmse": formant_rmse,
+            "formant_mae": formant_mae,
+            "dgf_nrmse": dgf_nrmse,
+            "dgf_aligned_nrmse": dgf_aligned_nrmse,
+            "f1_true": f1_true,
+            "f2_true": f2_true,
+            "f3_true": f3_true,
+            "f4_true": f4_true,
+            "f1_est": f1_est,
+            "f2_est": f2_est,
+            "f3_est": f3_est,
+            "f4_est": f4_est,
+        }
+
+    @staticmethod
+    def plot_run(run, metrics, f0, retain_plots=False):
+        return OpenGlotI.plot_run(run, metrics, f0, retain_plots)  # same
