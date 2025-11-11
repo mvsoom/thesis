@@ -29,7 +29,25 @@ We will characterize the $arccos$ glottal flow model (AGFM) in the spectral doma
 
 In principle we can go any depth in the calculation I think.
 
+
+== Periodizing the TACK
+
+Defined on open phase
+
+Note $t_c != T$
+
+Like @Chen2016, Chapter 5 we make use of periodic property
+
+Thus in the time domain the function can be synthesized as a KL expansion:
+$
+  u'(t) = sum_k c_k exp(i 2 pi k)
+$ // FIXME
+
+It thus remains to find the FT of the kernel
+
+
 /*
+==== Sampling frequencies
 Our sampling of freqs in the Nyquist band reproduces the Sinc kernel-property that we automatically band limit the smoothness => good prior information
 
 Nyquist reconstruction essentially expresses that by bandlimiting frequency information we limit smoothness, thereby making perfect reconstruction possible in principle.
@@ -39,7 +57,47 @@ Multiplying with SqExp with low order Hilbert amplitude envelope doesn't add hig
 Matern kernels and others do not take into account Nyquist information, whereas RFF (random fourier features) / SM (spectral mixture) kernels do.
 */
 
-== The compact Yaglom or compact bitransform
+/*
+==== Periodic but nonstationary
+Note that kernels can be periodic but nonstationary, like ours.
+Typically we think in terms of periodic stationary kernels, but this does not have to be always so.
+See example in Marocco notebook.
+*/
+
+
+
+=== Complex GPs
+
+
+For any complex random variable $z = x + i y$, the second-order information
+(the shape of its density if Gaussian) lives entirely in the second moments of
+$x$ and $y$. Those are captured by the $2 times 2$ real covariance matrix:
+$
+  bm(Sigma) = mat(
+    E[x^2], E[x y];
+    E[x y], E[y^2]
+  )
+$
+But it's convenient and natural in complex analysis to rewrite this in
+complex coordinates. There, the two invariant quadratic forms you can make
+from $z$ are $E[z z^*]$ and $E[z z]$. The first is the usual covariance (energy
+or total power), the second measures the departure from circular symmetry
+(orientation or eccentricity).
+
+They're _complementary_ because together they completely reconstruct the real
+$2 times 2$ covariance:
+$
+  bm(Sigma) = 1/2 mat(
+    Re(&bb(E)[z z^* + z z]), Im(&bb(E)[z z]);
+    Im(&bb(E)[z z]), Re(&bb(E)[z z^* - z z])
+  ).
+$
+They're _independent_ (in the representational sense) because $E[z z^*]$ is
+invariant under rotation $z -> e^(i theta) z$ (it sets the overall scale), while $E[z z]$
+transforms like $e^(i 2 theta)$: $E[z z] -> e^(i 2 theta) E[z z]$ — it tracks the anisotropy's orientation and
+ellipticity.
+
+== The Fourier bitransform of the STACK
 
 This Section is devoted to calculating the compact Fourier bitransform, also known as the Yaglom transform in the context of kernels, of the standard temporal arc cosine kernel:
 $
@@ -168,7 +226,7 @@ Slowest convergence at $O(m^(-2))$
 
 
 
-== The $H_m^((d))(f)$ function
+=== The $H_m^((d))(f)$ function
 Back to @eq:yaglom, where we can now make the substitution $J_d (theta) -> J_d^"ext" (psi_t - psi_t')$ worry-free (the expansion makes sure that $J_d^"ext" ((psi_t - psi_t') in bb(R)) = J_d (theta in [0, pi])$ such that the domain of $J_d(dot) = [0,pi]$ is never violated) and expand into Fourier series:
 $
   tilde(k)^((d)) (f,f'; C) &= integral.double_C k^((d)) (t, t') thin exp{- i 2 pi f t} exp{i 2 pi f' t'} dif t dif t' \
@@ -227,7 +285,9 @@ Alternatively, one may use direct numerical integration (next paragraph). Routes
 
 /* see obsidian: has picture of this */
 
-== FT of an affine warp $t mapsto alpha t + beta$
+== The Fourier bitransform of the TACK
+
+=== FT of an affine warp $t mapsto alpha t + beta$
 
 ==== General $bm(Sigma)$
 With $bm(Sigma) = "diag"(sigma_b^2, sigma_c^2)$ and $bm(x)_t = vec(1, t)$:
@@ -309,3 +369,9 @@ $
   alpha = 1: quad tilde(k)^((d))_(1, beta)
   = exp{- i 2 pi beta (f - f')} tilde(k)^((d))(f, f'; t_1 - beta, t_2 - beta) .
 $
+
+== Learning Fourier features
+
+== Evaluation on `OPENGLOT-I`
+
+== Summary

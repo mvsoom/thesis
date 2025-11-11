@@ -33,3 +33,23 @@ Reason for DC baseline: pathological voices, as observed by
   @Kreiman2007
 ]
 
+== Making the PACK quasiperiodic
+
+Need for this:
+- Experiment `experiments/iklp/openglot-II` shows that IKLP will combine kernels of different pitch $T$ to make quasiperiodic $u'(t)$ out of periodic SqExpKernel samples
+
+/*
+This section can be quite short => dont have to explain Hilbert GP completely
+
+note that we can add quasiperiodicity immediately by working in kernel domain (not basisfunctions domain) and take the SVD
+
+so stress why we take this faster, stabler route
+*/
+
+== Alignment, or fixing the gauge
+
+== Learning Fourier features
+
+== Evaluation on `OPENGLOT-II`
+
+== Summary
