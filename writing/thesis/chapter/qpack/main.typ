@@ -1,3 +1,12 @@
+#import "/writing/thesis/lib/prelude.typ": argmax, argmin, bm, expval, ncite, pcite, section-title-page
+#import "/writing/thesis/lib/gnuplot.typ": gnuplot
+
+#import "@preview/tablem:0.3.0": tablem, three-line-table
+#import "@preview/equate:0.3.2": equate, share-align
+#show: equate.with()
+
+
+
 = The quasiperiodic arc cosine kernel
 <chapter:qpack>
 
@@ -46,9 +55,17 @@ note that we can add quasiperiodicity immediately by working in kernel domain (n
 so stress why we take this faster, stabler route
 */
 
+Hilbert expansion of:
+- AM term => lengthscale param
+- DC term => lengthscale and scale param
+
 == Alignment, or fixing the gauge
 
 == Learning Fourier features
+
+Still the case that eigenfunctions do not depend on hyperparameters, only the expansion coefficients!
+- But Fourier inference on grid I think not possible anymore, though the Gram matrix can probably be calculated analytically in $O(M^2)$
+
 
 == Evaluation on `OPENGLOT-II`
 

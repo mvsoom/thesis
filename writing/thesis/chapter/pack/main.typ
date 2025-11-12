@@ -372,6 +372,29 @@ $
 
 == Learning Fourier features
 
+Eigenfunctions do not depend on hyperparameters, only the expansion coefficients, as in Hilbert-GP
+- In fact we can do $O(N log N)$ learning due to regular grid
+
+==== Steps of inference producedure
+TLDR; first ALIGN inductive bias (on the hyperparam level), then REFINE inductive bias (on the coefficient/GP level).
+
+- Infer $p(theta | "examplars")$ via Nested Sampling: same as previous thesis
+- Each $theta$ is a "key" that brings posterior in $N_k$ space (data length of examplar $k$) to common coefficient space $bm(a)$
+  - For each $theta$: compute posterior $p(a_k | D_k)$ via normal GP inference
+  - Then "envelope" these posteriors via $D_"KL"$ inference
+  - This can be repeated for as many samples of $theta$ as wanted, thereby increasing support
+
+After that we toss $theta$ and end up with a single posterior $p(a) = "Normal"(mu^*, Sigma^*)$ which encodes the inductive bias to GFMs, without collapsing to a single learned $hat(bm(a))$.
+
+Therefore the prior GP model and its hyperparameters $theta$ act like a "decoding key" and determine posterior density in coefficient $bm(a)$-space.
+
+These are Fourier features directly in the Bayesian linear regression form due to our periodic expansion into Fourier series.
+When we add quasiperiodicity, the basis changes, but the method stays exactly the same, and we get quasi-Fourier features encoded in the $bm(a)$.
+Here "quasi" implies that AM and DC modulation are both modest.
+In all cases are the basisfunctions fixed for efficiency, but this need not be the case: the $theta$ can also influence the basisfunctions, and these can be learned in the first step;
+in this case we can't _sample_ $theta$ anymore, since the (features) basisfunctions depend on it, but can just use an argmax $theta$.
+
+
 == Evaluation on `OPENGLOT-I`
 
 == Summary
