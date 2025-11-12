@@ -20,7 +20,6 @@ These models operate in the time domain because the delicate phase characteristi
   For example, plosives: glottal stops are micro-events at the millisecond level that underlie semantic information two orders of magnitude higher up the scale.
   The timing of the vocal fold movement is so precisely controlled by our brain that the slightest deviations are studied as biomarkers for neurodegenerative diseases like Parkinson's @Ma2020.
 ]
-// "timing relationships are very important for modelling the glottal flow signal" @Doval2006
 
 Decades of empirical work have over time produced a "model zoo" of GFMs: handcrafted waveforms of $u(t)$ with handfuls of carefully chosen parameters.
 Because these are _parametric_ models, they all share the same basic traits: parsimonious, interpretable, but inevitably stiff @Schleusing2012. Their parametric nature limits the range of time domain information they can encode.
@@ -762,7 +761,8 @@ Note that $t_c$ is the only changepoint parameter that survived the Gaussian-pro
 All other changepoints [each changepoint being defined by a pair of amplitude and location parameters ${a_h, b_h}$] have been analytically integrated out.
 That act of marginalization removed the parametric bottleneck carried by finite rank models like @eq:lf, @eq:dgf-piece, @eq:udH, @eq:uNN completely.
 This is surprising, because we pointed out before that changepoint parameters as in @eq:lf-parameters constitute the main "control points" of any GFM expressed in the time domain:
-what previously required a discrete arrangement of control points is now averaged into a continuous covariance structure.
+what previously required a discrete arrangement of control points is now averaged into a continuous covariance structure capable of learning the
+"timing relationships [which] are very important for modelling the glottal flow signal" @Doval2006.
 Even more surprising, perhaps, is that we can still salvage the closure constraint (@chapter:pack).
 
 ==== More aspects of @eq:kgfm
