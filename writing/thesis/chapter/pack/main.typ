@@ -11,6 +11,14 @@ Derive PACK and use in OPENGLOTI and OPENGLOTII experiments and compare to Perio
 Then learn features from LF model and see if evaluation improves with this
 */
 
+/*
+TODO:
+More info is in https://chatgpt.com/g/g-p-6838cfb047408191ad7b248487bc47d9-ft-of-arccos-kernel/project
+
+Perhaps at the end of each of these conversations upload the bare bone text of this chapter and ask if anything in the conversation should be added
+
+*/
+
 = The periodic arc cosine kernel
 <chapter:pack>
 
@@ -23,27 +31,60 @@ Not a priori better I think cos DGF has non-horizontal asymptotes usually for ha
 
 */
 
-The periodic arc cosine kernel (PACK)
+In @chapter:gfm we identified the temporal arc cosine kernel (TACK) as a good candidate glottal flow model during the open phase.
+Assuming the glottal flow $u(t)$ is zero outside that phase, such that $u'(t)$ is identically zero too, our full model during _a single pitch period_ $[0, T]$ is:
+$
+  u'(t) = cases(
+    u'_"NN" (t) quad quad & 0 & < t & <= t_c quad quad & "(O)",
+    0 quad quad & t_c & < t & <= T & "(C)",
+  )
+$
+and zero elsewhere.
+// TODO picture of single bump and periodized with 0, T, t_c annotated
 
-We will characterize the $arccos$ glottal flow model (AGFM) in the spectral domain, as these models are best described there. Plus, at DC frequency we can already impose the closure constraint.
+Here the hyperparameters ${t_c, T}$ are assumed given and $u'_"NN"$ is the GP defined in @eq:kgfm.
+Thus, in the open phase (O) our model is the GP with the TACK kernel, and in the closed phase the glottis perfectly closed (no flow).
+This is a nonstationary Gaussian process windowed to the interval $[0, t_c]$.
 
-In principle we can go any depth in the calculation I think.
-
+Since periodicity is a basic feature of voiced speech, we now add this feature to our kernel.
+In what follows we intend to _periodize_ this into a _periodic nonstationary_ GP.
+We start with the simpler standard temporal arc cosine kernel (STACK) @eq:stack and then allow for $bm(Sigma)$ parameters to enter the picture.
 
 == Periodizing the TACK
 
-Defined on open phase
+/*
+Indeed, we cannot make use of classic periodization formulas because these are defined classically only for _stationary kernels_, eg. [@Scholkopf2002, Eq. 4.42], @Rasmussen p.89
+*/
 
-Note $t_c != T$
 
-Like @Chen2016, Chapter 5 we make use of periodic property
-
-Thus in the time domain the function can be synthesized as a KL expansion:
+Following #pcite(<Rasmussen2006>, supplement: [B.1.1]) we proceed by periodization by summation.
+Extend the STACK in the canonical way by gluing copies end-to-end:
 $
-  u'(t) = sum_k c_k exp(i 2 pi k)
-$ // FIXME
+  u'_T (t) = sum_(j in bb(Z)) u'(t + j T)
+$
+Here it is assumed $t_c < T$, as otherwise the covariance for any $(t, t')$ will diverge due to non-decaying covariance in $|t-t'|$, unlike stationary kernels (implied by their spectrum being integrable).
 
-It thus remains to find the FT of the kernel
+This is a $T$-periodic function this can be expressed as a discrete Fourier series:
+$
+  u'_T (t) = sum_(k in bb(Z)) c_k exp{i (2 pi k)/T}
+$ <eq:fourier-series>
+
+Since
+$
+  c_k = integral_0^T u'(t) exp{-i 2pi k t} dif t
+$
+is a linear transformation of $u'(t)$, itself Gaussian, we know a priori that
+$
+  bm(c) ~ mono("Normal")(bm(c) | ...)
+$
+and therefore up to a linear transformation of $bm(c)$, @eq:fourier-series is a Karhunen-Loève (KL) expansion of the PACK:
+$
+  u'_T (t) = sum_(m=1)^M beta_m phi.alt_m (t) quad quad beta_m ~ mono("Normal")(0, 1)
+$
+Note that here the basisfunctions $phi.alt_m (t)$ are fixed, so this is a linear model (Chap 4).
+This allows fast $O(N ...)$ inference rather than $O(N^3)$.
+
+It thus remains to find the FT of the kernel.
 
 
 /*
@@ -64,11 +105,8 @@ Typically we think in terms of periodic stationary kernels, but this does not ha
 See example in Marocco notebook.
 */
 
-
-
-=== Complex GPs
-
-
+/*
+==== Complex GPs
 For any complex random variable $z = x + i y$, the second-order information
 (the shape of its density if Gaussian) lives entirely in the second moments of
 $x$ and $y$. Those are captured by the $2 times 2$ real covariance matrix:
@@ -96,6 +134,7 @@ They're _independent_ (in the representational sense) because $E[z z^*]$ is
 invariant under rotation $z -> e^(i theta) z$ (it sets the overall scale), while $E[z z]$
 transforms like $e^(i 2 theta)$: $E[z z] -> e^(i 2 theta) E[z z]$ — it tracks the anisotropy's orientation and
 ellipticity.
+*/
 
 == The Fourier bitransform of the STACK
 
@@ -398,3 +437,40 @@ in this case we can't _sample_ $theta$ anymore, since the (features) basisfuncti
 == Evaluation on `OPENGLOT-I`
 
 == Summary
+
+We now have a kernel that checks following properties of theoretical GFMs:
+- periodicity
+- differentiability and spectral case
+/*
+@Rosenberg1971, p. 587: Decays of order 12 dB/oct are typical
+*/
+- closure constraint
+- hard/soft GCI support
+
+To add more realism, we relax these hard constraints and learn expand support again using simulations.
+
+/*
+
+==== How good of a GFM is this still?
+After all this surgical changes to basic GFMs we run through our checklist to see if this still can a priori represent what we need: the glottal cycle! @fig:glottal-cycle
+
+Before doing so, we take a look at how much of viable candidates @eq:udH still are as GFMs.
+
+Differentiable: yes
+
+Domain: yes
+
+No return phase unless very lucky, tiny support
+
+Closure constraint: we could restrict this analytically
+
+Putting priors will enable us to trace out a family of GFMs
+
+
+Polished rewrite of the above:
+
+==== How good of a GFM is this still?
+It remains a valid generative model of the glottal cycle: differentiable, time-localized, and periodic by construction.  
+The closure constraint can be imposed analytically in the finite case and later in functional form through interdomain features.  
+Return-phase behaviour and sharp glottal closures are naturally expressed through steep RePU transitions; genuine discontinuities would require Lévy-style processes, but the present formulation already approximates them closely in practice.
+*/
