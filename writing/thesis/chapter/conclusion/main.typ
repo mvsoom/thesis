@@ -1,11 +1,18 @@
 = Conclusion
 <chapter:conclusion>
 
+/*
+Nice introduction to importance of clinical speech science as a whole in @Andrade-Miranda2024
+*/
+A person speaks 16,000 words on average each day: glottal folds are used plenty, so disorders arise quickly when used inappropriately. @Andrade-Miranda2024
+
 Possible improvements/future directions:
 - $p(a)$ not as a delta function in IKLP
 - work in spectral domain completely
 - model $h(t)$ as a GP conditional on $e(t)$ given: alternate optimization
 - interframe correlations as in @Mehta2012
+- learn from more realistic glottal flow simulations like @Avhad2022 @Zhang2020a @Schoder2024; perhaps learn first a mapping from glottal flow area to glottal flow from physics and then use real life measured glottal flow area databases like @Andrade-Miranda2024
+
 
 /*
 applications of a reliable white-box speech model:
