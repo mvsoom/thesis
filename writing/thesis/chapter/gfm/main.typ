@@ -816,4 +816,4 @@ This well-known limit, borrowed from classical GP literature, is applied here to
 These are [parametric $<=>$ #link(<sec:joint-source-filter-methods>)[joint source-filter estimation]] and [nonparametric $<=>$ #link(<sec:inverse-filtering-methods>)[inverse filtering]], and we attempt here to combine the best of both worlds: parametric interpretability and nonparametric expressivity, respectively.
 
 That is, the proposed probabilistic model has support for any parametric glottal flow model while retaining capacity to "let the data speak for itself" if need be.
-In the next Chapters we will refine this initially tiny support gradually into a strong inductive bias by learning features from synthetic glottal flow simulations.
+In the next chapters we will refine this initially tiny support gradually into a strong inductive bias by learning features from synthetic glottal flow simulations.

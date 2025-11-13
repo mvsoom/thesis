@@ -1,6 +1,299 @@
 #import "/writing/thesis/lib/prelude.typ": argmax, argmin, bm, expval, ncite, pcite, section-title-page
 #import "/writing/thesis/lib/gnuplot.typ": gnuplot
 
+= The periodic arc cosine kernel
+<chapter:pack>
+
+/*
+Here the hyperparameters ${t_c, T}$ are assumed given and $u'_"NN"$ is the GP defined in @eq:kgfm.
+Thus, in the open phase (O) our model is the GP with the TACK kernel, and in the closed phase the glottis perfectly closed (no flow).
+This is equivalently a nonstationary Gaussian process windowed to the interval $[0, t_c]$.
+
+Since periodicity is a basic feature of voiced speech, we now add this feature to our kernel.
+In what follows we intend to _periodize_ this into a _periodic nonstationary_ GP.
+We start with the simpler standard temporal arc cosine kernel (STACK) @eq:stack and then allow for $bm(Sigma)$ parameters to enter the picture.
+*/
+
+@chapter:gfm established parametric and nonparametric glottal flow models (GFMs) for a _single period_ of the glottal cycle.
+In this chapter and the next, our goal is to extend this to _multiple periods_, as this will allow us to model voiced speech, whose pitch corresponds perceptually to the period $T$ 
+
+
+#figure(
+  image("./fig/bdl-gamma.svg", height: 28%),
+  placement: auto,
+  caption: [*A look at the glottal cycle* via laryngeal stroboscopy of the vocal folds. Each frame here is a picture taken at intervals spanning different cycles to give the illusion of steady-state behavior. The glottis is the opening between the folds. After #pcite(<Jopling2009>) #pcite(<Chen2016>).],
+) <fig:quasi-periodicity>
+
+
+
+@Peterson1966.
+
+For now, we idealize and assume perfect periodicity, which will allow us to derive an efficient Karhunen-Loève representation of the corresponding kernel -- the _periodic arc cosine kernel_ (PACK).
+In @chapter:qpack, then, we relax this assumption and model quasiperiodic glottal flows with the _quasiperiodic arc cosine kernel_ (QPACK).
+These correspond to #pcite(<Peterson1966>)'s wave types.
+
+We assume perfect periodicity in this chapter and relax this idealization to
+
+
+@chapter:pack
+
+We relax this assumption in @chapter:qpack, where we model _quasiperiodic_ glottal flow by learning the hyperparameters from data.
+
+the nonparametric models to a _multiple periods_ glottal flow model.
+
+In this chapter we extend the nonparametric models for the single glottal cycle to a fully periodic glottal flow, which idealizes the driving input for voiced speech.
+
+
+The previous chapter described the three phases of the glottal cycle in more detail
+
+
+
+and argued that the temporal arc cosine kernel (TACK) is a good candidate prior to describe the glottal flow $u(t)$ during the open phase.
+Recall that a single glottal cycle consists of three phases: the open phase (O), an optional return phase (R), and the closed phase (C).
+@chapter:gfm argued that the temporal arc cosine kernel (TACK)
+
+In @chapter:gfm we identified the temporal arc cosine kernel (TACK) as a good candidate glottal flow model during the open phase.
+Assuming the glottal flow $u(t)$ is zero outside that phase, such that $u'(t)$ is identically zero too, our full model during _a single pitch period_ $[0, T]$ is:
+$
+  u'_"cycle" (t) = cases(
+    u'_"NN" (t) quad quad & 0 & < t & <= t_c quad quad & "(O)",
+    0 quad quad & t_c & < t & <= T & "(C)",
+  )
+$
+and zero outside that pitch period.
+We thus have a single bump $u(t)$.
+// TODO picture of single bump and periodized with 0, T, t_c annotated
+
+This induces the _full-cycle_ kernel
+$
+  k_"cycle" (t, t') = cases(
+    k^((d))_bm(Sigma) (t, t') quad quad & t\, t' in [0, t_c] quad quad & "(O)",
+    0 quad quad & "otherwise on" [0, T] quad quad & "(C)",
+  )
+$
+
+
+In @chapter:gfm we arrived at a nonparametric glottal-flow model for the
+open phase: a Gaussian process
+$
+  u'_"NN" (t) ~ mono("GP")(0, k^((d))_bm(Sigma)(t,t'))
+$
+with the temporal arc cosine kernel (TACK).
+In that chapter the model lived strictly on the open-phase interval
+$[0, t_c]$.  Outside it, glottal flow is idealized to being strictly zero.
+This gives a single asymmetric “bump’’ $u(t)$ per cycle, rising smoothly from
+zero, peaking, and then collapsing to zero at $t = t_c$.
+
+In this chapter the goal is simple: embed this single bump into a _periodic nonstationary_ Gaussian process described by the _periodic arc cosine kernel_ (PACK).
+
+/*
+Interestingly, this will allow us to derive its Mercer
+The end result is the periodic arc cosine kernel (PACK):
+a $T$-periodic, nonstationary kernel whose KL basis is the Fourier basis,
+and whose spectral coefficients are jointly Gaussian with an explicitly
+computable covariance.
+*/
+
+/*
+The construction proceeds in two steps:
+
+1. *periodize the *function**
+   rather than periodizing the kernel (the latter works only for stationary kernels).
+
+2. **use the Fourier bitransform** of the open-phase kernel to compute the
+   joint Gaussian law of the Fourier coefficients.
+
+This avoids the need for variational Fourier features altogether.
+The KL basis arises automatically from periodicity.
+*/
+
+== From a single bump to a periodic function
+
+During a single cycle the model is
+$
+  u'(t) =
+  cases(
+    u'_"NN"(t) & 0 < t <= t_c & "(open phase)", \
+    0 & t_c < t <= T & "(closed phase)",
+  )
+$
+and identically zero outside $(0,T)$.
+We now glue copies end-to-end:
+$
+  u'_T(t) = sum_(j in bb(Z)) u'(t + j T).
+$
+This is the canonical periodization in function space.
+It differs from the usual GP “periodic kernel trick’’ because the kernel
+here is *nonstationary*.
+No classical formula such as
+$k_"per"(t,t') = sum_j k(t - t' + j T)$ applies.
+#footnote[
+  The classic periodization formula holds only for stationary kernels
+  $k(t,t') = k(t - t')$ where the sum over $j$ corresponds to convolution
+  with a Dirac comb in the spectrum.
+  Our kernel is nonstationary because it lives in the warped $(1,t)^top$
+  geometry of the arc-cosine construction.
+  Periodizing the kernel directly would not preserve this geometry.
+]
+
+The result $u'_T(t)$ is automatically $T$-periodic.
+Such a function has a discrete Fourier expansion
+$
+  u'_T(t) = sum_(k in bb(Z)) c_k e^{i 2 pi k t / T}.
+$ <eq:fourierseries>
+
+Since $u'_T(t)$ is Gaussian for every finite collection of times,
+the coefficient vector $bm(c) = (dots, c_-1, c_0, c_1, dots)^top$
+is jointly Gaussian as well.
+Thus @eq:fourierseries is not only a Fourier series: it is a
+Karhunen–Loève expansion of the PACK.
+Its basisfunctions are fixed.
+All statistics are carried by the coefficient covariance.
+
+Hence the main remaining task is clear:
+
+*compute the joint covariance*
+$
+  bb(E)[c_k overline(c_(k'))].
+$
+This is exactly the Fourier bitransform of the open-phase kernel.
+
+#footnote[
+  One may worry about the sharp cutoff at $t=t_c$ and $t=T$.
+  This “hard window’’ is physical, not a numerical artefact: the glottis
+  closes abruptly and $u'(t)$ becomes exactly zero.
+  Windowing in this sense broadens the spectral density (as any compactly
+  supported pulse does), but this is a feature of the physics: hard
+  closures generate broadband spectral energy and slow high-frequency
+  decay.
+  Our task is simply to describe this spectrum correctly — not to avoid it.
+]
+
+== The PACK as a KL expansion
+
+Let the Fourier series of $u'_T$ be as in @eq:fourierseries.
+Define the finite-window Fourier transform of $u'$:
+$
+  c_k = integral_0^T u'(t) e^{-i 2 pi k t/T} dif t.
+$
+This is a linear functional of the GP $u'$, hence jointly Gaussian.
+
+The covariance follows from the standard identity:
+$
+  bb(E)[c_k overline{c_(k')}]
+  = integral_0^T integral_0^T
+  k(t,t') e^{-i 2 pi k t/T} e^{i 2 pi k' t'/T}
+  dif t dif t'.
+$
+Thus the PACK is completely described by the Fourier bitransform
+$
+  tilde(k)(f,f';C)
+  = integral.double_C
+  k(t,t') e^{-i 2 pi f t} e^{i 2 pi f' t'} dif t dif t'.
+$ // <eq:yaglom>
+This is the Yaglom transform of the (windowed) TACK on $C = [0,t_c] times [0,t_c]$.
+
+The PACK is therefore the GP
+$
+  u'_T(t)
+  = sum_(k in bb(Z))
+  c_k e^{i 2 pi k t/T},
+  quad bm(c) ~ mono("Normal")(bm(0), bm(K)_c)
+$
+with
+$
+  [bm(K)_c]_(k,k')
+  = tilde(k)^((d))(k/T, k'/T; [0,t_c]).
+$
+
+This gives an exact KL representation with $O(N)$ sampling and inference
+costs once the coefficients are computed.
+
+=== Interdomain view (optional)
+
+It is instructive to position this within GP interdomain-feature literature.
+
+In sparse GP methods (e.g. /* #cite(<Titsias2009>)) */, one introduces linear
+functionals of the process
+$
+  L_j(u') = integral phi_j(t) u'(t) dif t,
+$
+and treats the vector $bm(L)$ as latent Gaussian variables with covariance
+matrix
+$
+  bb(E)[L_j L_k] = integral.double k(t,t') phi_j(t) phi_k(t') dif t dif t'.
+$
+
+The Fourier coefficients $c_k$ are exactly such interdomain features with
+$phi_k(t) = e^{-i 2 pi k t/T}$.
+The difference is that here:
+
+*we are not approximating the GP*,
+*we are exploiting periodicity to identify its exact KL basis*.
+
+This eliminates the entire variational machinery usually required for
+spectral features.
+The “interdomain’’ structure is present, but nothing is approximate or
+learned.
+
+== The Fourier bitransform of the STACK
+
+We now focus on the simplest kernel in the family: the standard temporal
+arc cosine kernel
+$
+  k^((d))(t,t')
+  = 1/(2pi) (1 + t^2)^(d/2) (1 + t'^2)^(d/2) J_d(theta),
+$
+where $theta$ is the angle between the vectors
+$bm(x)_t = (1,t)^top$ and $bm(x)_(t') = (1,t')^top$ as introduced in
+@chapter:gfm.
+
+The task is to compute
+$
+  tilde(k)^((d))(f,f'; C)
+  = integral.double_C
+  k^((d))(t,t') e^{-i 2 pi f t} e^{i 2 pi f' t'}
+  dif t dif t',
+$ <eq:yaglom-stack>
+for a compact window $C = (t_1,t_2) times (t_1,t_2)$.
+Because $t mapsto (1,t)^top$ maps the real line smoothly onto the unit
+circle via the angle
+$
+  psi_t := arctan t in (-pi/2, pi/2),
+$
+the angular dependence reduces to
+$
+  theta = |psi_t - psi_(t')|,
+$
+and $J_d(theta)$ can be expanded as a zonal harmonic kernel on $S^1$:
+$
+  J_d(|Delta_psi|)
+  = sum_(m in bb(Z)) c_m^((d)) e^{i m (psi_t - psi_(t'))},
+$
+with real symmetric coefficients $c_m^((d))$ that decay rapidly.
+
+Substituting this into @eq:yaglom-stack) yields the Mercer-form expansion
+$
+  tilde(k)^((d))(f,f'; C)
+  = sum_(m in bb(Z))
+  c_m^((d))
+  H_m^((d))(f) overline{H_m^((d))(f')},
+$
+where the building blocks are 1D Fourier integrals
+$
+  H_m^((d))(f)
+  = integral_(t_1)^(t_2)
+  (1 + t^2)^(d/2) e^{i m psi_t} e^{-i 2 pi f t}
+  dif t.
+$
+These functions satisfy symmetry relations
+$
+  H_(-m)^((d))(f) = overline{H_m^((d))(-f)},
+$
+and obey recursion relations in the degree $d$.
+
+The PACK is thus entirely characterized by these finitely many terms.
+
 /*
 All steps are in:
 https://chatgpt.com/c/690cb0c2-0264-8327-a5d2-568620b33956
@@ -13,14 +306,11 @@ Then learn features from LF model and see if evaluation improves with this
 
 /*
 TODO:
-More info is in https://chatgpt.com/g/g-p-6838cfb047408191ad7b248487bc47d9-ft-of-arccos-kernel/project
+Much more angles from previous research are in https://chatgpt.com/g/g-p-6838cfb047408191ad7b248487bc47d9-ft-of-arccos-kernel/project
 
 Perhaps at the end of each of these conversations upload the bare bone text of this chapter and ask if anything in the conversation should be added
 
 */
-
-= The periodic arc cosine kernel
-<chapter:pack>
 
 /* NORMALIZED KERNELS
 
@@ -31,25 +321,6 @@ Not a priori better I think cos DGF has non-horizontal asymptotes usually for ha
 
 */
 
-In @chapter:gfm we identified the temporal arc cosine kernel (TACK) as a good candidate glottal flow model during the open phase.
-Assuming the glottal flow $u(t)$ is zero outside that phase, such that $u'(t)$ is identically zero too, our full model during _a single pitch period_ $[0, T]$ is:
-$
-  u'(t) = cases(
-    u'_"NN" (t) quad quad & 0 & < t & <= t_c quad quad & "(O)",
-    0 quad quad & t_c & < t & <= T & "(C)",
-  )
-$
-and zero elsewhere.
-// TODO picture of single bump and periodized with 0, T, t_c annotated
-
-Here the hyperparameters ${t_c, T}$ are assumed given and $u'_"NN"$ is the GP defined in @eq:kgfm.
-Thus, in the open phase (O) our model is the GP with the TACK kernel, and in the closed phase the glottis perfectly closed (no flow).
-This is a nonstationary Gaussian process windowed to the interval $[0, t_c]$.
-
-Since periodicity is a basic feature of voiced speech, we now add this feature to our kernel.
-In what follows we intend to _periodize_ this into a _periodic nonstationary_ GP.
-We start with the simpler standard temporal arc cosine kernel (STACK) @eq:stack and then allow for $bm(Sigma)$ parameters to enter the picture.
-
 == Periodizing the TACK
 
 /*
@@ -58,13 +329,13 @@ Indeed, we cannot make use of classic periodization formulas because these are d
 
 
 Following #pcite(<Rasmussen2006>, supplement: [B.1.1]) we proceed by periodization by summation.
-Extend the STACK in the canonical way by gluing copies end-to-end:
+Extend the single bump $u'(t)$ by gluing copies end-to-end:
 $
   u'_T (t) = sum_(j in bb(Z)) u'(t + j T)
 $
 Here it is assumed $t_c < T$, as otherwise the covariance for any $(t, t')$ will diverge due to non-decaying covariance in $|t-t'|$, unlike stationary kernels (implied by their spectrum being integrable).
 
-This is a $T$-periodic function this can be expressed as a discrete Fourier series:
+Since this is a $T$-periodic function, it can be expressed as a discrete Fourier series:
 $
   u'_T (t) = sum_(k in bb(Z)) c_k exp{i (2 pi k)/T}
 $ <eq:fourier-series>
@@ -138,7 +409,7 @@ ellipticity.
 
 == The Fourier bitransform of the STACK
 
-This Section is devoted to calculating the compact Fourier bitransform, also known as the Yaglom transform in the context of kernels, of the standard temporal arc cosine kernel:
+This section is devoted to calculating the compact Fourier bitransform, also known as the Yaglom transform in the context of kernels, of the standard temporal arc cosine kernel:
 $
   tilde(k)^((d)) (f,f'; C) = integral.double_C k^((d)) (t, t') thin exp{- i 2 pi f t} exp{i 2 pi f' t'} dif t dif t'
 $ <eq:yaglom>
@@ -150,14 +421,13 @@ We need FT over compact domain $C$ because the open phase (cf. @fig:lf) is defin
 We generalize this to $[t_1, t_2]$.
 "Standard" means that the prior variances $sigma_a = sigma_b = sigma_c = 1$.
 Later we generalize the calculation by means of an affine transformation of @eq:yaglom.
-From the previous Chapter, the TACK is just the 1D bias-augmented version of the arc cosine kernel (ACK) of @Cho2009:
+From the previous chapter, the TACK is just the 1D bias-augmented version of the arc cosine kernel (ACK) of @Cho2009:
 $
   k^((d)) (bm(x), bm(x')) = 1/(2pi) ||bm(x)||^d ||bm(x')||^d J_d (theta)
-  
 $
 where
 $
-  theta = arccos( (bm(x)^top bm(x'))/(||bm(x)|| ||bm(x')||) ) = "angle between" bm(x) "and" bm(x') in [0,pi]
+  theta = arccos((bm(x)^top bm(x'))/(||bm(x)|| ||bm(x')||)) = "angle between" bm(x) "and" bm(x') in [0,pi]
 $
 and the $J_d$ expression is given by the generator expression
 $
@@ -470,7 +740,7 @@ Putting priors will enable us to trace out a family of GFMs
 Polished rewrite of the above:
 
 ==== How good of a GFM is this still?
-It remains a valid generative model of the glottal cycle: differentiable, time-localized, and periodic by construction.  
-The closure constraint can be imposed analytically in the finite case and later in functional form through interdomain features.  
+It remains a valid generative model of the glottal cycle: differentiable, time-localized, and periodic by construction.
+The closure constraint can be imposed analytically in the finite case and later in functional form through interdomain features.
 Return-phase behaviour and sharp glottal closures are naturally expressed through steep RePU transitions; genuine discontinuities would require Lévy-style processes, but the present formulation already approximates them closely in practice.
 */

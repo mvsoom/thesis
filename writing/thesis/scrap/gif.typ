@@ -1,9 +1,9 @@
 = Glottal inverse filtering
 <chapter:gif>
 
-In this Chapter we sketch the problem in detail, highlight challenges and solutions given, and current state of the art.
+In this chapter we sketch the problem in detail, highlight challenges and solutions given, and current state of the art.
 
-Things that should be mentioned (refer to it in other Chapters):
+Things that should be mentioned (refer to it in other chapters):
 - Crucial that the DGF model has low rolloff; or equivalently, that it can represent sharp GCI
 - High F0 domain: time to break it open: infants, woman, elderly (important for Parkinson's disease application: @Ma2020)
 - Distinction between parametric, nonparametric (signal processing), nonparametric (Bayesian -- this approach) solutions

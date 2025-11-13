@@ -669,7 +669,7 @@ observation which underlies the ubiquitous utility and adoption of the
 short-time Fourier transform (STFT) in acoustic phonetics @Little2011.
 In the case of voiced speech, the providence of GIF, these inertial
 constraints produce correlations across #emph[dozens] of pitch periods
-/*(as we verify empirically in Chapters~@chapter:2 and @chapter:4)*/. The
+/*(as we verify empirically in chapters~@chapter:2 and @chapter:4)*/. The
 source $u (t)$ and filter $tilde(h)(f)$ constituents of voiced speech
 are both inherently nonstationary yet strongly correlated at the level
 of neighbouring pitch periods. We can actually #emph[hear] this fact:
@@ -867,7 +867,7 @@ And in the three cited Bayesian papers: @Wang2016a@Rao2018@Auvinen2014
 Nevertheless, because this is a standard inference problem, it is
 virtually certain that inference can be sped up by one or more orders of
 magnitude. Specialized inference methods are certainly possible. We
-discuss this further and other issues in Chapter~@chapter:7.
+discuss this further and other issues in chapter~@chapter:7.
 
 ==== Number of parameters
 <number-of-parameters>
