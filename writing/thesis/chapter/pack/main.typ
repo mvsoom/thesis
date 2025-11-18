@@ -235,6 +235,15 @@ This eliminates the entire variational machinery usually required for
 spectral features.  
 The “interdomain’’ structure is present, but nothing is approximate or learned.
 
+==== Symmetry view
+It is seen that translation invariance over $T$-intervals give rise to the Fourier decomposition of the kernel, which is exact, and provides for a considerable computational speedup.
+This particular instance (1D input, Fourier invariance) can be generalized to any symmetry of the input space @Sun2021, including the translational invariance of the familiar stationary kernels and the rotational invariance of dot product kernels.
+
+==== Taking advantage of $f_s$
+The finite Nyquist sampling frequency is exploited here, as in #pcite(<Tobar2019>)'s sinc kernel which takes into account the band-limited nature of sampled time series.
+Given noiseless observations, the signal can be predicted everywhere perfectly via the Nyquist reconstruction theorem,
+the precise nature of which described by the slowly-decaying tails of the sinc kernel.
+
 == The Fourier bitransform of the STACK
 
 This section is devoted to calculating the compact Fourier bitransform, also known as the Yaglom transform in the context of kernels, of the standard temporal arc cosine kernel:
