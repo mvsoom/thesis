@@ -1,6 +1,7 @@
 # %%
 import jax
 from matplotlib import pyplot as plt
+from tqdm import tqdm
 
 from utils import lfmodel
 
@@ -13,6 +14,7 @@ os.makedirs("data/hard_gci", exist_ok=True)
 os.makedirs("data/soft_gci", exist_ok=True)
 
 # %%
+# Generate LF exemplars (hard GCI and soft GCI)
 N = 256  # number of samples per waveform
 tc = 6.0  # open phase from [0, 7] msec
 t_data = np.linspace(0, tc, N)
@@ -111,31 +113,17 @@ np.savetxt(
 
 
 # %%
-def repu(x, d):
-    return np.heaviside(x, 1) * x**d
-
+# Sample a piecewise polynomial from the prior with closure constraint
+from gfm.poly import build_phi, sample_poly
 
 d = 1
-H = 4
-
-t = t_data
+H = 20
 
 sigma_a = 1.0
 b = np.random.uniform(0.0, tc, size=H)
+b[0] = 0.0
 
-Phi = repu(t[:, None] - b[None, :], d)
-
-r = repu(tc - b, d + 1) / (d + 1)
-q = r / np.linalg.norm(r)
-I = np.eye(H)
-Sigma = sigma_a**2 * (I - np.outer(q, q))  # rank H - 1
-
-# sample from a ~ N(0, Sigma) which is not full rank
-U, S, Vt = np.linalg.svd(Sigma)
-z = np.random.normal(0, 1.0, size=H)
-a = U @ np.diag(np.sqrt(S)) @ z
-
-f = Phi @ a
+f = sample_poly(d, H, t_data, tc, sigma_a=sigma_a, b=b, closure=True)
 
 plt.plot(t_data, f)
 plt.plot(t_data, np.cumsum(f) * (t_data[1] - t_data[0]))
@@ -144,100 +132,55 @@ for bi in b:
     plt.axvline(bi, color="gray", linestyle="--")
 
 # %%
+# Generate the parametric piecewise polynomial approximations to hard and soft GCI LF waveforms
+# Number of basisfunctions H is selected by maximizing the model evidence p(u' | H, closure, b) given fixed sigma_a, sigma_noise as in Bretthorst (1988)
 import numpy as np
 
+from gfm.poly import log_evidence_fixed_sigma, map_a
 
-def repu(x, d):
-    return np.heaviside(x, 1.0) * x**d
-
-
-def build_phi(t, b, d):
-    return repu(t[:, None] - b[None, :], d)
-
-
-def build_q(b, tc, d):
-    r = (tc - b) ** (d + 1) / float(d + 1)
-    nr = np.linalg.norm(r)
-    if nr == 0.0:
-        nr = np.nan
-    return r / nr
-
-
-def log_evidence_fixed_sigma(t, u, H, d, tc, sigma_a, sigma):
-    tmin, tmax = t[0], t[-1]
-    b = np.linspace(tmin, tmax, H)
-
-    phi = build_phi(t, b, d)
-    q = build_q(b, tc, d)
-
-    I = np.eye(H)
-    P = I - np.outer(q, q)
-
-    K = sigma_a**2 * (phi @ P @ phi.T)
-    K.flat[:: K.shape[0] + 1] += sigma**2
-
-    U, S, Vt = np.linalg.svd(K)
-    if np.any(S <= 0.0):
-        return -1e300
-
-    quad = u @ ((U * (1.0 / S)) @ (U.T @ u))
-    ldet = np.sum(np.log(S))
-    N = len(u)
-    return -0.5 * (quad + ldet + N * np.log(2.0 * np.pi))
-
-
-sigma = 0.5  # -6 dB
+sigma_noise = 0.5  # -6 dB
 sigma_a = 1.0
-d = 0
 
-du_data = lf_exemplars["hard_gci"]["data"]["du"]
+for name, examplar in lf_exemplars.items():
+    for d in [0, 1, 2, 3]:
+        t = examplar["data"]["t"]
+        du = examplar["data"]["du"]
 
-scores = []
-for H in range(0, N):
-    L = log_evidence_fixed_sigma(t_data, du_data, H, d, tc, sigma_a, sigma)
-    scores.append(L)
+        scores = []
+        for H in tqdm(range(0, N), f"p(u' | H, {name}, d={d})"):
+            b = np.linspace(0, tc, H)
+            L = log_evidence_fixed_sigma(
+                t, du, H, d, tc, sigma_a, b, sigma_noise, closure=True
+            )
+            scores.append(L)
 
-best_H, best_score = np.argmax(scores), np.max(scores)
-print(best_H, best_score)
+        best_H, best_score = np.argmax(scores), np.max(scores)
+        print(
+            f"=> Best H for {name}: d={d}: {best_H} (log Z=score={best_score})"
+        )
 
+        # rebuild grid b for best_H
+        b_best = np.linspace(0, tc, best_H)
 
-# %%
-def map_a(t, u, b, d, tc, sigma_a, sigma):
-    H = len(b)
-    phi = build_phi(t, b, d)
-    q = build_q(b, tc, d)
-    I = np.eye(H)
-    P = I - np.outer(q, q)
-    Sigma_a = sigma_a**2 * P
+        # posterior MAP amplitudes
+        a_best = map_a(t, du, b_best, d, tc, sigma_a, sigma_noise, closure=True)
 
-    K = phi @ Sigma_a @ phi.T
-    K.flat[:: K.shape[0] + 1] += sigma**2
+        # reconstruct fit
+        phi_best = build_phi(t, b_best, d)
+        du_fit = phi_best @ a_best
 
-    U, S, Vt = np.linalg.svd(K)
-    Sinv = 1.0 / S
-    Kinv_u = (U * Sinv) @ (U.T @ u)
-    return Sigma_a @ phi.T @ Kinv_u
+        u_fit = np.cumsum(du_fit) * (t[1] - t[0])
 
+        # dump
+        np.savetxt(
+            f"data/{name}/d={d}.dat",
+            np.column_stack([t, du_fit, u_fit]),
+            header=f"# t du u (d={d} H={best_H})",
+            comments="",
+        )
 
-# build grid b for best_H
-b_best = np.linspace(t_data[0], t_data[-1], best_H)
-
-# posterior MAP amplitudes
-a_best = map_a(
-    t_data, du_data, b_best, d=d, tc=tc, sigma_a=sigma_a, sigma=sigma
-)
-
-# reconstruct fit
-phi_best = repu(t_data[:, None] - b_best[None, :], d)
-u_fit = phi_best @ a_best
-
-# plot
-plt.plot(t_data, du_data, label="data")
-plt.plot(t_data, u_fit, label="fit")
-plt.legend()
-plt.show()
-
-# %%
-plt.plot(t_data, np.cumsum(du_data), label="data")
-plt.plot(t_data, np.cumsum(u_fit), label="fit")
-plt.legend()
+        # plot in two panels (left du, right u)
+        plt.plot(t, du, label=f"data {name}")
+        plt.plot(t, du_fit, label=f"fit d={d} H={best_H}")
+        plt.legend()
+        plt.show()
