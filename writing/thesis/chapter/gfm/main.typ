@@ -681,7 +681,7 @@ $
   &= 1/2 thin k^((d)) (bm(Sigma)^(1/2) bm(x)_t, bm(Sigma)^(1/2) bm(x)_t') \
   &= 1/(2pi) ||bm(Sigma)^(1/2) bm(x)_t||^d ||bm(Sigma)^(1/2) bm(x)_t'||^d J_d (theta),
 $ <eq:tack>
-where the factor $1\/2$ follows from the Heaviside convention used in #pcite(<Cho2009>).
+where the factor $1\/2$ compensates for the convention used in #pcite(<Cho2009>).
 Here,
 $
   theta = arccos((bm(x)_t^top bm(Sigma) bm(x)_t')/
