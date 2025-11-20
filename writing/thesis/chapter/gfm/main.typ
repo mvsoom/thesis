@@ -395,10 +395,107 @@ $
 $ <eq:udashani>
 We can then obtain $bm(u)$ from $bm(u')$ via integration using @eq:udu.
 Compared to samples from the isotropic prior @eq:udashgauss,
-the anisotropic prior @eq:udashani induces glottal flows $bm(u)$ that tend to look more pulse-like.
-// TODO: for samples, refer to future picture of samples from the neural net below for d = 0
-Likewise, regression with the latter ensures that posterior mass vanishes at solutions $bm(u)$ that violate the closure constraint.
+the anisotropic prior @eq:udashani induces glottal flows $u(t)$ that tend to look more pulse-like, as shown in @fig:closure.
+Indeed, moving to the bottom right corner, it is seen that increasing $H$ and $d$ tends to produce LF-like pulses out of the box!
 
+#let gpfig(path) = box(width: 80pt, height: 60pt, inset: 0pt)[
+  #gnuplot(read(path))
+]
+
+// small gutter for typical table cells
+// large gutter between closure groups
+#let small-col-gap = 4pt
+#let big-col-gap = 16pt
+#let small-row-gap = 3pt
+
+#figure(
+  table(
+    columns: (auto, auto, auto, auto, 0pt, auto, auto, auto),
+    column-gutter: (
+      small-col-gap,
+      small-col-gap,
+      small-col-gap,
+      big-col-gap,
+      small-col-gap,
+      small-col-gap,
+      small-col-gap,
+    ),
+    row-gutter: small-row-gap,
+    align: center,
+    stroke: none,
+    
+    // ---------- HEADER ROW 1 ----------
+    [],
+    table.cell(colspan: 3)[*Without closure constraint*],
+    [],
+    table.cell(colspan: 3)[*With closure constraint*],
+    
+    // ---------- HEADER ROW 2 ----------
+    [],
+    [$H = 10$], [$H = 100$], [$H = 1000$],
+    [],
+    [$H = 10$], [$H = 100$], [$H = 1000$],
+    
+    // ---------- d = 0 ----------
+    table.cell(align: center + horizon)[
+      #rotate(-90deg, reflow: true)[$d = 0$]
+    ],
+    gpfig("./fig/closure/closure=0_H=10_d=0.gp"),
+    gpfig("./fig/closure/closure=0_H=100_d=0.gp"),
+    gpfig("./fig/closure/closure=0_H=1000_d=0.gp"),
+    [],
+    gpfig("./fig/closure/closure=1_H=10_d=0.gp"),
+    gpfig("./fig/closure/closure=1_H=100_d=0.gp"),
+    gpfig("./fig/closure/closure=1_H=1000_d=0.gp"),
+    
+    // ---------- d = 1 ----------
+    table.cell(align: center + horizon)[
+      #rotate(-90deg, reflow: true)[$d = 1$]
+    ],
+    gpfig("./fig/closure/closure=0_H=10_d=1.gp"),
+    gpfig("./fig/closure/closure=0_H=100_d=1.gp"),
+    gpfig("./fig/closure/closure=0_H=1000_d=1.gp"),
+    [],
+    gpfig("./fig/closure/closure=1_H=10_d=1.gp"),
+    gpfig("./fig/closure/closure=1_H=100_d=1.gp"),
+    gpfig("./fig/closure/closure=1_H=1000_d=1.gp"),
+    
+    // ---------- d = 2 ----------
+    table.cell(align: center + horizon)[
+      #rotate(-90deg, reflow: true)[$d = 2$]
+    ],
+    gpfig("./fig/closure/closure=0_H=10_d=2.gp"),
+    gpfig("./fig/closure/closure=0_H=100_d=2.gp"),
+    gpfig("./fig/closure/closure=0_H=1000_d=2.gp"),
+    [],
+    gpfig("./fig/closure/closure=1_H=10_d=2.gp"),
+    gpfig("./fig/closure/closure=1_H=100_d=2.gp"),
+    gpfig("./fig/closure/closure=1_H=1000_d=2.gp"),
+    
+    // ---------- d = 3 ----------
+    table.cell(align: center + horizon)[
+      #rotate(-90deg, reflow: true)[$d = 3$]
+    ],
+    gpfig("./fig/closure/closure=0_H=10_d=3.gp"),
+    gpfig("./fig/closure/closure=0_H=100_d=3.gp"),
+    gpfig("./fig/closure/closure=0_H=1000_d=3.gp"),
+    [],
+    gpfig("./fig/closure/closure=1_H=10_d=3.gp"),
+    gpfig("./fig/closure/closure=1_H=100_d=3.gp"),
+    gpfig("./fig/closure/closure=1_H=1000_d=3.gp"),
+  ),
+  placement: auto,
+  caption: [
+    *Samples of $u(t)$* from the general parametric piecewise polynomial model @eq:udH
+    with or without the closure constraint @eq:arh-constraint.
+    For each combination of degree $d$ and order $H$,
+    a total of $H$ changepoints $b_h ~ mono("Uniform")(0,t_c)$ were drawn randomly,
+    and four instances of $bm(u')$ conditioned on these were sampled either from @eq:udashgauss [*Without closure constraint*] or from @eq:udashani [*With closure constraint*].
+    Then $u(t) = integral^tau_0 u'(tau) dif t$ was obtained by quadrature of $bm(u')$.
+  ],
+) <fig:closure>
+
+Regression with @eq:udashani ensures that posterior mass vanishes at solutions $bm(u)$ that violate the closure constraint.
 This illustrates how linear constraints on the amplitudes $bm(a)$ in the linear model @eq:udphia can encode GFM properties at the cost of just a single rank-one downdate per constraint.
 Moving on from linear models to Gaussian processes, these linear constraints become linear functionals known as _interdomain features_, which may be used to impose structure directly in function space, without touching rank, but more challenging mathematically.
 In @chapter:pack, we will use the interdomain approach to learn spectral features of nonparametric GFMs directly from data rather than hardcoding them as in @eq:arh-constraint.
@@ -817,100 +914,3 @@ These are [parametric $<=>$ #link(<sec:joint-source-filter-methods>)[joint sourc
 
 That is, the proposed probabilistic model has support for any parametric glottal flow model while retaining capacity to "let the data speak for itself" if need be.
 In the next chapters we will refine this initially tiny support gradually into a strong inductive bias by learning features from synthetic glottal flow simulations.
-
-
-#let gpfig(path) = box(width: 80pt, height: 60pt, inset: 0pt)[
-  #gnuplot(read(path))
-]
-
-// small gutter for typical table cells
-// large gutter between closure groups
-#let small-col-gap = 4pt
-#let big-col-gap = 16pt
-#let small-row-gap = 3pt
-
-
-#figure(
-  table(
-    columns: (auto, auto, auto, auto, 0pt, auto, auto, auto),
-    column-gutter: (
-      small-col-gap,
-      small-col-gap,
-      small-col-gap,
-      big-col-gap,
-      small-col-gap,
-      small-col-gap,
-      small-col-gap,
-    ),
-    row-gutter: small-row-gap,
-    align: center,
-    stroke: none,
-    
-    // ---------- HEADER ROW 1 ----------
-    [],
-    table.cell(colspan: 3)[*Without closure constraint*],
-    [],
-    table.cell(colspan: 3)[*With closure constraint*],
-    
-    // ---------- HEADER ROW 2 ----------
-    [],
-    [$H = 10$], [$H = 100$], [$H = 1000$],
-    [],
-    [$H = 10$], [$H = 100$], [$H = 1000$],
-    
-    // ---------- d = 0 ----------
-    table.cell(align: center + horizon)[
-      #rotate(-90deg, reflow: true)[$d = 0$]
-    ],
-    gpfig("./fig/closure/closure=0_H=10_d=0.gp"),
-    gpfig("./fig/closure/closure=0_H=100_d=0.gp"),
-    gpfig("./fig/closure/closure=0_H=1000_d=0.gp"),
-    [],
-    gpfig("./fig/closure/closure=1_H=10_d=0.gp"),
-    gpfig("./fig/closure/closure=1_H=100_d=0.gp"),
-    gpfig("./fig/closure/closure=1_H=1000_d=0.gp"),
-    
-    // ---------- d = 1 ----------
-    table.cell(align: center + horizon)[
-      #rotate(-90deg, reflow: true)[$d = 1$]
-    ],
-    gpfig("./fig/closure/closure=0_H=10_d=1.gp"),
-    gpfig("./fig/closure/closure=0_H=100_d=1.gp"),
-    gpfig("./fig/closure/closure=0_H=1000_d=1.gp"),
-    [],
-    gpfig("./fig/closure/closure=1_H=10_d=1.gp"),
-    gpfig("./fig/closure/closure=1_H=100_d=1.gp"),
-    gpfig("./fig/closure/closure=1_H=1000_d=1.gp"),
-    
-    // ---------- d = 2 ----------
-    table.cell(align: center + horizon)[
-      #rotate(-90deg, reflow: true)[$d = 2$]
-    ],
-    gpfig("./fig/closure/closure=0_H=10_d=2.gp"),
-    gpfig("./fig/closure/closure=0_H=100_d=2.gp"),
-    gpfig("./fig/closure/closure=0_H=1000_d=2.gp"),
-    [],
-    gpfig("./fig/closure/closure=1_H=10_d=2.gp"),
-    gpfig("./fig/closure/closure=1_H=100_d=2.gp"),
-    gpfig("./fig/closure/closure=1_H=1000_d=2.gp"),
-    
-    // ---------- d = 3 ----------
-    table.cell(align: center + horizon)[
-      #rotate(-90deg, reflow: true)[$d = 3$]
-    ],
-    gpfig("./fig/closure/closure=0_H=10_d=3.gp"),
-    gpfig("./fig/closure/closure=0_H=100_d=3.gp"),
-    gpfig("./fig/closure/closure=0_H=1000_d=3.gp"),
-    [],
-    gpfig("./fig/closure/closure=1_H=10_d=3.gp"),
-    gpfig("./fig/closure/closure=1_H=100_d=3.gp"),
-    gpfig("./fig/closure/closure=1_H=1000_d=3.gp"),
-  ),
-  placement: auto,
-  caption: [
-    *Samples of $u(t)$* from the linear model for various degrees $d$ and order $H$ (number of basisfunctions used) and without/with closure constraint applied.
-    Changepoints $b_h ~ mono("Uniform")(0,t_c)$ were drawn randomly.
-    For each model 4 samples were drawn.
-    Horizontal and vertical scales are arbitrary.
-  ],
-)

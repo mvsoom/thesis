@@ -15,6 +15,9 @@ See `./stats.R`
 ## Examplar: `hard_gci`
 
 - periodickernel consistently performs worst => encouraging news, because IKLP uses this, so we can expect improvements
+
+  - This is because of smoothness + it can't model the hard GCI jump (needs to be smoothly joined at period end and beginning)
+
 - There is the expected correlation between `d` and `tack:{d}`, ie, `d`-approximation of the examplar favours `tack:d` consistently
 
   - But, for `d = {0,1}` tack:0 and tack:1 on par with matern12 and matern32, respectively; equal within error
