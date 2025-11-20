@@ -39,7 +39,7 @@ curves = [
     (x, u, {"legend": "u", "with": "lines"}),
 ]
 
-with open("du.gp", "w") as f, contextlib.redirect_stdout(f):
+with open("fig/du.gp", "w") as f, contextlib.redirect_stdout(f):
     gp.plot(*curves, ascii=True, dump=True, notest=True)
 # %%
 

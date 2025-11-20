@@ -817,3 +817,100 @@ These are [parametric $<=>$ #link(<sec:joint-source-filter-methods>)[joint sourc
 
 That is, the proposed probabilistic model has support for any parametric glottal flow model while retaining capacity to "let the data speak for itself" if need be.
 In the next chapters we will refine this initially tiny support gradually into a strong inductive bias by learning features from synthetic glottal flow simulations.
+
+
+#let gpfig(path) = box(width: 80pt, height: 60pt, inset: 0pt)[
+  #gnuplot(read(path))
+]
+
+// small gutter for typical table cells
+// large gutter between closure groups
+#let small-col-gap = 4pt
+#let big-col-gap = 16pt
+#let small-row-gap = 3pt
+
+
+#figure(
+  table(
+    columns: (auto, auto, auto, auto, 0pt, auto, auto, auto),
+    column-gutter: (
+      small-col-gap,
+      small-col-gap,
+      small-col-gap,
+      big-col-gap,
+      small-col-gap,
+      small-col-gap,
+      small-col-gap,
+    ),
+    row-gutter: small-row-gap,
+    align: center,
+    stroke: none,
+    
+    // ---------- HEADER ROW 1 ----------
+    [],
+    table.cell(colspan: 3)[*Without closure constraint*],
+    [],
+    table.cell(colspan: 3)[*With closure constraint*],
+    
+    // ---------- HEADER ROW 2 ----------
+    [],
+    [$H = 10$], [$H = 100$], [$H = 1000$],
+    [],
+    [$H = 10$], [$H = 100$], [$H = 1000$],
+    
+    // ---------- d = 0 ----------
+    table.cell(align: center + horizon)[
+      #rotate(-90deg, reflow: true)[$d = 0$]
+    ],
+    gpfig("./fig/closure/closure=0_H=10_d=0.gp"),
+    gpfig("./fig/closure/closure=0_H=100_d=0.gp"),
+    gpfig("./fig/closure/closure=0_H=1000_d=0.gp"),
+    [],
+    gpfig("./fig/closure/closure=1_H=10_d=0.gp"),
+    gpfig("./fig/closure/closure=1_H=100_d=0.gp"),
+    gpfig("./fig/closure/closure=1_H=1000_d=0.gp"),
+    
+    // ---------- d = 1 ----------
+    table.cell(align: center + horizon)[
+      #rotate(-90deg, reflow: true)[$d = 1$]
+    ],
+    gpfig("./fig/closure/closure=0_H=10_d=1.gp"),
+    gpfig("./fig/closure/closure=0_H=100_d=1.gp"),
+    gpfig("./fig/closure/closure=0_H=1000_d=1.gp"),
+    [],
+    gpfig("./fig/closure/closure=1_H=10_d=1.gp"),
+    gpfig("./fig/closure/closure=1_H=100_d=1.gp"),
+    gpfig("./fig/closure/closure=1_H=1000_d=1.gp"),
+    
+    // ---------- d = 2 ----------
+    table.cell(align: center + horizon)[
+      #rotate(-90deg, reflow: true)[$d = 2$]
+    ],
+    gpfig("./fig/closure/closure=0_H=10_d=2.gp"),
+    gpfig("./fig/closure/closure=0_H=100_d=2.gp"),
+    gpfig("./fig/closure/closure=0_H=1000_d=2.gp"),
+    [],
+    gpfig("./fig/closure/closure=1_H=10_d=2.gp"),
+    gpfig("./fig/closure/closure=1_H=100_d=2.gp"),
+    gpfig("./fig/closure/closure=1_H=1000_d=2.gp"),
+    
+    // ---------- d = 3 ----------
+    table.cell(align: center + horizon)[
+      #rotate(-90deg, reflow: true)[$d = 3$]
+    ],
+    gpfig("./fig/closure/closure=0_H=10_d=3.gp"),
+    gpfig("./fig/closure/closure=0_H=100_d=3.gp"),
+    gpfig("./fig/closure/closure=0_H=1000_d=3.gp"),
+    [],
+    gpfig("./fig/closure/closure=1_H=10_d=3.gp"),
+    gpfig("./fig/closure/closure=1_H=100_d=3.gp"),
+    gpfig("./fig/closure/closure=1_H=1000_d=3.gp"),
+  ),
+  placement: auto,
+  caption: [
+    *Samples of $u(t)$* from the linear model for various degrees $d$ and order $H$ (number of basisfunctions used) and without/with closure constraint applied.
+    Changepoints $b_h ~ mono("Uniform")(0,t_c)$ were drawn randomly.
+    For each model 4 samples were drawn.
+    Horizontal and vertical scales are arbitrary.
+  ],
+)
