@@ -1,7 +1,8 @@
-# zonal_coeffs.py (or top of kernel.py)
 # %%
 import jax.numpy as jnp
 import numpy as np
+
+from gfm.ack import compute_Jd_theta_even
 
 
 def _coeffs_d0(m_max):
@@ -80,25 +81,12 @@ def _build_j_coeffs(d, m_max):
     raise ValueError("d must be 0, 1, 2 or 3")
 
 
-# simple cache so we only build once per (d,m_max)
-_J_COEFF_CACHE = {}
+def cosine_coeffs(d, m_max):
+    """Cosine-series coefficients a_m^{(d)} for J_d^ext on [-pi,pi]"""
+    return _build_j_coeffs(d, m_max)  # (m_max+1,)
 
 
-def jax_j_cosine_coeffs(d, m_max):
-    """
-    Cosine-series coefficients a_m^{(d)} for J_d^ext on [-pi,pi].
-
-    Returns jnp.array of shape (m_max+1,), with entries for m=0..m_max.
-    For complex-exponential coefficients c_m^{(d)}, use a/2 later.
-    """
-    key = (int(d), int(m_max))
-    if key not in _J_COEFF_CACHE:
-        a = _build_j_coeffs(d, m_max)
-        _J_COEFF_CACHE[key] = jnp.asarray(a)
-    return _J_COEFF_CACHE[key]
-
-
-def jax_j_complex_coeffs(d, m_max):
+def complex_coeffs(d, m_max):
     """
     Complex Fourier coefficients c_m^{(d)} with
 
@@ -106,22 +94,45 @@ def jax_j_complex_coeffs(d, m_max):
 
     for m >= 0. Here c_m = a_m / 2, and c_{-m} = c_m.
     """
-    a = 0.5 * jax_j_cosine_coeffs(d, m_max)
+    a = 0.5 * cosine_coeffs(d, m_max)
     c = np.concat([a[::-1][:-1], a])
-    return c
+    return c  # (2*m_max+1,)
+
+
+def reconstruct_jd_ext(d, theta, m_max):
+    """
+    Reconstruct J_d^ext(theta) from its complex Fourier coefficients
+    up to order m_max.
+    """
+    c = complex_coeffs(d, m_max)
+    exps = jnp.exp(1j * jnp.arange(-m_max, m_max + 1)[:, None] * theta[None, :])
+    recon = jnp.sum(c[:, None] * exps, axis=0)
+    return recon
 
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
 
-    d = 3
+    d = 1
     m_max = 500
 
-    c = jax_j_complex_coeffs(d, m_max)
-    theta = jnp.arange(-np.pi, np.pi, 0.01)
-    exps = jnp.exp(1j * jnp.arange(-m_max, m_max + 1)[:, None] * theta[None, :])
-    recon = jnp.sum(c[:, None] * exps, axis=0)
+    theta = jnp.linspace(-jnp.pi, jnp.pi, 1000)
+    recon = reconstruct_jd_ext(d, theta, m_max)
+    true = compute_Jd_theta_even(d, theta)
 
-    plt.plot(recon.real, label="real part")
-    plt.plot(recon.imag, label="imag part")
+    plt.plot(theta, recon.real, label="real part")
+    plt.plot(theta, recon.imag, label="imag part")
+    plt.plot(theta, true, "--", label="true")
+
+    plt.title(f"Reconstruction of J_{d}^ext with m_max={m_max}")
+    plt.xlabel("theta")
+    plt.ylabel("J_d^ext(theta)")
     plt.legend()
+    plt.show()
+
+    # show error
+    plt.plot(theta, jnp.abs(recon.real - true))
+    plt.title(f"Reconstruction error of J_{d}^ext with m_max={m_max}")
+    plt.xlabel("theta")
+    plt.ylabel("|recon - true|")
+    plt.show()

@@ -9,7 +9,7 @@ import numpy as np
 a = 1  # integrate over x∈[-a, a]
 m_max = 30
 m_vals = jnp.arange(-m_max, m_max + 1)  # m = 0 … 30   (shape (M,))
-f_vals = jnp.arange(1, 9) * jnp.pi  #   (shape (W,))
+f_vals = jnp.arange(1, 9)  #   (shape (W,))
 omega_vals = 2 * jnp.pi * f_vals
 Nquad = 128  # 128-point Gauss–Legendre: don't go lower
 
