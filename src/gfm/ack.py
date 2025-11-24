@@ -28,6 +28,16 @@ def compute_Jd(d, c, s):
     return Jd
 
 
+def compute_Jd_theta(d, theta):
+    c = jnp.cos(theta)
+    s = jnp.sin(theta)
+    return compute_Jd(d, c, s)
+
+
+def compute_Jd_theta_even(d, theta):
+    return compute_Jd_theta(d, jnp.abs(theta))
+
+
 class ACK(Kernel):
     """Arc cosine kernel of degree `d` (as in Cho & Saul, 2009)
 
@@ -85,6 +95,12 @@ class TACK(Kernel):
         pre = 1.0 if self.normalized else 0.5
         K12 = pre * ack.evaluate(self.LSigma @ X1, self.LSigma @ X2)
         return K12
+
+
+class STACK(TACK):
+    """Standard temporal arc cosine kernel of degree `d`"""
+
+    pass
 
 
 if __name__ == "__main__":

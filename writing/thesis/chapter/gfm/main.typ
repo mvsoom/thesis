@@ -491,7 +491,7 @@ Indeed, moving to the bottom right corner, it is seen that increasing $H$ and $d
     For each combination of degree $d$ and order $H$,
     a total of $H$ changepoints $b_h ~ mono("Uniform")(0,t_c)$ were drawn randomly,
     and four instances of $bm(u')$ conditioned on these were sampled either from @eq:udashgauss [*Without closure constraint*] or from @eq:udashani [*With closure constraint*].
-    Then $u(t) = integral^tau_0 u'(tau) dif t$ was obtained by quadrature of $bm(u')$.
+    Then $u(t) = integral^t_0 u'(tau) dif tau$ was obtained by quadrature of $bm(u')$.
   ],
 ) <fig:closure>
 

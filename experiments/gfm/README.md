@@ -4,6 +4,7 @@
 
 Modifications:
 
+- Try/except for dyplots!!
 - Run on CPU only
 - Add STACK to list of kernels
 - More iterations (can sum with independent sd bars)
@@ -42,4 +43,23 @@ See `./stats.R`
 
 (has a challenging return phase)
 
-[no sufficient data yet]
+[some runs failed here due to plotting errors]
+
+- For `d=0;1` tack:0 and tack:1 align, and centered and normalized is preferred
+
+- This expected lineup does not happen for `d=2;3`; matern:inf is preferred
+  * This result is due to the fact that the fits of the NN(d=2;3) models are quite wiggly, and matern:inf picks up on this
+
+- For `d=100`, ie the raw LF waveforms the winners are tack:1 (centered) and matern:32, which accords with differentiability and our previous thesis
+  * Surprisingly, tack:0 scores very badly, and periodickernel scores better
+
+
+# General observations
+
+- Surprisingly, ACK(d) is not always paired with the model generating the examplar approximation of degree (d).
+  - This is due to the details of each fit and thus not necessarily super representive; matern-inf wins for d=2 and d=3 because these are very wiggly fits for example
+
+- Centered is definitely important, normalized less so (inc
+
+CONCLUSION: results look good but we are more interested in just fitting variations of LF(R_d) with all models represented here; rather than examplar approximations, as the results depend too much on the details.
+=> we do the `relaxation` experiment

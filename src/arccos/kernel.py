@@ -196,7 +196,7 @@ def J0_series(t, M=50):
     return s
 
 
-M = 30
+M = 100
 
 plt.figure(figsize=(5, 3))
 plt.plot(thetas, Jn(0, thetas), label="exact J0")
@@ -282,6 +282,11 @@ plt.tight_layout()
 plt.show()
 
 # %%
+from gfm.ack import compute_Jd_theta_even
+
+compute_Jd_theta_even(2, 1.1)
+
+# %%
 # J3
 import matplotlib.pyplot as plt
 import numpy as np
@@ -347,3 +352,5 @@ plt.show()
 # n = 3 => O(m^(-8)) [smoothest]
 # Each order increases differentiability by one, and every
 # extra derivative knocks the Fourier coefficients down by another m^(-2)
+
+# %%

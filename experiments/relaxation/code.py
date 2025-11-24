@@ -1,13 +1,11 @@
 # %%
 # parameters, export
 seed = 545465
-examplar_name = "soft_gci"
-d = 100
+Rd = 1.2
 kernel = "tack:1"
 centered = False
 normalized = False
-data_file = "/home/marnix/thesis/experiments/gfm/data/hard_gci/lf.dat"
-iteration = 0
+iteration = 1
 
 # %%
 import jax
@@ -17,60 +15,60 @@ import numpy as np
 
 jax.config.update("jax_enable_x64", True)
 jax.config.update("jax_log_compiles", False)
+jax.config.update("jax_platform_name", "cpu")
 
 from tinygp.kernels import Exp, ExpSineSquared, ExpSquared, Matern32, Matern52
 
-from gfm.ack import TACK
+from gfm.ack import STACK, TACK
+from gfm.lf import lf_relaxation_open_phase
 
 # %%
+tc = 6.0
+N = 256
 
-def get_data():
-    data = np.loadtxt(data_file, skiprows=1)
-    t = data[:, 0]
-    du = data[:, 1]
-    u = data[:, 2]
-    return t, du, u
+d = lf_relaxation_open_phase(Rd, tc, N)
+t, du, u = d["t"], d["du"], d["u"]
 
-
-t, du, u = get_data()
-
-plt.title(f"Test data: {examplar_name}, d={d}")
+plt.title(f"Data to fit: Rd={Rd}")
 plt.plot(t, du, label="du")
 plt.plot(t, u, label="u")
 plt.legend()
 
 
 # %%
-
-
-PERIOD = t[-1] - t[0]
-
-
 def instantiate_kernel(kernel, theta):
     match kernel:
         case "matern:12":
-            k = Exp(scale=theta["ell"])
+            k = theta["sigma_a"] * Exp(scale=theta["ell"])
         case "matern:32":
-            k = Matern32(scale=theta["ell"])
+            k = theta["sigma_a"] * Matern32(scale=theta["ell"])
         case "matern:52":
-            k = Matern52(scale=theta["ell"])
+            k = theta["sigma_a"] * Matern52(scale=theta["ell"])
         case "matern:inf":
-            k = ExpSquared(scale=theta["ell"])
+            k = theta["sigma_a"] * ExpSquared(scale=theta["ell"])
         case "periodickernel":
             # Parametrization (r, T) agrees with src.iklp.periodic.periodic_kernel_generator() [but the latter calculates the time indices t differently; we have PERIOD inclusive and the latter exclusive]
             r = theta["r"]
-            T = PERIOD
+            T = tc
             gamma = 1.0 / (2.0 * r**2)
-            k = ExpSineSquared(scale=T, gamma=gamma)
+            k = theta["sigma_a"] * ExpSineSquared(scale=T, gamma=gamma)
         case _ if "tack" in kernel:
             d = int(kernel[-1])
             center = t.mean() if centered else 0.0
-            LSigma = jnp.diag(jnp.array([theta["sigma_b"], theta["sigma_c"]]))
-            k = TACK(d=d, normalized=normalized, center=center, LSigma=LSigma)
+
+            if "stack" in kernel:
+                k = STACK(d=d, normalized=normalized, center=center)
+            else:
+                LSigma = jnp.diag(
+                    jnp.array([theta["sigma_b"], theta["sigma_c"]])
+                )
+                k = theta["sigma_a"] * TACK(
+                    d=d, normalized=normalized, center=center, LSigma=LSigma
+                )
         case _:
             raise NotImplementedError(f"Kernel {kernel} not implemented")
 
-    return theta["sigma_a"] * k
+    return k
 
 
 theta = {
@@ -121,6 +119,10 @@ def build_theta(x, kernel):
                 "sigma_a": x[1],
                 "r": x[2],
             }
+        case _ if "stack" in kernel:
+            return {
+                "sigma_noise": x[0],
+            }
         case _ if "tack" in kernel:
             return {
                 "sigma_noise": x[0],
@@ -138,9 +140,11 @@ def loglikelihood(x):
     gp = build_gp(theta)
     return gp.log_probability(du)
 
+
 def ptform(u):
     z = ndtri(u)
     return 10.0**z
+
 
 # %%
 
@@ -177,7 +181,7 @@ for x in xs:
 
     gp = build_gp(theta)
     mu, var = gp.predict(du, t, return_var=True)
-    std = jnp.sqrt(var)
+    std = jnp.sqrt(var) + theta["sigma_noise"]
 
     plt.fill_between(
         t,
@@ -187,18 +191,23 @@ for x in xs:
     )
     plt.plot(t, mu, label="GP posterior mean")
 
+plt.plot(t, du, label="data")
+
 plt.title(f"kernel: {kernel}, centered: {centered}, normalized: {normalized}")
 plt.legend()
 
 # %%
 from dynesty import plotting as dyplot
 
-fig, ax = dyplot.cornerplot(
-    res,
-    labels=[str(k) for k in theta.keys()],
-    verbose=True,
-    quantiles=[0.05, 0.5, 0.95],
-)
+try:
+    fig, ax = dyplot.cornerplot(
+        res,
+        labels=[str(k) for k in theta.keys()],
+        verbose=True,
+        quantiles=[0.05, 0.5, 0.95],
+    )
+except Exception as e:
+    print(f"Could not make corner plot: {e}")
 
 # %%
 # export

@@ -246,6 +246,7 @@ NH_tab = np.full_like(H0, np.nan + 0j)  # same shape, filled with NaN
 for n in range(n_max + 1):
     for m in range(-m_max + n, m_max - n + 1):  # triangle region
         NH_tab[n, m + m_max] = NH(m, n, ω, x1, x2)
+        print(f"Computed NH(n={n}, m={m})")
 
 # ---------- error metrics ----------
 mask = ~np.isnan(NH_tab)  # valid positions inside triangle
@@ -264,4 +265,6 @@ for n in range(n_max + 1):
     for m, h, nh, e in zip(range(-5, 6), row_H, row_NH, err):
         print(f" m={m:+2d}  H={h: .6e}  NH={nh: .6e}  Δ={e:.1e}")
 
+
+# works!
 # %%
