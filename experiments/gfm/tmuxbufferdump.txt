@@ -1,0 +1,1380 @@
+
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=1_kernel=tack:3_centered=False_normalized=False_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=1_kernel=tack:3_centered=False_normalized=False_iter=1.ipynb
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=1_kernel=matern:12_centered=False_normalized=False_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=1_kernel=matern:12_centered=False_normalized=False_iter=1.ipynb             
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=1_kernel=matern:32_centered=False_normalized=False_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=1_kernel=matern:32_centered=False_normalized=False_iter=1.ipynb             
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=1_kernel=matern:52_centered=False_normalized=False_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=1_kernel=matern:52_centered=False_normalized=False_iter=1.ipynb             
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=1_kernel=matern:inf_centered=False_normalized=False_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=1_kernel=matern:inf_centered=False_normalized=False_iter=1.ipynb            
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=1_kernel=periodickernel_centered=False_normalized=False_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=1_kernel=periodickernel_centered=False_normalized=False_iter=1.ipynb        
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=tack:0_centered=True_normalized=True_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=tack:0_centered=True_normalized=True_iter=1.ipynb
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=tack:0_centered=True_normalized=False_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=tack:0_centered=True_normalized=False_iter=1.ipynb
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=tack:0_centered=False_normalized=True_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=tack:0_centered=False_normalized=True_iter=1.ipynb
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=tack:0_centered=False_normalized=False_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=tack:0_centered=False_normalized=False_iter=1.ipynb
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=tack:1_centered=True_normalized=True_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=tack:1_centered=True_normalized=True_iter=1.ipynb
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=tack:1_centered=True_normalized=False_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=tack:1_centered=True_normalized=False_iter=1.ipynb
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=tack:1_centered=False_normalized=True_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=tack:1_centered=False_normalized=True_iter=1.ipynb
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=tack:1_centered=False_normalized=False_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=tack:1_centered=False_normalized=False_iter=1.ipynb
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=tack:2_centered=True_normalized=True_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=tack:2_centered=True_normalized=True_iter=1.ipynb
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=tack:2_centered=True_normalized=False_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=tack:2_centered=True_normalized=False_iter=1.ipynb
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=tack:2_centered=False_normalized=True_iter=1.ipynb
+Execution Excepted: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=tack:2_centered=False_normalized=True_iter=1.ipynb
+CellExecutionError: An error occurred while executing the following cell:  
+------------------               
+from dynesty import plotting as dyplot                             
+
+fig, ax = dyplot.cornerplot(     
+    res,        
+    labels=[str(k) for k in theta.keys()],                         
+    verbose=True,                
+    quantiles=[0.05, 0.5, 0.95], 
+)               
+
+------------------               
+
+----- stderr -----               
+/home/marnix/thesis/.venv/lib/python3.10/site-packages/dynesty/plotting.py:1368: UserWarning: Attempting to set identical low and high ylims makes transformation singular; automatically expanding.
+  ax.set_ylim([0., max(n) * 1.05])                                 
+----- stdout -----               
+Quantiles:      
+sigma_noise [(0.05, 3.972175493646282e-05), (0.5, 3.988504792098427e-05), (0.95, 4.004834090550571e-05)]
+----- stderr -----               
+/home/marnix/thesis/.venv/lib/python3.10/site-packages/dynesty/plotting.py:1368: UserWarning: Attempting to set identical low and high ylims makes transformation singular; automatically expanding.
+  ax.set_ylim([0., max(n) * 1.05])                                 
+/home/marnix/thesis/.venv/lib/python3.10/site-packages/dynesty/plotting.py:2312: RuntimeWarning: invalid value encountered in divide
+  sm /= sm[-1]  
+WARNING:root:Too few points to create valid contours.              
+----- stderr -----               
+WARNING:root:No points at all in the plotted region                
+----- stdout -----               
+Quantiles:      
+sigma_a [(0.05, 19220.63945531137), (0.5, 19228.413935467124), (0.95, 19236.188415622877)]
+------------------               
+
+---------------------------------------------------------------------------
+ValueError                                Traceback (most recent call last)
+Cell In[12], line 3              
+      1 from dynesty import plotting as dyplot                     
+----> 3 fig, ax = dyplot.cornerplot(                               
+      4     res,
+      5     labels=[str(k) for k in theta.keys()],                 
+      6     verbose=True,        
+      7     quantiles=[0.05, 0.5, 0.95],                           
+      8 )       
+
+File ~/thesis/.venv/lib/python3.10/site-packages/dynesty/plotting.py:1451, in cornerplot(results, dims, span, quantiles, color, smooth, quantiles_2d, hist_kwargs, hist2d_kwargs, labels, label_kwargs, show_titles, title_quantiles, title_fmt, title_kwargs, truths, truth_color, truth_kwargs, max_n_ticks, top_ticks, use_math_text, verbose, fig)                                 
+   1447 hist2d_kwargs['fill_contours'] = hist2d_kwargs.get(        
+   1448     'fill_contours', fill_contours)                        
+   1449 hist2d_kwargs['plot_contours'] = hist2d_kwargs.get(        
+   1450     'plot_contours', plot_contours)                        
+-> 1451 _hist2d(y,               
+   1452         x,               
+   1453         ax=ax,           
+   1454         span=[span[j], span[i]],                           
+   1455         weights=weights, 
+   1456         color=color,     
+   1457         smooth=[sy, sx], 
+   1458         **hist2d_kwargs) 
+   1459 # Add truth values       
+   1460 if truths is not None:   
+
+File ~/thesis/.venv/lib/python3.10/site-packages/dynesty/plotting.py:2366, in _hist2d(x, y, smooth, span, weights, levels, ax, color, plot_datapoints, plot_density, plot_contours, no_fill_contours, fill_contours, contour_kwargs, contourf_kwargs, data_kwargs)
+   2364 # Plot the base fill to hide the densest data points.      
+   2365 if (plot_contours or plot_density) and not no_fill_contours:       
+-> 2366     ax.contourf(X2,      
+   2367                 Y2,      
+   2368                 H2.T, [V.min(), H.max()],                  
+   2369                 cmap=white_cmap,                           
+   2370                 antialiased=False)                         
+   2372 if plot_contours and fill_contours:                        
+   2373     if contourf_kwargs is None:                            
+
+File ~/thesis/.venv/lib/python3.10/site-packages/matplotlib/__init__.py:1524, in _preprocess_data.<locals>.inner(ax, data, *args, **kwargs)           
+   1521 @functools.wraps(func)   
+   1522 def inner(ax, *args, data=None, **kwargs):                 
+   1523     if data is None:     
+-> 1524         return func(     
+   1525             ax,          
+   1526             *map(cbook.sanitize_sequence, args),           
+   1527             **{k: cbook.sanitize_sequence(v) for k, v in kwargs.items()})
+   1529     bound = new_sig.bind(ax, *args, **kwargs)              
+   1530     auto_label = (bound.arguments.get(label_namer)         
+   1531                   or bound.kwargs.get(label_namer))        
+
+File ~/thesis/.venv/lib/python3.10/site-packages/matplotlib/axes/_axes.py:6797, in Axes.contourf(self, *args, **kwargs)
+   6786 """     
+   6787 Plot filled contours.    
+   6788         
+   (...)        
+   6794 %(contour_doc)s          
+   6795 """     
+   6796 kwargs['filled'] = True  
+-> 6797 contours = mcontour.QuadContourSet(self, *args, **kwargs)  
+   6798 self._request_autoscale_view()                             
+   6799 return contours          
+
+File ~/thesis/.venv/lib/python3.10/site-packages/matplotlib/contour.py:701, in ContourSet.__init__(self, ax, levels, filled, linewidths, linestyles, hatches, alpha, origin, extent, cmap, colors, norm, vmin, vmax, colorizer, extend, antialiased, nchunk, locator, transform, negative_linestyles, clip_path, *args, **kwargs)
+    697 if self.negative_linestyles is None:                       
+    698     self.negative_linestyles = \                           
+    699         mpl.rcParams['contour.negative_linestyle']         
+--> 701 kwargs = self._process_args(*args, **kwargs)               
+    702 self._process_levels()   
+    704 self._extend_min = self.extend in ['min', 'both']          
+
+File ~/thesis/.venv/lib/python3.10/site-packages/matplotlib/contour.py:1319, in QuadContourSet._process_args(self, corner_mask, algorithm, *args, **kwargs)
+   1316         corner_mask = mpl.rcParams['contour.corner_mask']  
+   1317 self._corner_mask = corner_mask                            
+-> 1319 x, y, z = self._contour_args(args, kwargs)                 
+   1321 contour_generator = contourpy.contour_generator(           
+   1322     x, y, z, name=self._algorithm, corner_mask=self._corner_mask,  
+   1323     line_type=contourpy.LineType.SeparateCode,             
+   1324     fill_type=contourpy.FillType.OuterCode,                
+   1325     chunk_size=self.nchunk)                                
+   1327 t = self.get_transform() 
+
+File ~/thesis/.venv/lib/python3.10/site-packages/matplotlib/contour.py:1370, in QuadContourSet._contour_args(self, args, kwargs)
+   1368     _api.warn_external('Log scale: values of z <= 0 have been masked')
+   1369     self.zmin = z.min().astype(float)                      
+-> 1370 self._process_contour_level_args(args, z.dtype)            
+   1371 return (x, y, z)         
+
+File ~/thesis/.venv/lib/python3.10/site-packages/matplotlib/contour.py:1030, in ContourSet._process_contour_level_args(self, args, z_dtype)           
+   1028     raise ValueError("Filled contours require at least 2 levels.") 
+   1029 if len(self.levels) > 1 and np.min(np.diff(self.levels)) <= 0.0:   
+-> 1030     raise ValueError("Contour levels must be increasing")  
+
+ValueError: Contour levels must be increasing                      
+
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=tack:2_centered=False_normalized=False_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=tack:2_centered=False_normalized=False_iter=1.ipynb
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=tack:3_centered=True_normalized=True_iter=1.ipynb
+Execution Excepted: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=tack:3_centered=True_normalized=True_iter=1.ipynb
+CellExecutionError: An error occurred while executing the following cell:  
+------------------               
+from dynesty import plotting as dyplot                             
+
+fig, ax = dyplot.cornerplot(     
+    res,        
+    labels=[str(k) for k in theta.keys()],                         
+    verbose=True,                
+    quantiles=[0.05, 0.5, 0.95], 
+)               
+
+------------------               
+
+----- stderr -----               
+/home/marnix/thesis/.venv/lib/python3.10/site-packages/dynesty/plotting.py:1368: UserWarning: Attempting to set identical low and high ylims makes transformation singular; automatically expanding.
+  ax.set_ylim([0., max(n) * 1.05])                                 
+----- stdout -----               
+Quantiles:      
+sigma_noise [(0.05, 5.967014354782089e-05), (0.5, 5.981412872427067e-05), (0.95, 5.995811390072045e-05)]
+----- stderr -----               
+/home/marnix/thesis/.venv/lib/python3.10/site-packages/dynesty/plotting.py:1368: UserWarning: Attempting to set identical low and high ylims makes transformation singular; automatically expanding.
+  ax.set_ylim([0., max(n) * 1.05])                                 
+/home/marnix/thesis/.venv/lib/python3.10/site-packages/dynesty/plotting.py:2312: RuntimeWarning: invalid value encountered in divide
+  sm /= sm[-1]  
+WARNING:root:Too few points to create valid contours.              
+----- stderr -----               
+WARNING:root:No points at all in the plotted region                
+----- stdout -----               
+Quantiles:      
+sigma_a [(0.05, 29048.540780264295), (0.5, 29108.294403231128), (0.95, 29168.048026197957)]
+------------------               
+
+---------------------------------------------------------------------------
+ValueError                                Traceback (most recent call last)
+Cell In[12], line 3              
+      1 from dynesty import plotting as dyplot                     
+----> 3 fig, ax = dyplot.cornerplot(                               
+      4     res,
+      5     labels=[str(k) for k in theta.keys()],                 
+      6     verbose=True,        
+      7     quantiles=[0.05, 0.5, 0.95],                           
+      8 )       
+
+File ~/thesis/.venv/lib/python3.10/site-packages/dynesty/plotting.py:1451, in cornerplot(results, dims, span, quantiles, color, smooth, quantiles_2d, hist_kwargs, hist2d_kwargs, labels, label_kwargs, show_titles, title_quantiles, title_fmt, title_kwargs, truths, truth_color, truth_kwargs, max_n_ticks, top_ticks, use_math_text, verbose, fig)                                 
+   1447 hist2d_kwargs['fill_contours'] = hist2d_kwargs.get(        
+   1448     'fill_contours', fill_contours)                        
+   1449 hist2d_kwargs['plot_contours'] = hist2d_kwargs.get(        
+   1450     'plot_contours', plot_contours)                        
+-> 1451 _hist2d(y,               
+   1452         x,               
+   1453         ax=ax,           
+   1454         span=[span[j], span[i]],                           
+   1455         weights=weights, 
+   1456         color=color,     
+   1457         smooth=[sy, sx], 
+   1458         **hist2d_kwargs) 
+   1459 # Add truth values       
+   1460 if truths is not None:   
+
+File ~/thesis/.venv/lib/python3.10/site-packages/dynesty/plotting.py:2366, in _hist2d(x, y, smooth, span, weights, levels, ax, color, plot_datapoints, plot_density, plot_contours, no_fill_contours, fill_contours, contour_kwargs, contourf_kwargs, data_kwargs)
+   2364 # Plot the base fill to hide the densest data points.      
+   2365 if (plot_contours or plot_density) and not no_fill_contours:       
+-> 2366     ax.contourf(X2,      
+   2367                 Y2,      
+   2368                 H2.T, [V.min(), H.max()],                  
+   2369                 cmap=white_cmap,                           
+   2370                 antialiased=False)                         
+   2372 if plot_contours and fill_contours:                        
+   2373     if contourf_kwargs is None:                            
+
+File ~/thesis/.venv/lib/python3.10/site-packages/matplotlib/__init__.py:1524, in _preprocess_data.<locals>.inner(ax, data, *args, **kwargs)           
+   1521 @functools.wraps(func)   
+   1522 def inner(ax, *args, data=None, **kwargs):                 
+   1523     if data is None:     
+-> 1524         return func(     
+   1525             ax,          
+   1526             *map(cbook.sanitize_sequence, args),           
+   1527             **{k: cbook.sanitize_sequence(v) for k, v in kwargs.items()})
+   1529     bound = new_sig.bind(ax, *args, **kwargs)              
+   1530     auto_label = (bound.arguments.get(label_namer)         
+   1531                   or bound.kwargs.get(label_namer))        
+
+File ~/thesis/.venv/lib/python3.10/site-packages/matplotlib/axes/_axes.py:6797, in Axes.contourf(self, *args, **kwargs)
+   6786 """     
+   6787 Plot filled contours.    
+   6788         
+   (...)        
+   6794 %(contour_doc)s          
+   6795 """     
+   6796 kwargs['filled'] = True  
+-> 6797 contours = mcontour.QuadContourSet(self, *args, **kwargs)  
+   6798 self._request_autoscale_view()                             
+   6799 return contours          
+
+File ~/thesis/.venv/lib/python3.10/site-packages/matplotlib/contour.py:701, in ContourSet.__init__(self, ax, levels, filled, linewidths, linestyles, hatches, alpha, origin, extent, cmap, colors, norm, vmin, vmax, colorizer, extend, antialiased, nchunk, locator, transform, negative_linestyles, clip_path, *args, **kwargs)
+    697 if self.negative_linestyles is None:                       
+    698     self.negative_linestyles = \                           
+    699         mpl.rcParams['contour.negative_linestyle']         
+--> 701 kwargs = self._process_args(*args, **kwargs)               
+    702 self._process_levels()   
+    704 self._extend_min = self.extend in ['min', 'both']          
+
+File ~/thesis/.venv/lib/python3.10/site-packages/matplotlib/contour.py:1319, in QuadContourSet._process_args(self, corner_mask, algorithm, *args, **kwargs)
+   1316         corner_mask = mpl.rcParams['contour.corner_mask']  
+   1317 self._corner_mask = corner_mask                            
+-> 1319 x, y, z = self._contour_args(args, kwargs)                 
+   1321 contour_generator = contourpy.contour_generator(           
+   1322     x, y, z, name=self._algorithm, corner_mask=self._corner_mask,  
+   1323     line_type=contourpy.LineType.SeparateCode,             
+   1324     fill_type=contourpy.FillType.OuterCode,                
+   1325     chunk_size=self.nchunk)                                
+   1327 t = self.get_transform() 
+
+File ~/thesis/.venv/lib/python3.10/site-packages/matplotlib/contour.py:1370, in QuadContourSet._contour_args(self, args, kwargs)
+   1368     _api.warn_external('Log scale: values of z <= 0 have been masked')
+   1369     self.zmin = z.min().astype(float)                      
+-> 1370 self._process_contour_level_args(args, z.dtype)            
+   1371 return (x, y, z)         
+
+File ~/thesis/.venv/lib/python3.10/site-packages/matplotlib/contour.py:1030, in ContourSet._process_contour_level_args(self, args, z_dtype)           
+   1028     raise ValueError("Filled contours require at least 2 levels.") 
+   1029 if len(self.levels) > 1 and np.min(np.diff(self.levels)) <= 0.0:   
+-> 1030     raise ValueError("Contour levels must be increasing")  
+
+ValueError: Contour levels must be increasing                      
+
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=tack:3_centered=True_normalized=False_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=tack:3_centered=True_normalized=False_iter=1.ipynb
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=tack:3_centered=False_normalized=True_iter=1.ipynb
+Execution Excepted: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=tack:3_centered=False_normalized=True_iter=1.ipynb
+CellExecutionError: An error occurred while executing the following cell:  
+------------------               
+from dynesty import plotting as dyplot                             
+
+fig, ax = dyplot.cornerplot(     
+    res,        
+    labels=[str(k) for k in theta.keys()],                         
+    verbose=True,                
+    quantiles=[0.05, 0.5, 0.95], 
+)               
+
+------------------               
+
+----- stderr -----               
+/home/marnix/thesis/.venv/lib/python3.10/site-packages/dynesty/plotting.py:1368: UserWarning: Attempting to set identical low and high ylims makes transformation singular; automatically expanding.
+  ax.set_ylim([0., max(n) * 1.05])                                 
+----- stdout -----               
+Quantiles:      
+sigma_noise [(0.05, 0.002612579344684949), (0.5, 0.0026369047932060232), (0.95, 0.002661230241727097)]
+----- stderr -----               
+/home/marnix/thesis/.venv/lib/python3.10/site-packages/dynesty/plotting.py:1368: UserWarning: Attempting to set identical low and high ylims makes transformation singular; automatically expanding.
+  ax.set_ylim([0., max(n) * 1.05])                                 
+/home/marnix/thesis/.venv/lib/python3.10/site-packages/dynesty/plotting.py:2312: RuntimeWarning: invalid value encountered in divide
+  sm /= sm[-1]  
+WARNING:root:Too few points to create valid contours.              
+----- stderr -----               
+WARNING:root:No points at all in the plotted region                
+----- stdout -----               
+Quantiles:      
+sigma_a [(0.05, 707920.2333604934), (0.5, 711125.9705631614), (0.95, 714331.7077658294)]
+------------------               
+
+---------------------------------------------------------------------------
+ValueError                                Traceback (most recent call last)
+Cell In[12], line 3              
+      1 from dynesty import plotting as dyplot                     
+----> 3 fig, ax = dyplot.cornerplot(                               
+      4     res,
+      5     labels=[str(k) for k in theta.keys()],                 
+      6     verbose=True,        
+      7     quantiles=[0.05, 0.5, 0.95],                           
+      8 )       
+
+File ~/thesis/.venv/lib/python3.10/site-packages/dynesty/plotting.py:1451, in cornerplot(results, dims, span, quantiles, color, smooth, quantiles_2d, hist_kwargs, hist2d_kwargs, labels, label_kwargs, show_titles, title_quantiles, title_fmt, title_kwargs, truths, truth_color, truth_kwargs, max_n_ticks, top_ticks, use_math_text, verbose, fig)                                 
+   1447 hist2d_kwargs['fill_contours'] = hist2d_kwargs.get(        
+   1448     'fill_contours', fill_contours)                        
+   1449 hist2d_kwargs['plot_contours'] = hist2d_kwargs.get(        
+   1450     'plot_contours', plot_contours)                        
+-> 1451 _hist2d(y,               
+   1452         x,               
+   1453         ax=ax,           
+   1454         span=[span[j], span[i]],                           
+   1455         weights=weights, 
+   1456         color=color,     
+   1457         smooth=[sy, sx], 
+   1458         **hist2d_kwargs) 
+   1459 # Add truth values       
+   1460 if truths is not None:   
+
+File ~/thesis/.venv/lib/python3.10/site-packages/dynesty/plotting.py:2366, in _hist2d(x, y, smooth, span, weights, levels, ax, color, plot_datapoints, plot_density, plot_contours, no_fill_contours, fill_contours, contour_kwargs, contourf_kwargs, data_kwargs)
+   2364 # Plot the base fill to hide the densest data points.      
+   2365 if (plot_contours or plot_density) and not no_fill_contours:       
+-> 2366     ax.contourf(X2,      
+   2367                 Y2,      
+   2368                 H2.T, [V.min(), H.max()],                  
+   2369                 cmap=white_cmap,                           
+   2370                 antialiased=False)                         
+   2372 if plot_contours and fill_contours:                        
+   2373     if contourf_kwargs is None:                            
+
+File ~/thesis/.venv/lib/python3.10/site-packages/matplotlib/__init__.py:1524, in _preprocess_data.<locals>.inner(ax, data, *args, **kwargs)           
+   1521 @functools.wraps(func)   
+   1522 def inner(ax, *args, data=None, **kwargs):                 
+   1523     if data is None:     
+-> 1524         return func(     
+   1525             ax,          
+   1526             *map(cbook.sanitize_sequence, args),           
+   1527             **{k: cbook.sanitize_sequence(v) for k, v in kwargs.items()})
+   1529     bound = new_sig.bind(ax, *args, **kwargs)              
+   1530     auto_label = (bound.arguments.get(label_namer)         
+   1531                   or bound.kwargs.get(label_namer))        
+
+File ~/thesis/.venv/lib/python3.10/site-packages/matplotlib/axes/_axes.py:6797, in Axes.contourf(self, *args, **kwargs)
+   6786 """     
+   6787 Plot filled contours.    
+   6788         
+   (...)        
+   6794 %(contour_doc)s          
+   6795 """     
+   6796 kwargs['filled'] = True  
+-> 6797 contours = mcontour.QuadContourSet(self, *args, **kwargs)  
+   6798 self._request_autoscale_view()                             
+   6799 return contours          
+
+File ~/thesis/.venv/lib/python3.10/site-packages/matplotlib/contour.py:701, in ContourSet.__init__(self, ax, levels, filled, linewidths, linestyles, hatches, alpha, origin, extent, cmap, colors, norm, vmin, vmax, colorizer, extend, antialiased, nchunk, locator, transform, negative_linestyles, clip_path, *args, **kwargs)
+    697 if self.negative_linestyles is None:                       
+    698     self.negative_linestyles = \                           
+    699         mpl.rcParams['contour.negative_linestyle']         
+--> 701 kwargs = self._process_args(*args, **kwargs)               
+    702 self._process_levels()   
+    704 self._extend_min = self.extend in ['min', 'both']          
+
+File ~/thesis/.venv/lib/python3.10/site-packages/matplotlib/contour.py:1319, in QuadContourSet._process_args(self, corner_mask, algorithm, *args, **kwargs)
+   1316         corner_mask = mpl.rcParams['contour.corner_mask']  
+   1317 self._corner_mask = corner_mask                            
+-> 1319 x, y, z = self._contour_args(args, kwargs)                 
+   1321 contour_generator = contourpy.contour_generator(           
+   1322     x, y, z, name=self._algorithm, corner_mask=self._corner_mask,  
+   1323     line_type=contourpy.LineType.SeparateCode,             
+   1324     fill_type=contourpy.FillType.OuterCode,                
+   1325     chunk_size=self.nchunk)                                
+   1327 t = self.get_transform() 
+
+File ~/thesis/.venv/lib/python3.10/site-packages/matplotlib/contour.py:1370, in QuadContourSet._contour_args(self, args, kwargs)
+   1368     _api.warn_external('Log scale: values of z <= 0 have been masked')
+   1369     self.zmin = z.min().astype(float)                      
+-> 1370 self._process_contour_level_args(args, z.dtype)            
+   1371 return (x, y, z)         
+
+File ~/thesis/.venv/lib/python3.10/site-packages/matplotlib/contour.py:1030, in ContourSet._process_contour_level_args(self, args, z_dtype)           
+   1028     raise ValueError("Filled contours require at least 2 levels.") 
+   1029 if len(self.levels) > 1 and np.min(np.diff(self.levels)) <= 0.0:   
+-> 1030     raise ValueError("Contour levels must be increasing")  
+
+ValueError: Contour levels must be increasing                      
+
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=tack:3_centered=False_normalized=False_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=tack:3_centered=False_normalized=False_iter=1.ipynb
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=matern:12_centered=False_normalized=False_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=matern:12_centered=False_normalized=False_iter=1.ipynb             
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=matern:32_centered=False_normalized=False_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=matern:32_centered=False_normalized=False_iter=1.ipynb             
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=matern:52_centered=False_normalized=False_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=matern:52_centered=False_normalized=False_iter=1.ipynb             
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=matern:inf_centered=False_normalized=False_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=matern:inf_centered=False_normalized=False_iter=1.ipynb            
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=periodickernel_centered=False_normalized=False_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=periodickernel_centered=False_normalized=False_iter=1.ipynb        
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=tack:0_centered=True_normalized=True_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=tack:0_centered=True_normalized=True_iter=1.ipynb
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=tack:0_centered=True_normalized=False_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=tack:0_centered=True_normalized=False_iter=1.ipynb
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=tack:0_centered=False_normalized=True_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=tack:0_centered=False_normalized=True_iter=1.ipynb
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=tack:0_centered=False_normalized=False_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=tack:0_centered=False_normalized=False_iter=1.ipynb
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=tack:1_centered=True_normalized=True_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=tack:1_centered=True_normalized=True_iter=1.ipynb
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=tack:1_centered=True_normalized=False_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=tack:1_centered=True_normalized=False_iter=1.ipynb
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=tack:1_centered=False_normalized=True_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=tack:1_centered=False_normalized=True_iter=1.ipynb
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=tack:1_centered=False_normalized=False_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=tack:1_centered=False_normalized=False_iter=1.ipynb
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=tack:2_centered=True_normalized=True_iter=1.ipynb
+Execution Excepted: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=tack:2_centered=True_normalized=True_iter=1.ipynb
+CellExecutionError: An error occurred while executing the following cell:  
+------------------               
+from dynesty import plotting as dyplot                             
+
+fig, ax = dyplot.cornerplot(     
+    res,        
+    labels=[str(k) for k in theta.keys()],                         
+    verbose=True,                
+    quantiles=[0.05, 0.5, 0.95], 
+)               
+
+------------------               
+
+----- stdout -----               
+Quantiles:      
+sigma_noise [(0.05, 5.382180440574689e-06), (0.5, 5.392664122847296e-06), (0.95, 5.403147805119902e-06)]
+----- stdout -----               
+Quantiles:      
+sigma_a [(0.05, 4140.131833203481), (0.5, 4141.660906968197), (0.95, 4143.189980732913)]
+----- stdout -----               
+Quantiles:      
+sigma_b [(0.05, 3.8987313305603917), (0.5, 3.8987870231673467), (0.95, 3.8988427157743017)]
+----- stderr -----               
+/home/marnix/thesis/.venv/lib/python3.10/site-packages/dynesty/plotting.py:2312: RuntimeWarning: invalid value encountered in divide
+  sm /= sm[-1]  
+WARNING:root:Too few points to create valid contours.              
+----- stderr -----               
+WARNING:root:No points at all in the plotted region                
+----- stdout -----               
+Quantiles:      
+sigma_c [(0.05, 0.5989882905247664), (0.5, 0.5991088820007637), (0.95, 0.5992294734767609)]
+------------------               
+
+---------------------------------------------------------------------------
+ValueError                                Traceback (most recent call last)
+Cell In[12], line 3              
+      1 from dynesty import plotting as dyplot                     
+----> 3 fig, ax = dyplot.cornerplot(                               
+      4     res,
+      5     labels=[str(k) for k in theta.keys()],                 
+      6     verbose=True,        
+      7     quantiles=[0.05, 0.5, 0.95],                           
+      8 )       
+
+File ~/thesis/.venv/lib/python3.10/site-packages/dynesty/plotting.py:1451, in cornerplot(results, dims, span, quantiles, color, smooth, quantiles_2d, hist_kwargs, hist2d_kwargs, labels, label_kwargs, show_titles, title_quantiles, title_fmt, title_kwargs, truths, truth_color, truth_kwargs, max_n_ticks, top_ticks, use_math_text, verbose, fig)                                 
+   1447 hist2d_kwargs['fill_contours'] = hist2d_kwargs.get(        
+   1448     'fill_contours', fill_contours)                        
+   1449 hist2d_kwargs['plot_contours'] = hist2d_kwargs.get(        
+   1450     'plot_contours', plot_contours)                        
+-> 1451 _hist2d(y,               
+   1452         x,               
+   1453         ax=ax,           
+   1454         span=[span[j], span[i]],                           
+   1455         weights=weights, 
+   1456         color=color,     
+   1457         smooth=[sy, sx], 
+   1458         **hist2d_kwargs) 
+   1459 # Add truth values       
+   1460 if truths is not None:   
+
+File ~/thesis/.venv/lib/python3.10/site-packages/dynesty/plotting.py:2366, in _hist2d(x, y, smooth, span, weights, levels, ax, color, plot_datapoints, plot_density, plot_contours, no_fill_contours, fill_contours, contour_kwargs, contourf_kwargs, data_kwargs)
+   2364 # Plot the base fill to hide the densest data points.      
+   2365 if (plot_contours or plot_density) and not no_fill_contours:       
+-> 2366     ax.contourf(X2,      
+   2367                 Y2,      
+   2368                 H2.T, [V.min(), H.max()],                  
+   2369                 cmap=white_cmap,                           
+   2370                 antialiased=False)                         
+   2372 if plot_contours and fill_contours:                        
+   2373     if contourf_kwargs is None:                            
+
+File ~/thesis/.venv/lib/python3.10/site-packages/matplotlib/__init__.py:1524, in _preprocess_data.<locals>.inner(ax, data, *args, **kwargs)           
+   1521 @functools.wraps(func)   
+   1522 def inner(ax, *args, data=None, **kwargs):                 
+   1523     if data is None:     
+-> 1524         return func(     
+   1525             ax,          
+   1526             *map(cbook.sanitize_sequence, args),           
+   1527             **{k: cbook.sanitize_sequence(v) for k, v in kwargs.items()})
+   1529     bound = new_sig.bind(ax, *args, **kwargs)              
+   1530     auto_label = (bound.arguments.get(label_namer)         
+   1531                   or bound.kwargs.get(label_namer))        
+
+File ~/thesis/.venv/lib/python3.10/site-packages/matplotlib/axes/_axes.py:6797, in Axes.contourf(self, *args, **kwargs)
+   6786 """     
+   6787 Plot filled contours.    
+   6788         
+   (...)        
+   6794 %(contour_doc)s          
+   6795 """     
+   6796 kwargs['filled'] = True  
+-> 6797 contours = mcontour.QuadContourSet(self, *args, **kwargs)  
+   6798 self._request_autoscale_view()                             
+   6799 return contours          
+
+File ~/thesis/.venv/lib/python3.10/site-packages/matplotlib/contour.py:701, in ContourSet.__init__(self, ax, levels, filled, linewidths, linestyles, hatches, alpha, origin, extent, cmap, colors, norm, vmin, vmax, colorizer, extend, antialiased, nchunk, locator, transform, negative_linestyles, clip_path, *args, **kwargs)
+    697 if self.negative_linestyles is None:                       
+    698     self.negative_linestyles = \                           
+    699         mpl.rcParams['contour.negative_linestyle']         
+--> 701 kwargs = self._process_args(*args, **kwargs)               
+    702 self._process_levels()   
+    704 self._extend_min = self.extend in ['min', 'both']          
+
+File ~/thesis/.venv/lib/python3.10/site-packages/matplotlib/contour.py:1319, in QuadContourSet._process_args(self, corner_mask, algorithm, *args, **kwargs)
+   1316         corner_mask = mpl.rcParams['contour.corner_mask']  
+   1317 self._corner_mask = corner_mask                            
+-> 1319 x, y, z = self._contour_args(args, kwargs)                 
+   1321 contour_generator = contourpy.contour_generator(           
+   1322     x, y, z, name=self._algorithm, corner_mask=self._corner_mask,  
+   1323     line_type=contourpy.LineType.SeparateCode,             
+   1324     fill_type=contourpy.FillType.OuterCode,                
+   1325     chunk_size=self.nchunk)                                
+   1327 t = self.get_transform() 
+
+File ~/thesis/.venv/lib/python3.10/site-packages/matplotlib/contour.py:1370, in QuadContourSet._contour_args(self, args, kwargs)
+   1368     _api.warn_external('Log scale: values of z <= 0 have been masked')
+   1369     self.zmin = z.min().astype(float)                      
+-> 1370 self._process_contour_level_args(args, z.dtype)            
+   1371 return (x, y, z)         
+
+File ~/thesis/.venv/lib/python3.10/site-packages/matplotlib/contour.py:1030, in ContourSet._process_contour_level_args(self, args, z_dtype)           
+   1028     raise ValueError("Filled contours require at least 2 levels.") 
+   1029 if len(self.levels) > 1 and np.min(np.diff(self.levels)) <= 0.0:   
+-> 1030     raise ValueError("Contour levels must be increasing")  
+
+ValueError: Contour levels must be increasing                      
+
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=tack:2_centered=True_normalized=False_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=tack:2_centered=True_normalized=False_iter=1.ipynb
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=tack:2_centered=False_normalized=True_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=tack:2_centered=False_normalized=True_iter=1.ipynb
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=tack:2_centered=False_normalized=False_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=tack:2_centered=False_normalized=False_iter=1.ipynb
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=tack:3_centered=True_normalized=True_iter=1.ipynb
+Execution Excepted: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=tack:3_centered=True_normalized=True_iter=1.ipynb
+CellExecutionError: An error occurred while executing the following cell:  
+------------------               
+from dynesty import plotting as dyplot                             
+
+fig, ax = dyplot.cornerplot(     
+    res,        
+    labels=[str(k) for k in theta.keys()],                         
+    verbose=True,                
+    quantiles=[0.05, 0.5, 0.95], 
+)               
+
+------------------               
+
+----- stdout -----               
+Quantiles:      
+sigma_noise [(0.05, 2.0700695719419403e-05), (0.5, 2.0730902199800256e-05), (0.95, 2.0761108680181106e-05)]
+----- stdout -----               
+Quantiles:      
+sigma_a [(0.05, 18290.039067262664), (0.5, 18304.56356751592), (0.95, 18319.08806776918)]
+Quantiles:      
+sigma_b [(0.05, 0.4584814335014457), (0.5, 0.458524885542059), (0.95, 0.45856833758267224)]
+----- stderr -----               
+/home/marnix/thesis/.venv/lib/python3.10/site-packages/dynesty/plotting.py:2312: RuntimeWarning: invalid value encountered in divide
+  sm /= sm[-1]  
+WARNING:root:Too few points to create valid contours.              
+----- stderr -----               
+WARNING:root:No points at all in the plotted region                
+------------------               
+
+---------------------------------------------------------------------------
+ValueError                                Traceback (most recent call last)
+Cell In[12], line 3              
+      1 from dynesty import plotting as dyplot                     
+----> 3 fig, ax = dyplot.cornerplot(                               
+      4     res,
+      5     labels=[str(k) for k in theta.keys()],                 
+      6     verbose=True,        
+      7     quantiles=[0.05, 0.5, 0.95],                           
+      8 )       
+
+File ~/thesis/.venv/lib/python3.10/site-packages/dynesty/plotting.py:1451, in cornerplot(results, dims, span, quantiles, color, smooth, quantiles_2d, hist_kwargs, hist2d_kwargs, labels, label_kwargs, show_titles, title_quantiles, title_fmt, title_kwargs, truths, truth_color, truth_kwargs, max_n_ticks, top_ticks, use_math_text, verbose, fig)                                 
+   1447 hist2d_kwargs['fill_contours'] = hist2d_kwargs.get(        
+   1448     'fill_contours', fill_contours)                        
+   1449 hist2d_kwargs['plot_contours'] = hist2d_kwargs.get(        
+   1450     'plot_contours', plot_contours)                        
+-> 1451 _hist2d(y,               
+   1452         x,               
+   1453         ax=ax,           
+   1454         span=[span[j], span[i]],                           
+   1455         weights=weights, 
+   1456         color=color,     
+   1457         smooth=[sy, sx], 
+   1458         **hist2d_kwargs) 
+   1459 # Add truth values       
+   1460 if truths is not None:   
+
+File ~/thesis/.venv/lib/python3.10/site-packages/dynesty/plotting.py:2366, in _hist2d(x, y, smooth, span, weights, levels, ax, color, plot_datapoints, plot_density, plot_contours, no_fill_contours, fill_contours, contour_kwargs, contourf_kwargs, data_kwargs)
+   2364 # Plot the base fill to hide the densest data points.      
+   2365 if (plot_contours or plot_density) and not no_fill_contours:       
+-> 2366     ax.contourf(X2,      
+   2367                 Y2,      
+   2368                 H2.T, [V.min(), H.max()],                  
+   2369                 cmap=white_cmap,                           
+   2370                 antialiased=False)                         
+   2372 if plot_contours and fill_contours:                        
+   2373     if contourf_kwargs is None:                            
+
+File ~/thesis/.venv/lib/python3.10/site-packages/matplotlib/__init__.py:1524, in _preprocess_data.<locals>.inner(ax, data, *args, **kwargs)           
+   1521 @functools.wraps(func)   
+   1522 def inner(ax, *args, data=None, **kwargs):                 
+   1523     if data is None:     
+-> 1524         return func(     
+   1525             ax,          
+   1526             *map(cbook.sanitize_sequence, args),           
+   1527             **{k: cbook.sanitize_sequence(v) for k, v in kwargs.items()})
+   1529     bound = new_sig.bind(ax, *args, **kwargs)              
+   1530     auto_label = (bound.arguments.get(label_namer)         
+   1531                   or bound.kwargs.get(label_namer))        
+
+File ~/thesis/.venv/lib/python3.10/site-packages/matplotlib/axes/_axes.py:6797, in Axes.contourf(self, *args, **kwargs)
+   6786 """     
+   6787 Plot filled contours.    
+   6788         
+   (...)        
+   6794 %(contour_doc)s          
+   6795 """     
+   6796 kwargs['filled'] = True  
+-> 6797 contours = mcontour.QuadContourSet(self, *args, **kwargs)  
+   6798 self._request_autoscale_view()                             
+   6799 return contours          
+
+File ~/thesis/.venv/lib/python3.10/site-packages/matplotlib/contour.py:701, in ContourSet.__init__(self, ax, levels, filled, linewidths, linestyles, hatches, alpha, origin, extent, cmap, colors, norm, vmin, vmax, colorizer, extend, antialiased, nchunk, locator, transform, negative_linestyles, clip_path, *args, **kwargs)
+    697 if self.negative_linestyles is None:                       
+    698     self.negative_linestyles = \                           
+    699         mpl.rcParams['contour.negative_linestyle']         
+--> 701 kwargs = self._process_args(*args, **kwargs)               
+    702 self._process_levels()   
+    704 self._extend_min = self.extend in ['min', 'both']          
+
+File ~/thesis/.venv/lib/python3.10/site-packages/matplotlib/contour.py:1319, in QuadContourSet._process_args(self, corner_mask, algorithm, *args, **kwargs)
+   1316         corner_mask = mpl.rcParams['contour.corner_mask']  
+   1317 self._corner_mask = corner_mask                            
+-> 1319 x, y, z = self._contour_args(args, kwargs)                 
+   1321 contour_generator = contourpy.contour_generator(           
+   1322     x, y, z, name=self._algorithm, corner_mask=self._corner_mask,  
+   1323     line_type=contourpy.LineType.SeparateCode,             
+   1324     fill_type=contourpy.FillType.OuterCode,                
+   1325     chunk_size=self.nchunk)                                
+   1327 t = self.get_transform() 
+
+File ~/thesis/.venv/lib/python3.10/site-packages/matplotlib/contour.py:1370, in QuadContourSet._contour_args(self, args, kwargs)
+   1368     _api.warn_external('Log scale: values of z <= 0 have been masked')
+   1369     self.zmin = z.min().astype(float)                      
+-> 1370 self._process_contour_level_args(args, z.dtype)            
+   1371 return (x, y, z)         
+
+File ~/thesis/.venv/lib/python3.10/site-packages/matplotlib/contour.py:1030, in ContourSet._process_contour_level_args(self, args, z_dtype)           
+   1028     raise ValueError("Filled contours require at least 2 levels.") 
+   1029 if len(self.levels) > 1 and np.min(np.diff(self.levels)) <= 0.0:   
+-> 1030     raise ValueError("Contour levels must be increasing")  
+
+ValueError: Contour levels must be increasing                      
+
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=tack:3_centered=True_normalized=False_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=tack:3_centered=True_normalized=False_iter=1.ipynb
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=tack:3_centered=False_normalized=True_iter=1.ipynb
+Execution Excepted: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=tack:3_centered=False_normalized=True_iter=1.ipynb
+CellExecutionError: An error occurred while executing the following cell:  
+------------------               
+from dynesty import plotting as dyplot                             
+
+fig, ax = dyplot.cornerplot(     
+    res,        
+    labels=[str(k) for k in theta.keys()],                         
+    verbose=True,                
+    quantiles=[0.05, 0.5, 0.95], 
+)               
+
+------------------               
+
+----- stderr -----               
+/home/marnix/thesis/.venv/lib/python3.10/site-packages/dynesty/plotting.py:1368: UserWarning: Attempting to set identical low and high ylims makes transformation singular; automatically expanding.
+  ax.set_ylim([0., max(n) * 1.05])                                 
+----- stdout -----               
+Quantiles:      
+sigma_noise [(0.05, 0.0011244564835319062), (0.5, 0.0013895644841350487), (0.95, 0.0016546724847381908)]
+----- stderr -----               
+/home/marnix/thesis/.venv/lib/python3.10/site-packages/dynesty/plotting.py:1368: UserWarning: Attempting to set identical low and high ylims makes transformation singular; automatically expanding.
+  ax.set_ylim([0., max(n) * 1.05])                                 
+/home/marnix/thesis/.venv/lib/python3.10/site-packages/dynesty/plotting.py:2312: RuntimeWarning: invalid value encountered in divide
+  sm /= sm[-1]  
+WARNING:root:Too few points to create valid contours.              
+----- stderr -----               
+WARNING:root:No points at all in the plotted region                
+----- stdout -----               
+Quantiles:      
+sigma_a [(0.05, 758277.4071439161), (0.5, 766216.2088229768), (0.95, 774155.0105020374)]
+------------------               
+
+---------------------------------------------------------------------------
+ValueError                                Traceback (most recent call last)
+Cell In[12], line 3              
+      1 from dynesty import plotting as dyplot                     
+----> 3 fig, ax = dyplot.cornerplot(                               
+      4     res,
+      5     labels=[str(k) for k in theta.keys()],                 
+      6     verbose=True,        
+      7     quantiles=[0.05, 0.5, 0.95],                           
+      8 )       
+
+File ~/thesis/.venv/lib/python3.10/site-packages/dynesty/plotting.py:1451, in cornerplot(results, dims, span, quantiles, color, smooth, quantiles_2d, hist_kwargs, hist2d_kwargs, labels, label_kwargs, show_titles, title_quantiles, title_fmt, title_kwargs, truths, truth_color, truth_kwargs, max_n_ticks, top_ticks, use_math_text, verbose, fig)                                 
+   1447 hist2d_kwargs['fill_contours'] = hist2d_kwargs.get(        
+   1448     'fill_contours', fill_contours)                        
+   1449 hist2d_kwargs['plot_contours'] = hist2d_kwargs.get(        
+   1450     'plot_contours', plot_contours)                        
+-> 1451 _hist2d(y,               
+   1452         x,               
+   1453         ax=ax,           
+   1454         span=[span[j], span[i]],                           
+   1455         weights=weights, 
+   1456         color=color,     
+   1457         smooth=[sy, sx], 
+   1458         **hist2d_kwargs) 
+   1459 # Add truth values       
+   1460 if truths is not None:   
+
+File ~/thesis/.venv/lib/python3.10/site-packages/dynesty/plotting.py:2366, in _hist2d(x, y, smooth, span, weights, levels, ax, color, plot_datapoints, plot_density, plot_contours, no_fill_contours, fill_contours, contour_kwargs, contourf_kwargs, data_kwargs)
+   2364 # Plot the base fill to hide the densest data points.      
+   2365 if (plot_contours or plot_density) and not no_fill_contours:       
+-> 2366     ax.contourf(X2,      
+   2367                 Y2,      
+   2368                 H2.T, [V.min(), H.max()],                  
+   2369                 cmap=white_cmap,                           
+   2370                 antialiased=False)                         
+   2372 if plot_contours and fill_contours:                        
+   2373     if contourf_kwargs is None:                            
+
+File ~/thesis/.venv/lib/python3.10/site-packages/matplotlib/__init__.py:1524, in _preprocess_data.<locals>.inner(ax, data, *args, **kwargs)           
+   1521 @functools.wraps(func)   
+   1522 def inner(ax, *args, data=None, **kwargs):                 
+   1523     if data is None:     
+-> 1524         return func(     
+   1525             ax,          
+   1526             *map(cbook.sanitize_sequence, args),           
+   1527             **{k: cbook.sanitize_sequence(v) for k, v in kwargs.items()})
+   1529     bound = new_sig.bind(ax, *args, **kwargs)              
+   1530     auto_label = (bound.arguments.get(label_namer)         
+   1531                   or bound.kwargs.get(label_namer))        
+
+File ~/thesis/.venv/lib/python3.10/site-packages/matplotlib/axes/_axes.py:6797, in Axes.contourf(self, *args, **kwargs)
+   6786 """     
+   6787 Plot filled contours.    
+   6788         
+   (...)        
+   6794 %(contour_doc)s          
+   6795 """     
+   6796 kwargs['filled'] = True  
+-> 6797 contours = mcontour.QuadContourSet(self, *args, **kwargs)  
+   6798 self._request_autoscale_view()                             
+   6799 return contours          
+
+File ~/thesis/.venv/lib/python3.10/site-packages/matplotlib/contour.py:701, in ContourSet.__init__(self, ax, levels, filled, linewidths, linestyles, hatches, alpha, origin, extent, cmap, colors, norm, vmin, vmax, colorizer, extend, antialiased, nchunk, locator, transform, negative_linestyles, clip_path, *args, **kwargs)
+    697 if self.negative_linestyles is None:                       
+    698     self.negative_linestyles = \                           
+    699         mpl.rcParams['contour.negative_linestyle']         
+--> 701 kwargs = self._process_args(*args, **kwargs)               
+    702 self._process_levels()   
+    704 self._extend_min = self.extend in ['min', 'both']          
+
+File ~/thesis/.venv/lib/python3.10/site-packages/matplotlib/contour.py:1319, in QuadContourSet._process_args(self, corner_mask, algorithm, *args, **kwargs)
+   1316         corner_mask = mpl.rcParams['contour.corner_mask']  
+   1317 self._corner_mask = corner_mask                            
+-> 1319 x, y, z = self._contour_args(args, kwargs)                 
+   1321 contour_generator = contourpy.contour_generator(           
+   1322     x, y, z, name=self._algorithm, corner_mask=self._corner_mask,  
+   1323     line_type=contourpy.LineType.SeparateCode,             
+   1324     fill_type=contourpy.FillType.OuterCode,                
+   1325     chunk_size=self.nchunk)                                
+   1327 t = self.get_transform() 
+
+File ~/thesis/.venv/lib/python3.10/site-packages/matplotlib/contour.py:1370, in QuadContourSet._contour_args(self, args, kwargs)
+   1368     _api.warn_external('Log scale: values of z <= 0 have been masked')
+   1369     self.zmin = z.min().astype(float)                      
+-> 1370 self._process_contour_level_args(args, z.dtype)            
+   1371 return (x, y, z)         
+
+File ~/thesis/.venv/lib/python3.10/site-packages/matplotlib/contour.py:1030, in ContourSet._process_contour_level_args(self, args, z_dtype)           
+   1028     raise ValueError("Filled contours require at least 2 levels.") 
+   1029 if len(self.levels) > 1 and np.min(np.diff(self.levels)) <= 0.0:   
+-> 1030     raise ValueError("Contour levels must be increasing")  
+
+ValueError: Contour levels must be increasing                      
+
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=tack:3_centered=False_normalized=False_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=tack:3_centered=False_normalized=False_iter=1.ipynb
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=matern:12_centered=False_normalized=False_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=matern:12_centered=False_normalized=False_iter=1.ipynb             
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=matern:32_centered=False_normalized=False_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=matern:32_centered=False_normalized=False_iter=1.ipynb             
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=matern:52_centered=False_normalized=False_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=matern:52_centered=False_normalized=False_iter=1.ipynb             
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=matern:inf_centered=False_normalized=False_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=matern:inf_centered=False_normalized=False_iter=1.ipynb            
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=periodickernel_centered=False_normalized=False_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=periodickernel_centered=False_normalized=False_iter=1.ipynb        
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:0_centered=True_normalized=True_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:0_centered=True_normalized=True_iter=1.ipynb
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:0_centered=True_normalized=False_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:0_centered=True_normalized=False_iter=1.ipynb               
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:0_centered=False_normalized=True_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:0_centered=False_normalized=True_iter=1.ipynb               
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:0_centered=False_normalized=False_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:0_centered=False_normalized=False_iter=1.ipynb              
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:1_centered=True_normalized=True_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:1_centered=True_normalized=True_iter=1.ipynb
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:1_centered=True_normalized=False_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:1_centered=True_normalized=False_iter=1.ipynb               
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:1_centered=False_normalized=True_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:1_centered=False_normalized=True_iter=1.ipynb               
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:1_centered=False_normalized=False_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:1_centered=False_normalized=False_iter=1.ipynb              
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:2_centered=True_normalized=True_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:2_centered=True_normalized=True_iter=1.ipynb
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:2_centered=True_normalized=False_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:2_centered=True_normalized=False_iter=1.ipynb               
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:2_centered=False_normalized=True_iter=1.ipynb
+Execution Excepted: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:2_centered=False_normalized=True_iter=1.ipynb
+CellExecutionError: An error occurred while executing the following cell:  
+------------------               
+from dynesty import plotting as dyplot                             
+
+fig, ax = dyplot.cornerplot(     
+    res,        
+    labels=[str(k) for k in theta.keys()],                         
+    verbose=True,                
+    quantiles=[0.05, 0.5, 0.95], 
+)               
+
+------------------               
+
+----- stderr -----               
+/home/marnix/thesis/.venv/lib/python3.10/site-packages/dynesty/plotting.py:1368: UserWarning: Attempting to set identical low and high ylims makes transformation singular; automatically expanding.
+  ax.set_ylim([0., max(n) * 1.05])                                 
+----- stderr -----               
+/home/marnix/thesis/.venv/lib/python3.10/site-packages/dynesty/plotting.py:1368: UserWarning: Attempting to set identical low and high ylims makes transformation singular; automatically expanding.
+  ax.set_ylim([0., max(n) * 1.05])                                 
+/home/marnix/thesis/.venv/lib/python3.10/site-packages/dynesty/plotting.py:2312: RuntimeWarning: invalid value encountered in divide
+  sm /= sm[-1]  
+WARNING:root:Too few points to create valid contours.              
+----- stderr -----               
+WARNING:root:No points at all in the plotted region                
+----- stdout -----               
+Quantiles:      
+sigma_noise [(0.05, 0.015688461008565836), (0.5, 0.015691502505908977), (0.95, 0.015694544003252115)]
+Quantiles:      
+sigma_a [(0.05, 1466515.9444237624), (0.5, 1592635.0486748726), (0.95, 1718754.1529259826)]
+------------------               
+
+---------------------------------------------------------------------------
+ValueError                                Traceback (most recent call last)
+Cell In[12], line 3              
+      1 from dynesty import plotting as dyplot                     
+----> 3 fig, ax = dyplot.cornerplot(                               
+      4     res,
+      5     labels=[str(k) for k in theta.keys()],                 
+      6     verbose=True,        
+      7     quantiles=[0.05, 0.5, 0.95],                           
+      8 )       
+
+File ~/thesis/.venv/lib/python3.10/site-packages/dynesty/plotting.py:1451, in cornerplot(results, dims, span, quantiles, color, smooth, quantiles_2d, hist_kwargs, hist2d_kwargs, labels, label_kwargs, show_titles, title_quantiles, title_fmt, title_kwargs, truths, truth_color, truth_kwargs, max_n_ticks, top_ticks, use_math_text, verbose, fig)                                 
+   1447 hist2d_kwargs['fill_contours'] = hist2d_kwargs.get(        
+   1448     'fill_contours', fill_contours)                        
+   1449 hist2d_kwargs['plot_contours'] = hist2d_kwargs.get(        
+   1450     'plot_contours', plot_contours)                        
+-> 1451 _hist2d(y,               
+   1452         x,               
+   1453         ax=ax,           
+   1454         span=[span[j], span[i]],                           
+   1455         weights=weights, 
+   1456         color=color,     
+   1457         smooth=[sy, sx], 
+   1458         **hist2d_kwargs) 
+   1459 # Add truth values       
+   1460 if truths is not None:   
+
+File ~/thesis/.venv/lib/python3.10/site-packages/dynesty/plotting.py:2366, in _hist2d(x, y, smooth, span, weights, levels, ax, color, plot_datapoints, plot_density, plot_contours, no_fill_contours, fill_contours, contour_kwargs, contourf_kwargs, data_kwargs)
+   2364 # Plot the base fill to hide the densest data points.      
+   2365 if (plot_contours or plot_density) and not no_fill_contours:       
+-> 2366     ax.contourf(X2,      
+   2367                 Y2,      
+   2368                 H2.T, [V.min(), H.max()],                  
+   2369                 cmap=white_cmap,                           
+   2370                 antialiased=False)                         
+   2372 if plot_contours and fill_contours:                        
+   2373     if contourf_kwargs is None:                            
+
+File ~/thesis/.venv/lib/python3.10/site-packages/matplotlib/__init__.py:1524, in _preprocess_data.<locals>.inner(ax, data, *args, **kwargs)           
+   1521 @functools.wraps(func)   
+   1522 def inner(ax, *args, data=None, **kwargs):                 
+   1523     if data is None:     
+-> 1524         return func(     
+   1525             ax,          
+   1526             *map(cbook.sanitize_sequence, args),           
+   1527             **{k: cbook.sanitize_sequence(v) for k, v in kwargs.items()})
+   1529     bound = new_sig.bind(ax, *args, **kwargs)              
+   1530     auto_label = (bound.arguments.get(label_namer)         
+   1531                   or bound.kwargs.get(label_namer))        
+
+File ~/thesis/.venv/lib/python3.10/site-packages/matplotlib/axes/_axes.py:6797, in Axes.contourf(self, *args, **kwargs)
+   6786 """     
+   6787 Plot filled contours.    
+   6788         
+   (...)        
+   6794 %(contour_doc)s          
+   6795 """     
+   6796 kwargs['filled'] = True  
+-> 6797 contours = mcontour.QuadContourSet(self, *args, **kwargs)  
+   6798 self._request_autoscale_view()                             
+   6799 return contours          
+
+File ~/thesis/.venv/lib/python3.10/site-packages/matplotlib/contour.py:701, in ContourSet.__init__(self, ax, levels, filled, linewidths, linestyles, hatches, alpha, origin, extent, cmap, colors, norm, vmin, vmax, colorizer, extend, antialiased, nchunk, locator, transform, negative_linestyles, clip_path, *args, **kwargs)
+    697 if self.negative_linestyles is None:                       
+    698     self.negative_linestyles = \                           
+    699         mpl.rcParams['contour.negative_linestyle']         
+--> 701 kwargs = self._process_args(*args, **kwargs)               
+    702 self._process_levels()   
+    704 self._extend_min = self.extend in ['min', 'both']          
+
+File ~/thesis/.venv/lib/python3.10/site-packages/matplotlib/contour.py:1319, in QuadContourSet._process_args(self, corner_mask, algorithm, *args, **kwargs)
+   1316         corner_mask = mpl.rcParams['contour.corner_mask']  
+   1317 self._corner_mask = corner_mask                            
+-> 1319 x, y, z = self._contour_args(args, kwargs)                 
+   1321 contour_generator = contourpy.contour_generator(           
+   1322     x, y, z, name=self._algorithm, corner_mask=self._corner_mask,  
+   1323     line_type=contourpy.LineType.SeparateCode,             
+   1324     fill_type=contourpy.FillType.OuterCode,                
+   1325     chunk_size=self.nchunk)                                
+   1327 t = self.get_transform() 
+
+File ~/thesis/.venv/lib/python3.10/site-packages/matplotlib/contour.py:1370, in QuadContourSet._contour_args(self, args, kwargs)
+   1368     _api.warn_external('Log scale: values of z <= 0 have been masked')
+   1369     self.zmin = z.min().astype(float)                      
+-> 1370 self._process_contour_level_args(args, z.dtype)            
+   1371 return (x, y, z)         
+
+File ~/thesis/.venv/lib/python3.10/site-packages/matplotlib/contour.py:1030, in ContourSet._process_contour_level_args(self, args, z_dtype)           
+   1028     raise ValueError("Filled contours require at least 2 levels.") 
+   1029 if len(self.levels) > 1 and np.min(np.diff(self.levels)) <= 0.0:   
+-> 1030     raise ValueError("Contour levels must be increasing")  
+
+ValueError: Contour levels must be increasing                      
+
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:2_centered=False_normalized=False_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:2_centered=False_normalized=False_iter=1.ipynb              
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:3_centered=True_normalized=True_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:3_centered=True_normalized=True_iter=1.ipynb
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:3_centered=True_normalized=False_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:3_centered=True_normalized=False_iter=1.ipynb               
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:3_centered=False_normalized=True_iter=1.ipynb
+Execution Excepted: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:3_centered=False_normalized=True_iter=1.ipynb
+CellExecutionError: An error occurred while executing the following cell:  
+------------------               
+from dynesty import plotting as dyplot                             
+
+fig, ax = dyplot.cornerplot(     
+    res,        
+    labels=[str(k) for k in theta.keys()],                         
+    verbose=True,                
+    quantiles=[0.05, 0.5, 0.95], 
+)               
+
+------------------               
+
+----- stderr -----               
+/home/marnix/thesis/.venv/lib/python3.10/site-packages/dynesty/plotting.py:1368: UserWarning: Attempting to set identical low and high ylims makes transformation singular; automatically expanding.
+  ax.set_ylim([0., max(n) * 1.05])                                 
+/home/marnix/thesis/.venv/lib/python3.10/site-packages/dynesty/plotting.py:2312: RuntimeWarning: invalid value encountered in divide
+  sm /= sm[-1]  
+WARNING:root:Too few points to create valid contours.              
+----- stderr -----               
+WARNING:root:No points at all in the plotted region                
+----- stdout -----               
+Quantiles:      
+sigma_noise [(0.05, 0.15529720013179008), (0.5, 0.15540493630359326), (0.95, 0.15551267247539646)]
+Quantiles:      
+sigma_a [(0.05, 1680263.232784828), (0.5, 2033616.341058107), (0.95, 2386969.449331386)]
+------------------               
+
+---------------------------------------------------------------------------
+ValueError                                Traceback (most recent call last)
+Cell In[12], line 3              
+      1 from dynesty import plotting as dyplot                     
+----> 3 fig, ax = dyplot.cornerplot(                               
+      4     res,
+      5     labels=[str(k) for k in theta.keys()],                 
+      6     verbose=True,        
+      7     quantiles=[0.05, 0.5, 0.95],                           
+      8 )       
+
+File ~/thesis/.venv/lib/python3.10/site-packages/dynesty/plotting.py:1451, in cornerplot(results, dims, span, quantiles, color, smooth, quantiles_2d, hist_kwargs, hist2d_kwargs, labels, label_kwargs, show_titles, title_quantiles, title_fmt, title_kwargs, truths, truth_color, truth_kwargs, max_n_ticks, top_ticks, use_math_text, verbose, fig)                                 
+   1447 hist2d_kwargs['fill_contours'] = hist2d_kwargs.get(        
+   1448     'fill_contours', fill_contours)                        
+   1449 hist2d_kwargs['plot_contours'] = hist2d_kwargs.get(        
+   1450     'plot_contours', plot_contours)                        
+-> 1451 _hist2d(y,               
+   1452         x,               
+   1453         ax=ax,           
+   1454         span=[span[j], span[i]],                           
+   1455         weights=weights, 
+   1456         color=color,     
+   1457         smooth=[sy, sx], 
+   1458         **hist2d_kwargs) 
+   1459 # Add truth values       
+   1460 if truths is not None:   
+
+File ~/thesis/.venv/lib/python3.10/site-packages/dynesty/plotting.py:2366, in _hist2d(x, y, smooth, span, weights, levels, ax, color, plot_datapoints, plot_density, plot_contours, no_fill_contours, fill_contours, contour_kwargs, contourf_kwargs, data_kwargs)
+   2364 # Plot the base fill to hide the densest data points.      
+   2365 if (plot_contours or plot_density) and not no_fill_contours:       
+-> 2366     ax.contourf(X2,      
+   2367                 Y2,      
+   2368                 H2.T, [V.min(), H.max()],                  
+   2369                 cmap=white_cmap,                           
+   2370                 antialiased=False)                         
+   2372 if plot_contours and fill_contours:                        
+   2373     if contourf_kwargs is None:                            
+
+File ~/thesis/.venv/lib/python3.10/site-packages/matplotlib/__init__.py:1524, in _preprocess_data.<locals>.inner(ax, data, *args, **kwargs)           
+   1521 @functools.wraps(func)   
+   1522 def inner(ax, *args, data=None, **kwargs):                 
+   1523     if data is None:     
+-> 1524         return func(     
+   1525             ax,          
+   1526             *map(cbook.sanitize_sequence, args),           
+   1527             **{k: cbook.sanitize_sequence(v) for k, v in kwargs.items()})
+   1529     bound = new_sig.bind(ax, *args, **kwargs)              
+   1530     auto_label = (bound.arguments.get(label_namer)         
+   1531                   or bound.kwargs.get(label_namer))        
+
+File ~/thesis/.venv/lib/python3.10/site-packages/matplotlib/axes/_axes.py:6797, in Axes.contourf(self, *args, **kwargs)
+   6786 """     
+   6787 Plot filled contours.    
+   6788         
+   (...)        
+   6794 %(contour_doc)s          
+   6795 """     
+   6796 kwargs['filled'] = True  
+-> 6797 contours = mcontour.QuadContourSet(self, *args, **kwargs)  
+   6798 self._request_autoscale_view()                             
+   6799 return contours          
+
+File ~/thesis/.venv/lib/python3.10/site-packages/matplotlib/contour.py:701, in ContourSet.__init__(self, ax, levels, filled, linewidths, linestyles, hatches, alpha, origin, extent, cmap, colors, norm, vmin, vmax, colorizer, extend, antialiased, nchunk, locator, transform, negative_linestyles, clip_path, *args, **kwargs)
+    697 if self.negative_linestyles is None:                       
+    698     self.negative_linestyles = \                           
+    699         mpl.rcParams['contour.negative_linestyle']         
+--> 701 kwargs = self._process_args(*args, **kwargs)               
+    702 self._process_levels()   
+    704 self._extend_min = self.extend in ['min', 'both']          
+
+File ~/thesis/.venv/lib/python3.10/site-packages/matplotlib/contour.py:1319, in QuadContourSet._process_args(self, corner_mask, algorithm, *args, **kwargs)
+   1316         corner_mask = mpl.rcParams['contour.corner_mask']  
+   1317 self._corner_mask = corner_mask                            
+-> 1319 x, y, z = self._contour_args(args, kwargs)                 
+   1321 contour_generator = contourpy.contour_generator(           
+   1322     x, y, z, name=self._algorithm, corner_mask=self._corner_mask,  
+   1323     line_type=contourpy.LineType.SeparateCode,             
+   1324     fill_type=contourpy.FillType.OuterCode,                
+   1325     chunk_size=self.nchunk)                                
+   1327 t = self.get_transform() 
+
+File ~/thesis/.venv/lib/python3.10/site-packages/matplotlib/contour.py:1370, in QuadContourSet._contour_args(self, args, kwargs)
+   1368     _api.warn_external('Log scale: values of z <= 0 have been masked')
+   1369     self.zmin = z.min().astype(float)                      
+-> 1370 self._process_contour_level_args(args, z.dtype)            
+   1371 return (x, y, z)         
+
+File ~/thesis/.venv/lib/python3.10/site-packages/matplotlib/contour.py:1030, in ContourSet._process_contour_level_args(self, args, z_dtype)           
+   1028     raise ValueError("Filled contours require at least 2 levels.") 
+   1029 if len(self.levels) > 1 and np.min(np.diff(self.levels)) <= 0.0:   
+-> 1030     raise ValueError("Contour levels must be increasing")  
+
+ValueError: Contour levels must be increasing                      
+
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:3_centered=False_normalized=False_iter=1.ipynb
+Failed Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:3_centered=False_normalized=False_iter=1.ipynb
+Traceback (most recent call last):                                 
+  File "/home/marnix/thesis/.venv/lib/python3.10/site-packages/jupyter_cache/executors/basic.py", line 60, in __call__
+    result = self.execute(project_nb, data)                        
+  File "/home/marnix/thesis/.venv/lib/python3.10/site-packages/jupyter_cache/executors/basic.py", line 111, in execute
+    return single_nb_execution(  
+  File "/home/marnix/thesis/.venv/lib/python3.10/site-packages/jupyter_cache/executors/utils.py", line 58, in single_nb_execution
+    executenb(  
+  File "/home/marnix/thesis/.venv/lib/python3.10/site-packages/nbclient/client.py", line 1319, in execute
+    return NotebookClient(nb=nb, resources=resources, km=km, **kwargs).execute()
+  File "/home/marnix/thesis/.venv/lib/python3.10/site-packages/jupyter_core/utils/__init__.py", line 158, in wrapped
+    return loop.run_until_complete(inner)                          
+  File "/usr/lib/python3.10/asyncio/base_events.py", line 649, in run_until_complete
+    return future.result()       
+  File "/home/marnix/thesis/.venv/lib/python3.10/site-packages/nbclient/client.py", line 709, in async_execute
+    await self.async_execute_cell(                                 
+nbclient.exceptions.DeadKernelError: Kernel died                   
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=matern:12_centered=False_normalized=False_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=matern:12_centered=False_normalized=False_iter=1.ipynb           
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=matern:32_centered=False_normalized=False_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=matern:32_centered=False_normalized=False_iter=1.ipynb           
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=matern:52_centered=False_normalized=False_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=matern:52_centered=False_normalized=False_iter=1.ipynb           
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=matern:inf_centered=False_normalized=False_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=matern:inf_centered=False_normalized=False_iter=1.ipynb          
+Executing: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=periodickernel_centered=False_normalized=False_iter=1.ipynb
+Execution Successful: /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=periodickernel_centered=False_normalized=False_iter=1.ipynb      
+Finished! Successfully executed notebooks have been cached.        
+succeeded:      
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=0_kernel=tack:0_centered=True_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=0_kernel=tack:0_centered=True_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=0_kernel=tack:0_centered=False_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=0_kernel=tack:0_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=0_kernel=tack:1_centered=True_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=0_kernel=tack:1_centered=True_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=0_kernel=tack:1_centered=False_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=0_kernel=tack:1_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=0_kernel=tack:2_centered=True_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=0_kernel=tack:2_centered=True_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=0_kernel=tack:2_centered=False_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=0_kernel=tack:2_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=0_kernel=tack:3_centered=True_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=0_kernel=tack:3_centered=True_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=0_kernel=tack:3_centered=False_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=0_kernel=tack:3_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=0_kernel=matern:12_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=0_kernel=matern:32_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=0_kernel=matern:52_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=0_kernel=matern:inf_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=0_kernel=periodickernel_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=1_kernel=tack:0_centered=True_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=1_kernel=tack:0_centered=True_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=1_kernel=tack:0_centered=False_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=1_kernel=tack:0_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=1_kernel=tack:1_centered=True_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=1_kernel=tack:1_centered=True_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=1_kernel=tack:1_centered=False_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=1_kernel=tack:1_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=1_kernel=tack:2_centered=True_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=1_kernel=tack:2_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=1_kernel=tack:3_centered=True_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=1_kernel=tack:3_centered=False_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=1_kernel=tack:3_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=1_kernel=matern:12_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=1_kernel=matern:32_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=1_kernel=matern:52_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=1_kernel=matern:inf_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=1_kernel=periodickernel_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=2_kernel=tack:0_centered=True_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=2_kernel=tack:0_centered=True_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=2_kernel=tack:0_centered=False_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=2_kernel=tack:0_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=2_kernel=tack:1_centered=True_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=2_kernel=tack:1_centered=True_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=2_kernel=tack:1_centered=False_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=2_kernel=tack:1_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=2_kernel=tack:2_centered=True_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=2_kernel=tack:2_centered=True_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=2_kernel=tack:2_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=2_kernel=tack:3_centered=True_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=2_kernel=tack:3_centered=False_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=2_kernel=tack:3_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=2_kernel=matern:12_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=2_kernel=matern:32_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=2_kernel=matern:52_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=2_kernel=matern:inf_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=2_kernel=periodickernel_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=3_kernel=tack:0_centered=True_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=3_kernel=tack:0_centered=True_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=3_kernel=tack:0_centered=False_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=3_kernel=tack:0_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=3_kernel=tack:1_centered=True_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=3_kernel=tack:1_centered=True_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=3_kernel=tack:1_centered=False_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=3_kernel=tack:1_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=3_kernel=tack:2_centered=True_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=3_kernel=tack:2_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=3_kernel=tack:3_centered=True_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=3_kernel=tack:3_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=3_kernel=matern:12_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=3_kernel=matern:32_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=3_kernel=matern:inf_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=3_kernel=periodickernel_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=100_kernel=tack:0_centered=True_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=100_kernel=tack:0_centered=True_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=100_kernel=tack:0_centered=False_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=100_kernel=tack:0_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=100_kernel=tack:1_centered=True_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=100_kernel=tack:1_centered=True_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=100_kernel=tack:1_centered=False_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=100_kernel=tack:1_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=100_kernel=tack:2_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=100_kernel=tack:3_centered=False_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=100_kernel=matern:12_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=100_kernel=matern:32_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=100_kernel=matern:inf_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=100_kernel=periodickernel_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=0_kernel=tack:0_centered=True_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=0_kernel=tack:0_centered=True_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=0_kernel=tack:0_centered=False_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=0_kernel=tack:0_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=0_kernel=tack:1_centered=True_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=0_kernel=tack:1_centered=True_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=0_kernel=tack:1_centered=False_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=0_kernel=tack:1_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=0_kernel=tack:2_centered=True_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=0_kernel=tack:2_centered=True_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=0_kernel=tack:2_centered=False_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=0_kernel=tack:2_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=0_kernel=tack:3_centered=True_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=0_kernel=tack:3_centered=True_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=0_kernel=tack:3_centered=False_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=0_kernel=tack:3_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=0_kernel=matern:12_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=0_kernel=matern:32_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=0_kernel=matern:52_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=0_kernel=matern:inf_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=0_kernel=periodickernel_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=1_kernel=tack:0_centered=True_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=1_kernel=tack:0_centered=True_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=1_kernel=tack:0_centered=False_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=1_kernel=tack:0_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=1_kernel=tack:1_centered=True_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=1_kernel=tack:1_centered=True_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=1_kernel=tack:1_centered=False_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=1_kernel=tack:1_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=1_kernel=tack:2_centered=True_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=1_kernel=tack:2_centered=True_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=1_kernel=tack:2_centered=False_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=1_kernel=tack:2_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=1_kernel=tack:3_centered=True_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=1_kernel=tack:3_centered=True_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=1_kernel=tack:3_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=1_kernel=matern:12_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=1_kernel=matern:32_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=1_kernel=matern:52_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=1_kernel=matern:inf_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=1_kernel=periodickernel_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=tack:0_centered=True_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=tack:0_centered=True_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=tack:0_centered=False_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=tack:0_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=tack:1_centered=True_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=tack:1_centered=True_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=tack:1_centered=False_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=tack:1_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=tack:2_centered=True_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=tack:2_centered=True_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=tack:2_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=tack:3_centered=True_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=tack:3_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=matern:12_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=matern:32_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=matern:52_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=matern:inf_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=periodickernel_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=tack:0_centered=True_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=tack:0_centered=True_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=tack:0_centered=False_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=tack:0_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=tack:1_centered=True_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=tack:1_centered=True_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=tack:1_centered=False_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=tack:1_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=tack:2_centered=True_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=tack:2_centered=False_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=tack:2_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=tack:3_centered=True_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=tack:3_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=matern:12_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=matern:32_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=matern:52_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=matern:inf_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=periodickernel_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:0_centered=True_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:0_centered=True_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:0_centered=False_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:0_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:1_centered=True_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:1_centered=True_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:1_centered=False_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:1_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:2_centered=True_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:2_centered=True_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:2_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:3_centered=True_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:3_centered=True_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=matern:12_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=matern:32_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=matern:52_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=matern:inf_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=periodickernel_centered=False_normalized=False_iter=1.ipynb
+excepted: # all of these: error in dyplot (contour problems)       
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=1_kernel=tack:2_centered=True_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=1_kernel=tack:2_centered=False_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=1_kernel=tack:3_centered=True_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=2_kernel=tack:2_centered=False_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=2_kernel=tack:3_centered=True_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=3_kernel=tack:2_centered=True_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=3_kernel=tack:2_centered=False_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=3_kernel=tack:3_centered=True_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=3_kernel=tack:3_centered=False_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=3_kernel=matern:52_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=100_kernel=tack:2_centered=True_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=100_kernel=tack:2_centered=True_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=100_kernel=tack:2_centered=False_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=100_kernel=tack:3_centered=True_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=100_kernel=tack:3_centered=True_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=100_kernel=tack:3_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/hard_gci_d=100_kernel=matern:52_centered=False_normalized=False_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=1_kernel=tack:3_centered=False_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=tack:2_centered=False_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=tack:3_centered=True_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=2_kernel=tack:3_centered=False_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=tack:2_centered=True_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=tack:3_centered=True_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=3_kernel=tack:3_centered=False_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:2_centered=False_normalized=True_iter=1.ipynb
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:3_centered=False_normalized=True_iter=1.ipynb
+errored:        
+- /home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:3_centered=False_normalized=False_iter=1.ipynb # kernel died
+
+marnix@beast:~/thesis$ home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:3_centered=False_normalized=False_iter=1.ipynb              
+-bash: home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:3_centered=False_normalized=False_iter=1.ipynb: No such file or directory   
+marnix@beast:~/thesis$ home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:3_centered=False_normalized=False_iter=1.ipynb              
+-bash: home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:3_centered=False_normalized=False_iter=1.ipynb: No such file or directory   
+marnix@beast:~/thesis$ home/marnix/thesis/experiments/gfm/runs/soft_gci_d=100_kernel=tack:3_cen^C               
+marnix@beast:~/thesis$ tmux capture-pane -S -                              
+marnix@beast:~/thesis$ tmux save-buffer tmuxbuffer                         
+marnix@beast:~/thesis$ tmux capture-pane -S - -p -J > tmuxbufferdump.txt   
+
