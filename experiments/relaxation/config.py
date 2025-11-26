@@ -22,7 +22,7 @@ def configurations():
         kernels,
         [True, False],
         [True, False],
-        [1],  # [1, 2, 3],
+        [1, 2, 3, 4, 5],
     ):
         if ("tack" not in kernel) and (centered or normalized):
             continue
