@@ -24,6 +24,12 @@ Rd is also proportional to NAQ:
 
 > The NAQ measure (Alku et al., 2002) has been proposed as a global parameter, which correlates with the tense/lax dimension of vocal quality and, when scaled by 0.11, is essentially the same as the Rd parameter used in this study. A high NAQ value is indicative of lax voice, and a low NAQ value indicative of pressed or tense voice. NAQ has gained considerable popularity as a measure of the tense/lax dimension of voice variation. @Yanushevskaya2022
 
+# Nested sampling
+
+- nlive = 500
+- using 'rwalk' as 'uniform' method could sometimes get stick in a bootstrapping problem loop ("The enlargement factor for the ellipsoidal bounds determined from bootstrapping is very large.")
+  * in simple tests this outputted same logz as 'uniform' sampling, just in mins rather than hrs
+
 # Observations
 
 [ongoing]
