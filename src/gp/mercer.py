@@ -33,10 +33,22 @@ class Mercer(Kernel):
         f2 = self.compute_phi(X2) @ L
         return f1 @ f2.T
 
-    def evaluate_diag(self, X):
+    def evaluate(self, X1: JAXArray, X2: JAXArray) -> JAXArray:
+        phi1 = self.compute_phi(X1)
+        phi2 = self.compute_phi(X2)
+
         L = self.compute_weights_root()
-        f = self.compute_phi(X) @ L
-        return jnp.sum(f**2)
+
+        f1 = L.T @ phi1
+        f2 = L.T @ phi2
+
+        return jnp.dot(f1, f2)  # ()
+
+    def evaluate_diag(self, X):
+        phi = self.compute_phi(X)
+        L = self.compute_weights_root()
+        f = L.T @ phi
+        return jnp.dot(f, f)  # ()
 
     def __add__(self, other: Kernel | JAXArray) -> Kernel:
         if isinstance(other, Mercer):
@@ -63,6 +75,7 @@ class Mercer(Kernel):
             return super().__rmul__(other)
         else:
             return Scale(factor=other, kernel=self)
+
 
 
 class Sum(Mercer):
