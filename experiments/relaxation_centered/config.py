@@ -1,15 +1,15 @@
 from itertools import product
 from random import Random
 
-rng = Random(787895053)
+rng = Random(457899911)
 
 
 def configurations():
     tack_kernels = ["tack:0", "tack:1", "tack:2", "tack:3"]
     stack_kernels = ["stack:0", "stack:1", "stack:2", "stack:3"]
     matern_kernels = ["matern:12", "matern:32", "matern:52", "matern:inf"]
-    sqexp_kernels = ["periodickernel"]
-    kernels = tack_kernels + stack_kernels + matern_kernels + sqexp_kernels
+    periodic_kernel = ["periodickernel"]
+    kernels = tack_kernels + stack_kernels + matern_kernels + periodic_kernel
 
     for (
         Rd,
@@ -18,7 +18,7 @@ def configurations():
         normalized,
         iteration,
     ) in product(
-        [0.3, 0.9, 1.5, 2.1, 2.7],
+        [0.3, 1.0, 1.5, 2.0, 2.7],
         kernels,
         [True, False],
         [True, False],
