@@ -16,11 +16,11 @@ def instantiate_kernel(kernel, theta, hyper={}):
         case "matern:inf":
             k = theta["sigma_a"] * ExpSquared(scale=theta["ell"])
         case "periodickernel":
-            # Parametrization (r, T) agrees with src.iklp.periodic.periodic_kernel_generator() [but the latter calculates the time indices t differently; we have PERIOD inclusive and the latter exclusive]
-            r = theta["r"]
-            T = hyper["T"]
-            gamma = 1.0 / (2.0 * r**2)
-            k = theta["sigma_a"] * ExpSineSquared(scale=T, gamma=gamma)
+            # Uses Yoshii+ (2013) parametrization (like we do in IKLP experiments):
+            #   K = np.exp(-2 * (np.sin(np.pi * tau / T)) ** 2 / (ell**2))
+            scale = hyper["T"]
+            gamma = 2.0 / theta["ell"] ** 2
+            k = theta["sigma_a"] * ExpSineSquared(scale=scale, gamma=gamma)
         case _ if "tack" in kernel:
             d = int(kernel[-1])
             normalized = hyper.get("normalized", False)
@@ -55,7 +55,7 @@ def build_theta(x, kernel):
             return {
                 "sigma_noise": x[0],
                 "sigma_a": x[1],
-                "r": x[2],
+                "ell": x[2],
             }
         case _ if "stack" in kernel:
             return {
@@ -82,9 +82,11 @@ if __name__ == "__main__":
     theta = {
         "sigma_a": 5.0,
         "ell": 1.789,
-        "r": 0.78113212,
+        "T": 3.2,
         "sigma_b": 3.0,
         "sigma_c": 0.5,
     }
 
     k = instantiate_kernel(kernel, theta, hyper)
+
+# %%
