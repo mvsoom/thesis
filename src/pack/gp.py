@@ -1,4 +1,5 @@
 # %%
+# https://chatgpt.com/g/g-p-68f9d6b4a46c81919b645b342ba50e41-ongoing/c/69236ac4-94c0-8331-af6e-2dc3edb7dcd8
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -51,17 +52,20 @@ def reconstruct_periodic_sample(c, omega_vals, t_grid):
     return u_t
 
 
-# your existing setup
-t1 = -5
-t2 = 5
+# existing setup
+t1 = 0
+t2 = 2
 
+include_dc = False
 
-T = 20.0  # ms
-fs = 16000.0  # Hz, not directly used here
+T = 2.0  # ms
+fs = 16000.0
 F0 = 1000.0 / T  # Hz equivalent
 num_harmonics = int(np.floor((fs / F0) / 2)) * 100
 
-f_vals = jnp.arange(1, num_harmonics + 1) / T  # cycles / ms
+f_vals = (
+    jnp.arange(0 if include_dc else 1, num_harmonics + 1) / T
+)  # cycles / ms
 omega_vals = 2.0 * jnp.pi * f_vals  # rad / ms
 
 # sample coeffs and synthesize
@@ -97,6 +101,4 @@ plt.axvline(-t2, color="grey", linestyle="--", alpha=0.5)
 where = (t >= -t2) & (t <= -t1)
 jnp.sum(du[where] * dt)
 
-plt.plot(t, where)
-
-# https://chatgpt.com/g/g-p-68f9d6b4a46c81919b645b342ba50e41-ongoing/c/69236ac4-94c0-8331-af6e-2dc3edb7dcd8
+# plt.plot(t, where)

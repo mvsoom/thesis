@@ -1,5 +1,4 @@
 # %%
-from functools import partial
 
 import jax
 import jax.numpy as jnp
@@ -61,7 +60,23 @@ def _boundary_term_vec(n, theta, m_vals, omega_vals):
     )  # (M,W) when m_vals is full, or (K,W) when sliced
 
 
-@partial(jax.jit, static_argnums=(2, 3))
+def H_dc_numeric(m_vals, d, t1, t2, N=200):
+    # compute H_m^{(d)}(0) for all m in m_vals
+    x, w = np.polynomial.legendre.leggauss(N)
+    # scale to [t1, t2]
+    xm = 0.5 * (t2 - t1) * x + 0.5 * (t2 + t1)
+    wm = 0.5 * (t2 - t1) * w
+
+    xsq = (1.0 + xm**2) ** (d / 2)
+
+    out = []
+    for m in m_vals:
+        phase = np.exp(1j * m * np.arctan(xm))
+        out.append(np.sum(wm * xsq * phase))
+    return np.array(out)  # shape (|m_vals|,)
+
+
+# @partial(jax.jit, static_argnums=(2, 3))
 def _build_H_from_I(I_mat, omega_vals, m_max, n_max, theta1, theta2):
     """
     Core recurrence builder for H_n(m, ω) given I_mat for n=0.
@@ -105,6 +120,13 @@ def _build_H_from_I(I_mat, omega_vals, m_max, n_max, theta1, theta2):
         )  # (K,W)
 
         H = H.at[n, idx, :].set(diff + recur)
+
+    # FIXME: hack ----- handle omega = 0 column explicitly -----
+    dc_index = jnp.where(omega_vals == 0.0)[0]
+    if dc_index.size == 1:
+        for n in range(n_max + 1):
+            H_dc = H_dc_numeric(m_vals, n, t1, t2)  # numpy array, shape (M,)
+            H = H.at[n, :, dc_index].set(jnp.asarray(H_dc))
 
     return H
 
@@ -214,63 +236,62 @@ def build_pack_ktilde(d, omega_vals, t1, t2, m_max, n_quad=128):
 
 
 # %%
+if __name__ == "__main__":
+    # time bounds in MILLISECONDS
+    t1 = -3.25
+    t2 = +3.25
+    t_c = t2 - t1
 
-# time bounds in MILLISECONDS
-t1 = -3.25
-t2 = +3.25
-t_c = t2 - t1
+    fs = 16000  # Hz
 
-fs = 16000  # Hz
+    # choose period T > t_c in MILLISECONDS
+    T = 9.0
 
-# choose period T > t_c in MILLISECONDS
-T = 9.0
+    F0 = 1000.0 / T  # Hz
 
-F0 = 1000.0 / T  # Hz
+    num_harmonics = int(np.floor((fs / F0) / 2))
 
-num_harmonics = int(np.floor((fs / F0) / 2))
+    print(
+        f"Open phase: {t_c:.2f}msec embedded in period of {T:.2f} msec [F0 = {F0:.3f} Hz => {num_harmonics} harmonics]"
+    )
 
-print(
-    f"Open phase: {t_c:.2f}msec embedded in period of {T:.2f} msec [F0 = {F0:.3f} Hz => {num_harmonics} harmonics]"
-)
+    assert t_c <= T, "Interval length exceeds period T"
 
-assert t_c <= T, "Interval length exceeds period T"
+    # harmonics
+    f_vals = jnp.arange(0, num_harmonics + 1) / T  # Hz
+    omega_vals = 2 * jnp.pi * f_vals  # rad/s
 
-# harmonics
-f_vals = jnp.arange(1, num_harmonics + 1) / T  # Hz
-omega_vals = 2 * jnp.pi * f_vals  # rad/s
+    # quadrature
+    Nquad = 128
+    x_nodes, w_nodes = make_legendre_quadrature(t1, t2, Nquad)
 
-# quadrature
-Nquad = 128
-x_nodes, w_nodes = make_legendre_quadrature(t1, t2, Nquad)
+    # build H-table
+    m_max = 500
+    n_max = 3
+    m_vals, H = build_H_table(omega_vals, t1, t2, m_max, n_max)
 
-# build H-table
-m_max = 500
-n_max = 3
-m_vals, H = build_H_table(omega_vals, t1, t2, m_max, n_max)
+    # test element
+    n = 3
+    m = 15
+    k = 0
 
-# test element
-n = 2
-m = 1
-k = -4  # means omega = omega_vals[50]
+    assert -m_max <= m <= m_max, "m out of range"
+    assert k < num_harmonics, "k out of range"
 
-assert -m_max <= m <= m_max, "m out of range"
-assert k < num_harmonics, "k out of range"
+    omega = omega_vals[k]
+    oracle = H_single_numeric(n, m, float(omega), float(t1), float(t2))
+    faster = H[n, m + m_max, k]
+    error = abs(oracle - faster)
 
-omega = omega_vals[k]
-oracle = H_single_numeric(n, m, float(omega), float(t1), float(t2))
-faster = H[n, m + m_max, k]
-error = abs(oracle - faster)
+    print("error =", error / np.abs(oracle))
+    print("faster = ", faster)
+    print("oracle = ", oracle)
 
-print("error =", error / np.abs(oracle))
-print("faster = ", faster)
-print("oracle = ", oracle)
+    # %%
+    K = build_pack_ktilde(2, omega_vals, t1, t2, m_max)
 
-# %%
-K = build_pack_ktilde(2, omega_vals, t1, t2, m_max)
+    plt.imshow(K.real)
+    plt.show()
+    plt.imshow(K.imag)
 
-
-plt.imshow(K.real)
-plt.show()
-plt.imshow(K.imag)
-
-# %%
+    # %%
