@@ -22,8 +22,62 @@
   header: [Linear surrogates via GPs],
   highlight-color: red,
   binding: true,
-  dots: true,
+  dots: false, // set to true later, otherwise destroys preview
 )
+
+/*
+ONS VERHAAL GEBRUIKEN toch
+
+heel goede modellen nodig
+
+
+ANKERPUNTEN om de zoveel slides
+
+we willen van hier naar daar
+
+combinatie van Rd = .3 tem 2.7
+
+
+
+gotta tame the prior
+too wild
+but not too tame either
+
+
+
+duidelijk in en uit verhaal
+
+
+beeldjes van mensen die spreken
+waveforms
+
+
+laatste 5 minutes aan voorbeelden
+- robotica
+- signal processing
+- chemie: batterij laad en oplaad curves
+- vision
+- echo's, sonar
+curves, overal curves
+
+hoeveel dimensions?
+
+
+======
+
+[
+hyperparams: prior experience or data
+then data comes: set your hyperparams and go
+]
+
+here
+
+[
+hyperparams: learn from examples
+then data comes: lets go
+]
+
+*/
 
 #title-slide[My interesting title][
   A subtitle
@@ -96,6 +150,8 @@
   == Problem: how to choose?
 
   Assume we agree on the model and the white noise, how do we choose $bm(Phi)$ and $bm(Sigma_a)$?
+
+  #post-it[Actually you can always choose $ bm(Sigma_a) := I_M $]
 
   This has a large influence!
 

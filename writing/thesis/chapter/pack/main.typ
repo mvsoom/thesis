@@ -541,6 +541,31 @@ In all cases are the basisfunctions fixed for efficiency, but this need not be t
 in this case we can't _sample_ $theta$ anymore, since the (features) basisfunctions depend on it, but can just use an argmax $theta$.
 
 
+==== Why not do PCA?
+PCA learns the basis functions from a SVD of the empirical covariance matrix.
+You can turn it into a generative model by fitting a Gaussian to the score vector.
+
+We do something more elaborate, which has following advantages:
+
+1. Model functions, not vectors:
+Irregular grids, different amount of samples, missing data all heandled.
+PCA needs rectangular data.
+This also means that we can condition on stuff: eg, when varying $T$ we can still condition on previous or future data with QPACK
+
+2. Uncertainty handling
+Uncertainty is retained in a principled way at each step, especially if we sample the $theta$ rather than optimizing.
+(We effectively integrate out the $theta$.)
+
+3. Prior
+We refine the prior into a smaller support, but not too small.
+We want to tame it but not make it tame; we still need to be prepared for what's out there in the wild.
+This has advantages:
+- Attempts to quantify the physics/geometry underlying the signals.
+- Can do with very little examplars (PCA needs many samples if $N$ is large as the empirical covariance matrix can take time to converge) which is handy for expensive simulations.
+- Predicting out-of-data-distribution handled consistently; fall back to predictions based on underlying assumed model OR inflate uncertainty accordingly.
+
+In short: PCA: empirically-oriented and data exploration phase; BNGIF: try to turn what we know quantitatively in a uncertainty-calibrated model.
+
 == Evaluation on `OPENGLOT-I`
 
 == Summary
