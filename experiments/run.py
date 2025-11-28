@@ -17,6 +17,8 @@ TODO:
     * still need raw jcache interface to inspect eg notebooks that errored (jcache notebook info [id])
     * [-- ...jcache-args] doesn't seem to work
   - multiple command specification: python -m experiments.run generate+execute ...
+  - `progress` command: print how many good/failed/todo with a crude ETA, and if all done print total walltime elapsed
+  - commands to only update failed notebooks if many of them have succeeded
 """
 
 import argparse
