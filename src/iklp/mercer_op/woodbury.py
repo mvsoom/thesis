@@ -42,6 +42,7 @@ def _assemble_core_chol(Phi, w, nu, beta):
 
     # Block Gram: G[i,j] = Phi[i].T @ Phi[j]  -> (I, I, r, r)
     # einsum: sum over m: (i m r) * (j m s) -> (i j r s)
+    # O(I^2 M r^2) => can be done analytically for Fourier basis Phi
     G_blocks = jnp.einsum("imr,jms->ijrs", Phi, Phi)
 
     # Scalar weights per block
@@ -147,6 +148,9 @@ def trinv(op: MercerWoodburyOp):
 def trinv_Ki(op: MercerWoodburyOp):
     # tr(S^{-1} K_i) = (1/nu) ||Phi_i||_F^2 - (1/nu^2) * ||L^{-1} B_i||_F^2
     # with B_i = Phi_w^T Phi_i = vertstack_j [ sqrt(w_j) * (Phi_j^T Phi_i) ] in R^{L x r}
+
+    # TODO: this recomputes G from _assemble_core_chol()
+
     Phi = op.data.h.Phi
     I, M, r = Phi.shape
     L = M * r
