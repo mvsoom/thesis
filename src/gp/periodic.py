@@ -1,3 +1,4 @@
+# %%
 from __future__ import annotations
 
 import equinox as eqx
@@ -5,7 +6,7 @@ import jax.numpy as jnp
 import tensorflow_probability.substrates.jax as tfp
 from tinygp.helpers import JAXArray
 
-from .mercer import Mercer
+from gp.mercer import Mercer
 
 tfmath = tfp.math
 
@@ -107,3 +108,21 @@ class PeriodicSE(Mercer):
         diag_L = jnp.concatenate([q, q[1:]], axis=0)  # (2J+1,)
 
         return jnp.diag(diag_L)
+
+if __name__ == "__main__":
+    # PeriodicSE
+    import numpy as np
+
+    dt = 0.5
+    M = 512
+    t = np.arange(M) * dt
+    tau = t[:, None] - t[None, :]
+    T = 10.5
+    ell = 1.3
+    K = np.exp(-2 * (np.sin(np.pi * tau / T)) ** 2 / (ell**2))
+
+    J = 30
+    k = PeriodicSE(ell=jnp.array(ell), period=T, J=J)
+    K_tinygp = k(t, t)
+
+    print("Max abs diff PeriodicSE:", np.max(np.abs(K - K_tinygp)))
