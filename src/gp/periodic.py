@@ -56,7 +56,7 @@ class PeriodicSE(Mercer):
     """
     Low-rank Mercer representation of the 1D periodic SE kernel
 
-        k(t, t') = sigma_a^2 * exp(-2 sin^2(pi (t - t') / T) / ell^2),
+        k(t, t') = exp(-2 sin^2(pi (t - t') / T) / ell^2),
 
     with period T and lengthscale ell. We use the truncated Fourier series
 
@@ -73,14 +73,11 @@ class PeriodicSE(Mercer):
         Period T of the kernel (in the same units as t).
     J : int
         Highest harmonic index in the truncation. Rank is 2J+1.
-    sigma_a : float
-        Amplitude (standard deviation). Variance is sigma_a^2.
     """
 
     ell: JAXArray
     period: JAXArray
     J: int = eqx.field(static=True)
-    sigma_a: JAXArray = 1.0
 
     def compute_phi(self, X: JAXArray) -> JAXArray:
         t = jnp.asarray(X)  # scalar or 0-d array
@@ -98,8 +95,8 @@ class PeriodicSE(Mercer):
 
         We build a diagonal L with entries
 
-            diag_L = sigma_a * [sqrt(q2_0), ..., sqrt(q2_J),
-                                sqrt(q2_1), ..., sqrt(q2_J)]
+            diag_L = [sqrt(q2_0), ..., sqrt(q2_J),
+                      sqrt(q2_1), ..., sqrt(q2_J)]
 
         so that cos_j and sin_j share the same weight.
         """
@@ -108,7 +105,5 @@ class PeriodicSE(Mercer):
         # cos(0..J): q_0..q_J
         # sin(1..J): q_1..q_J
         diag_L = jnp.concatenate([q, q[1:]], axis=0)  # (2J+1,)
-
-        diag_L = self.sigma_a * diag_L
 
         return jnp.diag(diag_L)

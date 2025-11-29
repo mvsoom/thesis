@@ -25,6 +25,7 @@
     - But tinygp only allows solvers to represent K = LL^t, not K = RR^t + sigma^2 I where R is low-rank and L is full rank triangular
     - Already a hacky, NON TESTED implementation à la Hilbert-GP
     - Basically we need to implement our MercerOp here
+    - This is all laid out [here](https://chatgpt.com/s/t_692a3afacd4481919e43e54148abf6ec)
 
 
 ##
