@@ -13,12 +13,14 @@ def configurations():
 
     for (
         Rd,
+        open_phase_only,
         kernel,
         centered,
         normalized,
         iteration,
     ) in product(
         [0.3, 1.0, 1.5, 2.0, 2.7],
+        [True, False],
         kernels,
         [True, False],
         [True, False],
@@ -30,9 +32,10 @@ def configurations():
         yield {
             "seed": rng.randint(0, 2**32 - 1),
             "Rd": Rd,
+            "open_phase_only": open_phase_only,
             "kernel": kernel,
             "centered": centered,
             "normalized": normalized,
             "iteration": iteration,
-            "name": f"Rd={Rd}_kernel={kernel}_centered={centered}_normalized={normalized}_iter={iteration}",
+            "name": f"Rd={Rd}_open_phase_only={open_phase_only}_kernel={kernel}_centered={centered}_normalized={normalized}_iter={iteration}",
         }
