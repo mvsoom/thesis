@@ -1,6 +1,7 @@
 """
 TODO(mvsoom): documentation
 TODO(mvsoom): use COLA to annotate JAX arrays
+TODO(mvsoom): implement efficient sampling, log_prob, etc
 """
 
 from __future__ import annotations
@@ -9,6 +10,7 @@ from functools import partial
 from typing import Callable
 
 import equinox as eqx
+import jax
 import jax.numpy as jnp
 from jax.scipy import linalg
 from tinygp.helpers import JAXArray
@@ -49,6 +51,25 @@ class Mercer(Kernel):
         L = self.compute_weights_root()
         f = L.T @ phi
         return jnp.dot(f, f)  # ()
+
+    def matmul(
+        self,
+        X1: JAXArray,
+        X2: JAXArray | None = None,
+        y: JAXArray | None = None,
+    ) -> JAXArray:
+        if y is None:
+            assert X2 is not None
+            y = X2
+            X2 = None
+
+        if X2 is None:
+            X2 = X1
+
+        Phi1 = jax.vmap(self.compute_phi)(X1)  # (N1, R)
+        Phi2 = jax.vmap(self.compute_phi)(X2)  # (N2, R)
+        L = self.compute_weights_root()  # (R, R)
+        return Phi1 @ (L @ (L.T @ (Phi2.T @ y)))
 
     def __add__(self, other: Kernel | JAXArray) -> Kernel:
         if isinstance(other, Mercer):

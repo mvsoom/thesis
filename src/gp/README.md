@@ -20,6 +20,11 @@
         - [ ] Else fallback to Mercer
     - [ ] Convolution possibly still salvageable even for different subspaces: absent axes just produce deltas
 
+- [ ] solvers/mercer.py
+    - Need to implement a Solver() to take full advantage of Mercer structure!
+    - But tinygp only allows solvers to represent K = LL^t, not K = RR^t + sigma^2 I where R is low-rank and L is full rank triangular
+    - Already a hacky, NON TESTED implementation à la Hilbert-GP
+    - Basically we need to implement our MercerOp here
 
 
 ##
