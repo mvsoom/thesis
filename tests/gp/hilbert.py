@@ -11,7 +11,7 @@ from utils.jax import vk
 
 scale = 1 + 1 / jnp.pi**2
 
-k = Matern52(scale=scale)
+kernel = Matern52(scale=scale)
 kk = kernels.Matern52(scale)
 
 # Test instantations
@@ -30,7 +30,7 @@ def inputs(N):
 
 
 x = inputs(1).squeeze()  # (D,)
-h = Hilbert(k, M, L, D=D)
+h = Hilbert(kernel, M, L, D=D)
 phi = h.compute_phi(x)
 weights = h.compute_weights()
 
@@ -38,7 +38,7 @@ weights = h.compute_weights()
 # %%
 X = inputs(1)
 
-k(X), kk(X), h(X)
+kernel(X), kk(X), h(X)
 
 # %%
 N = 1000
@@ -49,7 +49,7 @@ K = h(X, X)
 
 plt.matshow(K)
 # %%
-plt.matshow(k(X, X))
+plt.matshow(kernel(X, X))
 plt.matshow(kk(X, X))
 plt.matshow(h(X, X))
 
@@ -65,7 +65,7 @@ d = jax.vmap(kk.evaluate_diag)(X)
 
 plt.plot(d)
 # %%
-r = k(X, X) / h(X, X)
+r = kernel(X, X) / h(X, X)
 
 plt.matshow(jnp.log10(r))
 plt.colorbar()
