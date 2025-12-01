@@ -5,9 +5,6 @@ from matplotlib import pyplot as plt
 from iklp.hyperparams import Hyperparams, KrylovParams
 from iklp.mercer_op import build_X, build_data
 
-# Turn off compilation logging
-jax.config.update("jax_log_compiles", False)
-
 import jax.numpy as jnp
 
 from iklp.mercer_op.krylov import *
