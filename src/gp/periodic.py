@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 import equinox as eqx
+import jax
 import jax.numpy as jnp
 import tensorflow_probability.substrates.jax as tfp
 from tinygp.helpers import JAXArray
 
 from gp.mercer import Mercer
+from pack.bitransform import build_k_tilde_matrix, compute_phi_tilde
 
 tfmath = tfp.math
 
@@ -80,8 +82,7 @@ class PeriodicSE(Mercer):
     period: JAXArray
     J: int = eqx.field(static=True)
 
-    def compute_phi(self, X: JAXArray) -> JAXArray:
-        t = jnp.asarray(X)  # scalar or 0-d array
+    def compute_phi(self, t: JAXArray) -> JAXArray:
         omega0 = 2.0 * jnp.pi / self.period
         js = jnp.arange(self.J + 1, dtype=t.dtype)
 
@@ -126,3 +127,118 @@ if __name__ == "__main__":
     K_tinygp = k(t, t)
 
     print("Max abs diff PeriodicSE:", np.max(np.abs(K - K_tinygp)))
+
+# %%
+class SPACK(Mercer):
+    d: int = eqx.field(static=True)
+
+    period: JAXArray
+    J: int = eqx.field(static=True)
+
+    t1: JAXArray
+    t2: JAXArray
+
+    M = 128  # Sweet spot; don't change
+
+    def compute_omegas(self) -> JAXArray:
+        omega0 = 2.0 * jnp.pi / self.period
+        js = jnp.arange(1, self.J + 1)  # No DC component
+        omegas = omega0 * js  # (J,)
+        return omegas  # (J,)
+
+    def compute_phi(self, t: JAXArray) -> JAXArray:
+        omegas = self.compute_omegas()  # (J,)
+
+        phase = omegas * t  # (J,)
+        scale = 2.0 / self.period  # from the inverse Fourier series transform
+
+        cos_terms = scale * jnp.cos(phase)
+        sin_terms = -scale * jnp.sin(phase)
+
+        return jnp.concatenate([cos_terms, sin_terms], axis=0)  # (2J,)
+
+    def compute_phi_integrated(self, t: JAXArray, t0: JAXArray) -> JAXArray:
+        """Compute ∫_{t0}^t phi'(τ) dτ"""
+        omegas = self.compute_omegas()  # (J,)
+
+        phase = omegas * t
+        phase0 = omegas * t0
+        scale = 2.0 / (self.period * omegas)
+
+        cos_terms = jnp.sin(phase) - jnp.sin(phase0)
+        sin_terms = jnp.cos(phase) - jnp.cos(phase0)
+
+        return jnp.concatenate(
+            [scale * cos_terms, scale * sin_terms],
+            axis=0,
+        )  # (2J,)
+
+    def compute_weights_root(self) -> JAXArray:
+        omegas = self.compute_omegas()  # (J,)
+
+        Phi_complex = jax.vmap(
+            lambda w: compute_phi_tilde(w, self.d, self.M, self.t1, self.t2)
+        )(omegas)
+
+        Phi_R = jnp.real(Phi_complex)
+        Phi_I = jnp.imag(Phi_complex)
+
+        # A = [Phi_R  -Phi_I; Phi_I  Phi_R] / sqrt(2)
+        top = jnp.concatenate([Phi_R, -Phi_I], axis=1)
+        bot = jnp.concatenate([Phi_I, Phi_R], axis=1)
+        A = jnp.concatenate([top, bot], axis=0)
+
+        return A / jnp.sqrt(2.0)  # shape (2J, 2R)
+
+
+if __name__ == "__main__":
+    import jax
+    import jax.numpy as jnp
+
+    # kernel params
+    period = 5.0
+    t1, t2 = -3.0, 4.0
+    J = 20
+    d = 0
+
+    sp = SPACK(
+        d=d, period=jnp.array(period), J=J, t1=jnp.array(t1), t2=jnp.array(t2)
+    )
+
+    # ---------- old slow method ----------
+    omegas = sp.compute_omegas()
+    K_complex = build_k_tilde_matrix(omegas, d, sp.M, t1, t2)  # (J,J)
+
+    ReK = jnp.real(K_complex)
+    ImK = jnp.imag(K_complex)
+
+    top = jnp.concatenate([ReK, -ImK], axis=1)
+    bot = jnp.concatenate([ImK, ReK], axis=1)
+    Sigma_old = 0.5 * jnp.concatenate([top, bot], axis=0)  # (2J,2J)
+
+    L_old = jnp.linalg.cholesky(Sigma_old + 1e-8 * jnp.eye(2 * J))  # (2J,2J)
+
+    # ---------- new rectangular method ----------
+    L_new = sp.compute_weights_root()  # (2J, 2R)
+
+    Sigma_new = L_new @ L_new.T
+
+    # ---------- errors ----------
+    err = jnp.max(jnp.abs(Sigma_old - Sigma_new))
+    fro = jnp.linalg.norm(Sigma_old - Sigma_new) / jnp.linalg.norm(Sigma_old)
+
+    print("max abs error:", float(err))
+    print("relative Frobenius:", float(fro))
+
+    # Quick sanity: check PSD-ness
+    eigs_old = jnp.linalg.eigvalsh(Sigma_old)
+    eigs_new = jnp.linalg.eigvalsh(Sigma_new)
+
+    print("min eig (old):", float(jnp.min(eigs_old)))
+    print("min eig (new):", float(jnp.min(eigs_new)))
+    print(
+        "rank(old)=",
+        int(jnp.sum(eigs_old > 1e-8)),
+        "rank(new)=",
+        int(jnp.sum(eigs_new > 1e-8)),
+    )

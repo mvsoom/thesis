@@ -9,7 +9,7 @@ from utils.jax import vk
 
 scale = 1 + 1 / jnp.pi**2
 
-k = Matern52(scale=scale)
+kernel = Matern52(scale=scale)
 l = Matern32(scale=1 / scale)
 
 # Test instantations
@@ -31,7 +31,7 @@ N = 100
 
 X = inputs(N).squeeze()  # (N, D)
 
-h = Hilbert(k, M, L, D=D)
+h = Hilbert(kernel, M, L, D=D)
 g = Hilbert(l, M, L, D=D)
 
 f = g * 5 + 2 * h
