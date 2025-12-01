@@ -23,9 +23,7 @@ from tqdm import tqdm
 from iklp.hyperparams import (
     ARPrior,
     pi_kappa_hyperparameters,
-    solve_for_alpha,
 )
-from iklp.mercer import psd_svd_fixed
 from iklp.mercer_op import backend
 from iklp.run import vi_run_criterion_batched
 from utils import time_this
@@ -43,27 +41,40 @@ hop = 80
 max_vi_iter = 50
 batch_size = 256
 
-# %%
 dt = 1.0 / target_fs
-t = np.arange(M) * dt
-tau = t[:, None] - t[None, :]
-T = (1 / f0)[:, None, None]
-K = np.exp(-2 * (np.sin(np.pi * tau / T)) ** 2 / (ell**2))  # (I, M, M)
-Phi, energy = psd_svd_fixed(K, rank=r)
+t = np.arange(M) * dt  # sec
 
-print(f"Energy captured at rank={r}:", energy)
+T = 1 / pitch  # Hz
 
-# Let's use eigenbasis expansion of periodickernel here
-# Riutort-Mayol appendix
+beta = 0.0
+alpha_scale = 1.0
+kappa = 1.0
+prior_pi = 0.5
 
-# Then for refined SPACK kernel we need to implement a GP mean
+# %%
+if kernel == "periodickernel":
+    from gp.periodic import PeriodicSE
+
+    ell = 0.5
+    T = 1.0 / pitch
+    r = 20
+
+    k = PeriodicSE(ell=jnp.array(ell), period=T, J=r)
+
+    Phi = jax.vmap(k.compute_phi)(t)
+    L = k.compute_weights_root()
+    Phi = Phi @ L
+elif kernel == "spack:1":
+    pass
+
+
+Phi = Phi.reshape((1, *Phi.shape))
 
 # %%
 arprior = ARPrior.yoshii_lambda(P)
 
-
-# %%
-alpha = solve_for_alpha(I) * alpha_scale
+I = Phi.shape[0]
+alpha = 1.0  # solve_for_alpha(I) * alpha_scale # doesnt work for I <= 2
 
 h = pi_kappa_hyperparameters(
     maybe32(Phi),
@@ -76,7 +87,7 @@ h = pi_kappa_hyperparameters(
     beta=maybe32(beta),
 )
 
-del K, Phi
+del Phi
 
 print("Phi shape:", h.Phi.shape)  # (I, M, r)
 print("Phi dtype:", h.Phi.dtype)
@@ -141,9 +152,10 @@ with time_this() as elapsed:
 metrics_list = list(unpack(metrics_tree))
 
 # %%
+f0 = np.array([pitch])
+
+# %%
 # export
-# Mean energy captured by the chosen rank `r`
-mean_energy = np.mean(energy)
 
 # This includes compilation for the shapes of the first and last batch, which are O(1) min
 time_per_iter = elapsed.walltime / metrics_tree.i.sum()
@@ -158,13 +170,6 @@ from utils.openglot import OpenGlotI
 
 # Plot best u'(t) fit
 i = int(np.nanargmin([r["dgf_aligned_nrmse"] for r in results]))
-print(i)
-
-OpenGlotI.plot_run(runs[i], metrics_list[i], f0, retain_plots=True)
-
-# %%
-# Plot best pitch fit
-i = int(np.nanargmin([r["pitch_wrmse"] for r in results]))
 print(i)
 
 OpenGlotI.plot_run(runs[i], metrics_list[i], f0, retain_plots=True)

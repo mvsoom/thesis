@@ -2,7 +2,6 @@
 import jax
 
 # Turn off compilation logging
-jax.config.update("jax_log_compiles", False)
 jax.config.update("jax_enable_x64", True)
 
 from iklp.hyperparams import Hyperparams
