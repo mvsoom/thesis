@@ -1,14 +1,11 @@
 # %%
-import jax
+import os
+
+import numpy as np
 from matplotlib import pyplot as plt
 from tqdm import tqdm
 
 from utils import lfmodel
-
-jax.config.update("jax_log_compiles", False)
-import os
-
-import numpy as np
 
 os.makedirs("data/hard_gci", exist_ok=True)
 os.makedirs("data/soft_gci", exist_ok=True)
