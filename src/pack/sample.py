@@ -5,7 +5,7 @@ from matplotlib import pyplot as plt
 from tinygp.gp import GaussianProcess
 from tinygp.kernels import ExpSquared
 
-from gp import mercer
+from gp.blr import blr_from_mercer
 from gp.periodic import SPACK
 from utils.jax import vk
 
@@ -28,8 +28,10 @@ omega_vals = 2.0 * jnp.pi * f_vals  # rad/ms
 
 k = SPACK(d, T, num_harmonics, t1, t2)
 
+gp = blr_from_mercer(k, t)
+
 # use faster Mercer sampling
-du = mercer.sample(vk(), k, t)
+du = gp.sample(vk())
 u = jnp.cumsum(du) * dt
 
 # plot
@@ -49,7 +51,7 @@ where = (t >= t1) & (t <= t2)
 print("∫ u'_T = ", jnp.sum(du[where] * dt))
 
 # %%
-mercer.log_probability(du, k, t, noise_variance=1e-6)
+gp.log_probability(du)
 
 # %%
 # QPACK proof of concept
