@@ -3,8 +3,9 @@ import jax
 import matplotlib.pyplot as plt
 import numpy as np
 
-from gp.mercer import posterior_latent
+from gp.blr import blr_from_mercer
 from gp.periodic import SPACK
+from utils.jax import vk
 
 jax.config.update("jax_enable_x64", True)
 # jax.config.update("jax_platform_name", "cpu")
@@ -70,26 +71,28 @@ fs = 16000.0
 F0 = 1000.0 / T  # Hz equivalent
 num_harmonics = int(np.floor((fs / F0) / 2))
 
-f_vals = (
-    jnp.arange(
-        1,
-        num_harmonics + 1,
-    )
-    / T
-)  # cycles / ms
-omega_vals = 2.0 * jnp.pi * f_vals  # rad / ms
+num_periods = 6
+
+N = int((T / 1000) * fs) * num_periods
+t, dt = jnp.linspace(
+    -T * num_periods / 2, T * num_periods / 2, N * 10, retstep=True
+)
 
 d = 1
 
 kernel = SPACK(d, T, num_harmonics, t1, t2)
 
+
 # %%
 def infer_amplitudes(lf, plot=False):
     t = lf["t"]
+    dt = t[1] - t[0]
     du = lf["du"]
 
-    Phi = jax.vmap(kernel.compute_phi)(t)
-    L = kernel.compute_weights_root()
+    gp = blr_from_mercer(kernel, t, noise_variance=sigma_noise**2)
+
+    Phi = gp.state.Phi
+    L = gp.cov_root
 
     if plot:
         Phi_weighted = Phi @ L  # (N, 2W)
@@ -102,44 +105,24 @@ def infer_amplitudes(lf, plot=False):
         plt.legend()
         plt.show()
 
-    mu_a, Sigma_a = posterior_latent(du, kernel, t, sigma_noise**2)
+    conditioned = gp.condition(du)
+    cgp = conditioned.gp
 
-    mu_a = L @ mu_a
-    Sigma_a = L @ Sigma_a @ L.T
-
-    f_post = Phi @ mu_a  # (N,)
+    mu, cov_root = cgp.mu, cgp.cov_root
 
     if plot:
-        # draw posterior samples of a
+        # draw posterior samples
         num_samples = 6
-        L_post = jnp.linalg.cholesky(Sigma_a + 1e-9 * jnp.eye(Sigma_a.shape[0]))
-        eps = jnp.asarray(
-            np.random.randn(Sigma_a.shape[0], num_samples)
-        )  # (2W, 6)
-        a_samps = mu_a[:, None] + L_post @ eps  # (2W, 6)
-
-        # turn amplitudes into function samples
-        f_samps = Phi @ a_samps  # (N, 6)
 
         plt.figure(figsize=(6, 4))
         plt.plot(t, du, label="data", c="black", linewidth=2)
-        plt.plot(t, f_post, label="posterior mean", c="red", linewidth=2)
+        plt.plot(t, cgp.mean, label="posterior mean", c="red", linewidth=2)
 
         for k in range(num_samples):
-            u = jnp.cumsum(f_samps[:, k]) * (t[1] - t[0])
-            plt.plot(t, f_samps[:, k], c="blue", alpha=0.1)
-            plt.plot(t, u, c="green", alpha=0.1)
-
-        Phi_integrated_periods = jax.vmap(
-            lambda t: kernel.compute_phi_integrated(t, lf["to"])
-        )(t)
-        plt.plot(
-            t,
-            Phi_integrated_periods @ mu_a,
-            label="posterior mean (integrated)",
-            c="orange",
-            linewidth=2,
-        )
+            du_sample = cgp.sample(vk())
+            u_sample = jnp.cumsum(du_sample * dt)
+            plt.plot(t, du_sample, c="blue", alpha=0.1)
+            plt.plot(t, u_sample, c="green", alpha=0.1)
 
         plt.legend()
         plt.title(f"Posterior mean and samples (Rd = {lf['Rd']})")
@@ -147,33 +130,8 @@ def infer_amplitudes(lf, plot=False):
         plt.ylabel("amplitude")
         plt.show()
 
-        # plot samples over several periods
-        t_periods = jnp.linspace(-2 * T, 2 * T, 4 * N, endpoint=False)
+    return {"mu": mu, "cov_root": cov_root}
 
-        Phi_periods = jax.vmap(kernel.compute_phi)(t_periods)
-        Phi_integrated_periods = jax.vmap(
-            lambda t: kernel.compute_phi_integrated(t, lf["to"])
-        )(t_periods)
-
-        f_samps_periods = Phi_periods @ a_samps  # (4N, 6)
-        f_samps_integrated_periods = Phi_integrated_periods @ a_samps  # (4N, 6)
-
-        plt.figure(figsize=(6, 4))
-        for k in range(num_samples):
-            plt.plot(t_periods, f_samps_periods[:, k], c="blue", alpha=0.1)
-            plt.plot(
-                t_periods,
-                f_samps_integrated_periods[:, k],
-                c="green",
-                alpha=0.1,
-            )
-
-        plt.title(f"Posterior samples over several periods (Rd = {lf['Rd']})")
-        plt.xlabel("time (ms)")
-        plt.ylabel("amplitude")
-        plt.show()
-
-    return {"mu": mu_a, "Sigma": Sigma_a}
 
 _ = infer_amplitudes(lf, plot=True)
 
@@ -191,21 +149,37 @@ posteriors = [infer_amplitudes(lf) for lf in lfs]
 
 # %%
 def envelope_gaussians(posteriors):
-    # posteriors: list of dicts {'mu': mu_i, 'Sigma': Sigma_i}
-    mus = [p["mu"] for p in posteriors]
-    Sigmas = [p["Sigma"] for p in posteriors]
+    """
+    Compute the Gaussian q = N(mu_star, Sigma_star) minimizing
+        (1/K) sum_i KL(p_i || q)
+    where p_i = N(mu_i, L_i L_i.T).
 
-    k = len(mus)
-    D = mus[0].shape[0]
+    posteriors: list of dicts with keys "mu" and "cov_root".
+    """
+    # stack mus: (K,M)
+    mus = jnp.stack([p["mu"] for p in posteriors], axis=0)
 
-    # mixture mean
-    mu_star = sum(mus) / k
+    # stack cov_roots: (K,M,R)
+    Ls = jnp.stack([p["cov_root"] for p in posteriors], axis=0)
 
-    # mixture second moment
-    second = sum(Sigmas[i] + jnp.outer(mus[i], mus[i]) for i in range(k)) / k
+    K = mus.shape[0]
 
-    # covariance = second moment - outer(m, m)
-    Sigma_star = second - jnp.outer(mu_star, mu_star)
+    # mixture mean: (M,)
+    mu_star = jnp.mean(mus, axis=0)
+
+    # E[ ww^T ] term = Sigma_i + mu_i mu_i^T
+    # Sigma_i = L_i L_i^T
+    # do: batch matmul (K,M,R) @ (K,R,M) -> (K,M,M)
+    Sigma_i = Ls @ jnp.swapaxes(Ls, -2, -1)
+
+    # outer mus: (K,M,M)
+    mu_outer = mus[..., None] * mus[:, None, :]
+
+    # second moment average: (M,M)
+    second = jnp.mean(Sigma_i + mu_outer, axis=0)
+
+    # covariance = second - mu* mu*.T
+    Sigma_star = second - mu_star[:, None] * mu_star[None, :]
 
     return mu_star, Sigma_star
 
@@ -220,54 +194,55 @@ plt.title("Mixture mean and individual posterior means")
 plt.show()
 
 # %%
+from gp.blr import BayesianLinearRegressor
 
-# draw samples from envelope
+Sigma_star_root = jnp.linalg.cholesky(
+    Sigma_star + 1e-9 * jnp.eye(Sigma_star.shape[0])
+)
+
+gpl = BayesianLinearRegressor(
+    kernel.compute_phi, t, mu=mu_star, cov_root=Sigma_star_root
+)
+
 # %%
-L_star = jnp.linalg.cholesky(Sigma_star + 1e-9 * jnp.eye(Sigma_star.shape[0]))
-num_samples = 5
-eps = jnp.asarray(np.random.randn(Sigma_star.shape[0], num_samples))  # (2W, 6)
-a_samps_star = mu_star[:, None] + L_star @ eps  # (2W, 6)
+from utils.reskew import dgf_polarity
 
-t_periods = jnp.linspace(-2 * T, 2 * T, 4 * N, endpoint=False)
-Phi_periods = jax.vmap(kernel.compute_phi)(t_periods)  # (4N, 2W)
-f_samps_periods_star = Phi_periods @ a_samps_star  # (4N, 6)
+num_samples = 5
 
 plt.figure(figsize=(6, 4))
-for k in range(num_samples):
-    plt.plot(
-        t_periods, f_samps_periods_star[:, k], c="blue", alpha=1 / num_samples
-    )
+for i, k in enumerate(range(num_samples)):
+    du = gpl.sample(vk())
+    u = jnp.cumsum(du) * dt
 
-    u = jnp.cumsum(f_samps_periods_star[:, k]) * (t_periods[1] - t_periods[0])
+    plt.plot(t, du, c="blue", alpha=1 / num_samples)
 
-    plt.plot(t_periods, u, c="green", alpha=1 / num_samples)
+    plt.plot(t, u, c="green", alpha=1 / num_samples)
 
-plt.title("Envelope posterior samples over several periods")
+    polarity = dgf_polarity(du, fs=fs)
+    print(f"Polarity[sample {i}]:", polarity)
+
+plt.title("Samples from learned surrogate prior over several periods")
 plt.xlabel("time (ms)")
 plt.ylabel("amplitude")
 plt.show()
 
-from utils.reskew import dgf_polarity
-
-polarity = dgf_polarity(f_samps_periods_star[:, 0], fs=fs)
-print("Polarity: ", polarity)
-
 # %%
-# `a_samps_star` is in a way a new GP with discrete indices...
 
-# top panel
-plt.subplot(2, 1, 1)
+gpl_lf = BayesianLinearRegressor(
+    kernel.compute_phi, lf["t"], mu=mu_star, cov_root=Sigma_star_root
+)
 
-plt.plot(a_samps_star)
-plt.xlabel("Coefficient index")
-plt.ylabel("Amplitude")
+conditioned = gpl_lf.condition(lf["du"], t).gp
 
-# bottom panel
-plt.subplot(2, 1, 2)
+for _ in range(num_samples):
+    plt.plot(
+        t, conditioned.sample(vk()), "--", label="conditioned sample", c="red"
+    )
+plt.plot(lf["t"], lf["du"], label="data", c="black")
 
-plt.plot(np.abs(a_samps_star))
-plt.yscale("log")
-plt.xlabel("Coefficient index")
-plt.ylabel("abs(Amplitude)")
+plt.legend()
+plt.title("Learned surrogate prior conditioned on original LF exemplar")
+plt.xlabel("time (ms)")
+plt.ylabel("amplitude")
 plt.show()
 # %%
