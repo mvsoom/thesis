@@ -1,0 +1,3 @@
+#!/usr/bin/kitty -e presenterm -p images-and-latex.md -X -x --config-file config.yaml
+
+important: export PYTHONPATH=$PYTHONPATH:$(pwd)

@@ -1,0 +1,18 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mfontanini/presenterm/master/config-file-schema.json
+snippet:
+  exec:
+    enable: true
+    custom:
+      dot:
+        filename: "/tmp/presenterm-dot.dot"
+        commands:
+          - ["graph-easy", "--from=dot", "--boxart", "/tmp/presenterm-dot.dot"]
+
+  exec_replace:
+    enable: true
+
+typst:
+  ppi: 400
+
+options:
+  implicit_slide_ends: true
