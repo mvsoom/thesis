@@ -32,6 +32,73 @@ def frame_signal(x: np.ndarray, frame_len: int, hop: int) -> np.ndarray:
     return windows[::hop]
 
 
+def frame_signal_with_origins(x, frame_len, hop, origins):
+    """
+    Return frames of length `frame_len`, stepping every `hop`,
+    but each frame start is snapped to the nearest allowed origin.
+
+    origins: sorted list/array of allowed frame positions.
+    """
+    x = np.asarray(x)
+    n = len(x)
+    origins = np.asarray(origins)
+
+    # special case: too short
+    if n < frame_len:
+        buf = np.zeros(frame_len, dtype=x.dtype)
+        buf[-n:] = x
+        return buf[None, :]
+
+    # naive un-snapped frame starts
+    raw_starts = np.arange(0, n - frame_len + 1, hop)
+
+    # nearest origin for each raw start
+    # binary search
+    idx = np.searchsorted(origins, raw_starts)
+
+    left = origins[np.clip(idx - 1, 0, len(origins) - 1)]
+    right = origins[np.clip(idx, 0, len(origins) - 1)]
+
+    nearest = np.where(
+        np.abs(raw_starts - left) <= np.abs(raw_starts - right), left, right
+    )
+
+    # output frames
+    frames = np.empty((len(nearest), frame_len), dtype=x.dtype)
+
+    for i, o in enumerate(nearest):
+        lo = max(o, 0)
+        hi = min(o + frame_len, n)
+
+        if lo == o and hi == o + frame_len:
+            # fast path: no padding
+            frames[i] = x[o : o + frame_len]
+        else:
+            # pad when origin is out-of-bounds or near border
+            buf = np.zeros(frame_len, dtype=x.dtype)
+            # x[lo:hi] should go at offset (lo - o)
+            offset = lo - o
+            buf[offset : offset + (hi - lo)] = x[lo:hi]
+            frames[i] = buf
+
+    return frames
+
+
+def compute_gci_origins(one_gci, n, fs, true_pitch):
+    gci_t = one_gci / fs
+    T = 1.0 / true_pitch
+    duration = n / fs
+
+    k_start = int(np.ceil((0 - gci_t) / T))
+    k_end = int(np.floor((duration - gci_t) / T))
+
+    gci_times = gci_t + np.arange(k_start, k_end + 1) * T
+    gci_samples = (gci_times * fs).round().astype(int)
+    gci_samples = np.clip(gci_samples, 0, n - 1)
+
+    return np.sort(gci_samples)
+
+
 def fit_affine_lag_nrmse(x, y, maxlag):
     """Find best affine+lag fit of inferred signal x to ground truth y
 

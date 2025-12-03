@@ -6,6 +6,9 @@ import numpy as np
 import soundfile as sf
 from IPython.display import display
 
+# from utils.plots import plt, retain
+from matplotlib import pyplot as plt
+
 from ar.spectrum import (
     ar_gain_energy,
     ar_power_spectrum,
@@ -16,7 +19,6 @@ from ar.spectrum import (
 from iklp.hyperparams import active_components
 from iklp.psi import psi_matvec
 from utils.audio import fit_affine_lag_nrmse, power_spectrum_db, resample
-from utils.plots import plt, retain
 from utils.stats import weighted_pitch_error
 
 
@@ -132,6 +134,7 @@ class OpenGlotI:
             "true_pitch": run["true_pitch"],
             "frame_index": run["frame_index"],
             "restart_index": run["restart_index"],
+            "polarity_reskew": run.get("polarity", float("nan")),
             "elbo": metrics.elbo,
             "num_iterations": metrics.i,
             "E_nu_w": metrics.E.nu_w,
@@ -196,10 +199,28 @@ class OpenGlotI:
         ax.plot(t_ms, noise, label="Inferred noise")
         ax.set_xlabel("time (ms)")
         ax.set_ylabel("amplitude")
-        ax.legend()
+        ax.legend(loc="center left", bbox_to_anchor=(1.02, 0.5))
+
         mid = 0.5 * (len(x) * dt * 1000.0)
         sides = 2000.0 / float(true_pitch)
-        ax.set_xlim(mid - sides, mid + sides)
+        x0, x1 = ax.set_xlim(mid - sides, mid + sides)
+        mask = (t_ms >= x0) & (t_ms <= x1)
+
+        ys = np.hstack(
+            [
+                ((1.0 / a) * dgf)[mask],
+                inferred_dgf[mask],
+                ((1.0 / a) * best["aligned"])[mask],
+                noise[mask],
+            ]
+        )
+
+        lo = ys.min()
+        hi = ys.max()
+
+        pad = 0.1 * (hi - lo if hi > lo else 1.0)
+        ax.set_ylim(lo - pad, hi + pad)
+
         figs.append(fig1)
         (retain(fig1) if retain_plots else display(fig1))
 
