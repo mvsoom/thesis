@@ -64,10 +64,10 @@ setorder(df, Rd, -logz)
 # look at results manually (see README.md)
 View(df)
 
-# display top three results per Rd
+# display top 5 results per Rd
 df[
     ,
-    .SD[1:3],
+    .SD[1:10],
     by = Rd
 ]
 
