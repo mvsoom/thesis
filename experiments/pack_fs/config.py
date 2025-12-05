@@ -1,7 +1,7 @@
 from itertools import product
 from random import Random
 
-rng = Random(334979152)
+rng = Random(57624383)
 
 
 def configurations():
@@ -11,23 +11,19 @@ def configurations():
     for (
         pitch,
         kernel,
-        prior_pi,
-        P,
-        refine,
         gauge,
         scale_dgf_to_unit_power,
+        window_type,
+        P,
     ) in product(
         [100, 120, 140, 160, 180, 200, 220, 240, 260, 280, 300, 320, 340, 360],
         kernels,
-        [0.5, 0.95],  # neutral and confident expectation of `is_voiced`
-        [8, 9],
-        [False],
         [True, False],
         [True, False],
+        ["iklp", "iaif", "adaptive"],
+        [8, 10],
     ):
-        if ("pack" not in kernel) and (
-            refine or gauge or scale_dgf_to_unit_power
-        ):
+        if ("pack" not in kernel) and (gauge or scale_dgf_to_unit_power):
             continue
 
         if (not gauge) and scale_dgf_to_unit_power:
@@ -37,10 +33,9 @@ def configurations():
             "seed": rng.randint(0, 2**32 - 1),
             "pitch": pitch,
             "kernel": kernel,
-            "prior_pi": prior_pi,
-            "P": P,
-            "refine": refine,
             "gauge": gauge,
             "scale_dgf_to_unit_power": scale_dgf_to_unit_power,
-            "name": f"pitch={pitch}_kernel={kernel}_prior_pi={prior_pi}_P={P}_refine={refine}_gauge={gauge}_scale_dgf_to_unit_power={scale_dgf_to_unit_power}",
+            "window_type": window_type,
+            "P": P,
+            "name": f"pitch={pitch}_kernel={kernel}_gauge={gauge}_scale_dgf_to_unit_power={scale_dgf_to_unit_power}_window_type={window_type}_P={P}",
         }
