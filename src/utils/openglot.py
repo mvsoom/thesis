@@ -184,6 +184,7 @@ class OpenGlotI:
         # 1) true vs inferred glottal flow + noise (time domain)
         fig1, ax = plt.subplots()
 
+        ax.set_title("Inferred DGF and noise")
         ax.plot(t_ms, (1 / a) * dgf, label="True $u'(t)$ (rescaled)")
         ax.plot(
             t_ms,
@@ -219,13 +220,17 @@ class OpenGlotI:
         hi = ys.max()
 
         pad = 0.1 * (hi - lo if hi > lo else 1.0)
-        ax.set_ylim(lo - pad, hi + pad)
+        try:
+            ax.set_ylim(lo - pad, hi + pad)
+        except ValueError:
+            pass  # best["aligned"] can contain nans
 
         figs.append(fig1)
         (retain(fig1) if retain_plots else display(fig1))
 
         # 2) raw frame view (x and dgf with offsets)
         fig2, ax = plt.subplots()
+        ax.set_title("Observed signal and ground truth DGF")
         ax.plot(t_ms, a * x + 3.0, label="Data $x(t)$ (rescaled)")
         ax.plot(t_ms, dgf - 3.0, label="True $u(t)$ (to scale)")
         ax.set_xlabel("time (ms)")
