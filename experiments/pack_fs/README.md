@@ -37,3 +37,14 @@ definitely longer than the classic “32 ms IAIF” style,
 but shorter than the 250 ms SWLP window used in at least one well-cited GIF paper, and
 
 conceptually closer to the “many cycles of a steady vowel” regime that a lot of sustained-vowel GIF work uses when they say “10 cycles or up to 60 ms” (for F0 around 150–200 Hz that’s already 50–70 ms).
+
+
+## Quick results
+
+Many nans => need to look at this
+
+- spack:d about O(1) percent better than periodickernel, spack:1 worse
+- iklp window is horrendous, "adaptive" and "iaif" both much better, with "adaptive" best overall
+- we need to use cosine similarity metric from aligned RMSE, it is a simple transformation but shows MUCH more whats going on
+- gauge=False slightly better, especially at low pitch
+- scale_dgf_to_unit_power and P very little influence
