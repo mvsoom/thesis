@@ -17,7 +17,6 @@ from ar.spectrum import (
     match_formants,
 )
 from iklp.hyperparams import active_components
-from iklp.psi import psi_matvec
 from utils.audio import fit_affine_lag_nrmse, power_spectrum_db, resample
 from utils.stats import weighted_pitch_error
 
@@ -99,14 +98,24 @@ class OpenGlotI:
         )
 
         inferred_dgf = metrics.signals[0]
+        inferred_noise = metrics.noise[0]
 
         dt = 1.0 / float(run["target_fs"])
         maxlag = int(1 / run["true_pitch"] / dt)  # one pitch period
+
+        # calculate score for signal only
         best, original = fit_affine_lag_nrmse(
             inferred_dgf, run["dgf"], maxlag=maxlag
         )
         dgf_nrmse = original["nrmse"]
         dgf_aligned_nrmse = best["nrmse"]
+
+        # caculate score for signal + noise
+        best_both, original_both = fit_affine_lag_nrmse(
+            inferred_dgf + inferred_noise, run["dgf"], maxlag=maxlag
+        )
+        dgf_both_nrmse = original_both["nrmse"]
+        dgf_both_aligned_nrmse = best_both["nrmse"]
 
         f, power_db = ar_power_spectrum(metrics.a, run["target_fs"], db=True)
         centers, bandwidths = estimate_formants(
@@ -150,6 +159,8 @@ class OpenGlotI:
             "formant_mae": formant_mae,
             "dgf_nrmse": dgf_nrmse,
             "dgf_aligned_nrmse": dgf_aligned_nrmse,
+            "dgf_both_nrmse": dgf_both_nrmse,
+            "dgf_both_aligned_nrmse": dgf_both_aligned_nrmse,
             "f1_true": f1_true,
             "f2_true": f2_true,
             "f3_true": f3_true,
@@ -171,9 +182,8 @@ class OpenGlotI:
         dt = 1.0 / float(target_fs)
         t_ms = np.arange(x.shape[0]) * (1000.0 * dt)
 
-        inferred_dgf = metrics.signals[0]
-        e = psi_matvec(metrics.a, x)
-        noise = e - inferred_dgf
+        inferred_dgf = metrics.signals[0] + metrics.noise[0]
+        inferred_noise = metrics.noise[0]
 
         maxlag = int(1 / run["true_pitch"] / dt)  # one pitch period
         best, _ = fit_affine_lag_nrmse(inferred_dgf, run["dgf"], maxlag=maxlag)
@@ -185,19 +195,19 @@ class OpenGlotI:
         fig1, ax = plt.subplots()
 
         ax.set_title("Inferred DGF and noise")
-        ax.plot(t_ms, (1 / a) * dgf, label="True $u'(t)$ (rescaled)")
+        ax.plot(t_ms, (1 / a) * dgf, label="True $u'(t)$ [rescaled]")
         ax.plot(
             t_ms,
             inferred_dgf,
-            label="Inferred $u'(t)$",
+            label="Inferred $u'(t)$\n(signal + noise)",
         )
         ax.plot(
             t_ms,
             (1 / a) * best["aligned"],
             ls="--",
-            label="Inferred $u'(t)$ (aligned)",
+            label="Inferred $u'(t)$ [aligned]\n(signal + noise)",
         )
-        ax.plot(t_ms, noise, label="Inferred noise")
+        ax.plot(t_ms, inferred_noise, label="Inferred noise")
         ax.set_xlabel("time (ms)")
         ax.set_ylabel("amplitude")
         ax.legend(loc="center left", bbox_to_anchor=(1.02, 0.5))
@@ -212,7 +222,7 @@ class OpenGlotI:
                 ((1.0 / a) * dgf)[mask],
                 inferred_dgf[mask],
                 ((1.0 / a) * best["aligned"])[mask],
-                noise[mask],
+                inferred_noise[mask],
             ]
         )
 
@@ -256,7 +266,7 @@ class OpenGlotI:
         (retain(fig3) if retain_plots else display(fig3))
 
         # 4) noise spectrum
-        f_n, p_n_db = power_spectrum_db(noise, target_fs)
+        f_n, p_n_db = power_spectrum_db(inferred_noise, target_fs)
 
         fig4, ax = plt.subplots()
         ax.plot(f_n, p_n_db)
