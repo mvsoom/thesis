@@ -23,8 +23,14 @@ def configurations():
         [0.0, 1.0],
         [True, False],
     ):
-        if ("pack" not in kernel) and (gauge or scale_dgf_to_unit_power):
-            continue
+        if kernel == "whitenoise":
+            if refine or gauge or scale_dgf_to_unit_power:
+                continue
+
+        if kernel == "periodickernel":
+            if not refine:
+                if gauge or scale_dgf_to_unit_power:
+                    continue
 
         if (not gauge) and scale_dgf_to_unit_power:
             continue

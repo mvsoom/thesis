@@ -4,7 +4,6 @@ from glob import glob
 import jax
 import numpy as np
 import soundfile as sf
-from IPython.display import display
 
 # from utils.plots import plt, retain
 from matplotlib import pyplot as plt
@@ -236,7 +235,6 @@ class OpenGlotI:
             pass  # best["aligned"] can contain nans
 
         figs.append(fig1)
-        (retain(fig1) if retain_plots else display(fig1))
 
         # 2) raw frame view (x and dgf with offsets)
         fig2, ax = plt.subplots()
@@ -247,7 +245,6 @@ class OpenGlotI:
         ax.set_ylabel("amplitude")
         ax.legend()
         figs.append(fig2)
-        (retain(fig2) if retain_plots else display(fig2))
 
         # 3) AR power spectrum with formants
         f_ar, p_ar_db = ar_power_spectrum(metrics.a, target_fs, db=True)
@@ -263,7 +260,6 @@ class OpenGlotI:
         ax.set_ylabel("power (dB)")
         ax.set_title("Inferred AR power spectrum")
         figs.append(fig3)
-        (retain(fig3) if retain_plots else display(fig3))
 
         # 4) noise spectrum
         f_n, p_n_db = power_spectrum_db(inferred_noise, target_fs)
@@ -274,7 +270,6 @@ class OpenGlotI:
         ax.set_xlabel("frequency (Hz)")
         ax.set_ylabel("power (dB)")
         figs.append(fig4)
-        (retain(fig4) if retain_plots else display(fig4))
 
         # 5) pitch posterior (if available)
         fig5, ax = plt.subplots()
@@ -284,7 +279,6 @@ class OpenGlotI:
         ax.set_ylabel("power")
         ax.set_title("Pitch posterior")
         figs.append(fig5)
-        (retain(fig5) if retain_plots else display(fig5))
 
         return figs
 

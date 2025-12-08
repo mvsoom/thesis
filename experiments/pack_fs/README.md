@@ -48,3 +48,12 @@ Many nans => need to look at this
 - we need to use cosine similarity metric from aligned RMSE, it is a simple transformation but shows MUCH more whats going on
 - gauge=False slightly better, especially at low pitch
 - scale_dgf_to_unit_power and P very little influence
+
+important:
+
+- modality of LF play big role
+  * creaky < normal < whispery < breathy
+    - OpenGLOTI uses 4 handpicked LF values, see gfm/lf.py for plots!
+  * only for last two do we get a clear win for spack:d
+  * this is because creaky and normal have long closed phase
+  * could be solved with refinement (`pack_refine`)
