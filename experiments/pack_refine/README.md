@@ -1,8 +1,13 @@
 # pack_refine
 
 - Add a null model to calibrate the cosine similarity score (see below)
-- Try 'refine' option
 - Try beta option => saw a lot of Nans in `pack_fs`; see if this helps
+
+
+
+- Try 'refine' option??
+  * WARNING; very sloppy implementation; JUST A TEST RUN
+  * We set enforce_zero_mean=True because IKLP doesnt support prior means yet
 
 ## null model explained
 
