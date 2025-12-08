@@ -4,53 +4,64 @@ library(data.table)
 library(ggrepel)
 
 # Get experiment dir from environment variable
-runs_file <- file.path(Sys.getenv("PROJECT_EXPERIMENTS_PATH"), "pack_fs/runs.csv")
+runs_file <- file.path(Sys.getenv("PROJECT_EXPERIMENTS_PATH"), "pack_refine/runs.csv")
 runs <- data.table(fread(runs_file))
 
 df <- runs[, .(
     pitch,
     kernel,
-    P,
     gauge,
+    beta,
+    refine,
     scale_dgf_to_unit_power,
-    window_type,
-    results.dgf_aligned_nrmse,
-    results.dgf_nrmse, run,
+    results.dgf_both_aligned_nrmse,
     results.vowel,
-    results.modality,
-    results.E_nu_w,
-    results.E_nu_e
+    results.modality,run,
+    results.elbo
 )]
-
 
 df[
     ,
     `:=`(
         kernel = as.factor(kernel),
-        window_type = as.factor(window_type),
-        P = factor(P, ordered = TRUE),
-        score = sqrt(pmax(0, 1 - results.dgf_aligned_nrmse^2)),
+        beta = factor(beta, ordered = TRUE),
+        score = sqrt(pmax(0, 1 - results.dgf_both_aligned_nrmse^2)), # cosine similarity
         vowel = as.factor(results.vowel),
         results.modality = as.factor(results.modality)
     )
 ]
 
+# there are NO nan elbos!
+# could this be due to results.posterior_pi = 0.5 initialized?
+summary(df$results.elbo)
+
+
+# test fx
 df[, pitch_c := pitch - mean(pitch)]
 
 model2 <- lm(
-    log10(score) ~
+    score ~
         kernel * pitch_c +
-        P + gauge + scale_dgf_to_unit_power + window_type + results.modality + log10(results.E_nu_w) + log10(results.E_nu_e),
+        beta +
+        gauge +
+        refine + # singular: linear combination of others
+        scale_dgf_to_unit_power +
+        results.modality,
     data = df
 )
+
 summary(model2)
 
+coefs <- coef(summary(model2))
 
-##
+# beta has no effect
+# whitenoise kernel is worst
+# gauge ON worsens fit
+# kernelspack:3 dominates
+coefs[order(abs(coefs[, "t value"]), decreasing = TRUE), ]
 
 
-ggplot(df) +
-    geom_density(aes(x = results.dgf_nrmse, fill = interaction(P, scale_dgf_to_unit_power, gauge, window_type)), alpha = 0.1) +
+geom_density(aes(x = results.dgf_nrmse, fill = interaction(P, scale_dgf_to_unit_power, gauge, window_type)), alpha = 0.1) +
     facet_grid(pitch ~ kernel, scales = "free") +
     guides(fill = "none")
 
@@ -81,5 +92,5 @@ ggplot(df[window_type == "adaptive" & gauge == FALSE & kernel %in% c("periodicke
 
 ## at 100 Hz spack dominate clearly
 
-ggplot(df[window_type == "adaptive" & gauge == FALSE & pitch == 100]) +
+ggplot(df[refine == FALSE & pitch == 100]) +
     geom_density(aes(x = score, fill = kernel), alpha = 0.3)
