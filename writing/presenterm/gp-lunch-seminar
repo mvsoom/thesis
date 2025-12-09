@@ -1,3 +1,10 @@
-#!/usr/bin/kitty -e presenterm -p images-and-latex.md -X -x --config-file config.yaml
+#!/bin/bash
+set -e
 
-important: export PYTHONPATH=$PYTHONPATH:$(pwd)
+source "$PROJECT_VENV_PATH/bin/activate"
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
+cd "$SCRIPT_DIR"
+
+PYTHONPATH="$PROJECT_ROOT_PATH:$SCRIPT_DIR:$PYTHONPATH" kitty -e presenterm gp-lunch-seminar.md -X -x --config-file gp-lunch-seminar.yaml
