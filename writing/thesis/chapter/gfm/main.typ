@@ -34,7 +34,7 @@ This motivates the construction of a family of _nonparametric_ models, which are
 //while encoding structure at a higher level.
 //reach for greater expressivity with _less_ parameters.
 
-With the many equations to follow, it is all too easy to lose connection to the actual physical phenomenon being modeled.
+With the many glottal flow models to follow, it is all too easy to lose connection to the actual physical phenomenon being studied.
 After a short look at the glottal cycle, we begin with a review of the classic Liljencrants-Fant model.
 Then we revisit the parametric piecewise polynomial models and generalize them to the nonparametric regime, where they are identified with the _arc cosine kernel_ of #pcite(<Cho2009>).
 The latter is argued to combine the advantages of both worlds: the interpretability of parametric models with the flexibility of nonparametric ones.
