@@ -205,7 +205,7 @@ You can go _either_ way
 graph-easy --from=dot --as_boxart << 'EOF'
 digraph {
     rankdir = LR;
-    "Gaussian process" -> "BLR" [label="quantize"];
+    "Gaussian process" -> "BLR" [label="quantize!"];
 }
 EOF
 ```
@@ -229,17 +229,29 @@ downsides:
 - nonstationary kernels are generally hard to get BLR repr from
 - (any ones you can think of here?)
 
-Hilbert-GP
-==========
+Quantization [1]
+================
+
+<!-- column_layout: [1,1] -->
+
+<!-- column: 0 -->
+
+<!-- newlines: 2 -->
+
+# Hilbert-GP
+
+<!-- column: 1 -->
 
 ```bash +exec_replace
 graph-easy --from=dot --as_boxart << 'EOF'
 digraph {
     rankdir = LR;
-    "Stationary GP" -> "BLR" [label="Hilbert"];
+    "Stationary GP" -> "BLR" [label="Hilbert!"];
 }
 EOF
 ```
+
+<!-- reset_layout -->
 
 best method for this currently in low dim is Hilbert-GP
 
@@ -257,7 +269,96 @@ $Phi = sin(x)$
 $lambda_k = S(omega_k)$
 ```
 
-[TODO: cite paper]
+Quantization [2]
+================
+
+<!-- speaker_note:
+
+Learning camera calibration on a test set of 30k+ samples takes 1 minute, with a clean learning curve
+
+-->
+
+<!-- column_layout: [1,1] -->
+
+<!-- column: 0 -->
+
+<!-- newlines: 2 -->
+
+# Spherical harmonics
+
+<!-- column: 1 -->
+
+```bash +exec_replace
+graph-easy --from=dot --as_boxart << 'EOF'
+digraph {
+    rankdir = LR;
+    "Stationary/NN GP" -> "BLR" [label="Spherical!"];
+}
+EOF
+```
+
+<!-- reset_layout -->
+
+<!-- column_layout: [1, 1] -->
+
+<!-- column: 0 -->
+
+```bash +image
+convert -density 300 assets/embedding.png -background none  -channel RGB -negate png:-
+```
+
+[Dutordoir+ 2020]
+
+<!-- column: 1 -->
+
+
+```bash +image
+convert -density 300 assets/spherical_harmonics.png -background none  -channel RGB -negate png:-
+```
+
+Quantization [3]
+================
+
+<!-- speaker_note:
+
+Learning camera calibration on a test set of 30k+ samples takes 1 minute, with a clean learning curve
+
+-->
+
+<!-- column_layout: [1,1] -->
+
+<!-- column: 0 -->
+
+<!-- newlines: 2 -->
+
+# Spherical harmonics
+
+<!-- column: 1 -->
+
+```bash +exec_replace
+graph-easy --from=dot --as_boxart << 'EOF'
+digraph {
+    rankdir = LR;
+    "Stationary/NN GP" -> "BLR" [label="Spherical!"];
+}
+EOF
+```
+
+<!-- reset_layout -->
+
+<!-- column_layout: [1, 1] -->
+
+<!-- column: 0 -->
+
+```bash +image
+convert -density 300 assets/uvx_learning_curve.png -background none  -channel RGB -negate png:-
+```
+
+<!-- column: 1 -->
+
+```bash +image
+convert -density 300 assets/uvx.png -background none  -channel RGB -negate png:-
+```
 
 Learning from examples: levels 1 & 2
 ====================================
@@ -340,12 +441,37 @@ EOF
 References
 ==========
 
-Ways to get to higher dimensions:
-- MCMC, eg. Fourier Features
-- Eleft. 2023
+<!-- speaker_note:
 
+Important application of doing BLR in higher dimensions is BO
 
+-->
+
+<!-- column_layout: [2,2,1] -->
+
+<!-- column: 0 -->
+
+# References [1]
 Hilbert GP:
-- og paper
-- that other paper
 
+1. Solin, A. & Särkkä, S. **Hilbert space methods for reduced-rank Gaussian process regression**. Stat Comput 30, 419–446 (2020)
+2. Riutort-Mayol, G., Bürkner, P.-C., Andersen, M. R., Solin, A. & Vehtari, A. **Practical Hilbert space approximate Bayesian Gaussian processes for probabilistic programming**. arXiv:2004.11408
+
+Spherical harmonics:
+1. Dutordoir, V., Durrande, N. & Hensman, J. **Sparse Gaussian Processes with Spherical Harmonic Features.** in Proceedings of the 37th International Conference on Machine Learning 2793–2802 (PMLR, 2020).
+
+<!-- column: 1 -->
+
+# References [2]
+Ways to higher input dimensions:
+
+1. Rahimi, A. & Recht, B. **Random Features for Large-Scale Kernel Machines**. in Advances in Neural Information Processing Systems (2007)
+
+2. Eleftheriadis, S., Richards, D. & Hensman, J. **Sparse Gaussian Processes with Spherical Harmonic Features Revisited**. arXiv:2303.15948
+
+3. Mutny, M. & Krause, A. **Efficient High Dimensional Bayesian Optimization with Additivity and Quadrature Fourier Features**. in Advances in Neural Information Processing Systems (2018)
+
+<!-- column: 2 -->
+
+# Any questions or contact for further discussing or colab:
+> marnix@ai.vub.ac.be
