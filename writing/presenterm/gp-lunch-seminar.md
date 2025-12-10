@@ -563,22 +563,19 @@ convert -density 300 assets/uvx.png -background none  -channel RGB -negate png:-
 Learning on levels 1 & 2
 ========================
 
+Quantization creates a more white-box model, which allows for a bonus:
+> more effective ***learning from examples***
+
+<!-- newlines: 2 -->
+<!-- pause -->
+
 level | Gaussian process | ridge regression
 --|--|--
 0 | prior | prior
 1 | hyperparam learning | learning the basis Φ and costs Σ
 2 |   | learning the amplitudes a
 
-
-# Quantization creates a more white-box model, which allows for a bonus: ***learning from examples***
-
-Level 0: no learning
-
-Level 1: learning the geometry itself
-
-Level 2: learning the coordinates inside the geometry
-
-
+<!-- newlines: 2 -->
 
 ```bash +exec +acquire_terminal
 python live/levels.py
@@ -587,9 +584,20 @@ python live/levels.py
 Results
 =======
 
-OpenGLOTI benchmark and graphs for the three kernels
+On the OPENGLOT-I benchmark of [Alku+ 2019] for testing speech inversion algorithms.
 
-then i show benchmark results for whitenoise, periodic kernel and spack and show that examplar learning really does pay off
+<!-- newlines: 2 -->
+
+<!-- column_layout: [2,3] -->
+<!-- column: 0 -->
+
+![](assets/frame.png)
+
+<!-- column: 1 -->
+
+```bash +image
+convert -density 300 assets/score.png -background none  -channel RGB -negate png:-
+```
 
 Summary
 =======
@@ -599,9 +607,9 @@ Summary
 
 # Takeaway:
 
-- Many problems need regularization, or "cost control"
+- Many problems are ill-posed and need regularization, or "cost control"
 - Use GPs to specify high-level information about costs
-- Convert them to quick linear regression models which thusly acquire sophistication
+- Quantize them to quick ridge regression models which thusly acquire sophistication
 - Set hyperparameters, or fit to examples
   * Level 1
   * Level 1 & 2
