@@ -3,8 +3,78 @@ import numpy as np
 
 from utils import lfmodel
 
+DEFAULT_PERIOD_MS = 10.0  # 100 Hz
+DEFAULT_SAMPLES_PER_PERIOD = 1024
 
-def lf_relaxation_open_phase(Rd, tc, N, open_phase_only, eps=1e-5):
+# Values copied from data/OPENGLOT/.../synthFrame.m
+LF_MODALITIES = {
+    "modal": {"Ee": 1.0, "Ra": 0.01, "Rg": 1.17, "Rk": 0.34},
+    "breathy": {"Ee": 10 ** (0.7 / 20), "Ra": 0.025, "Rg": 0.88, "Rk": 0.41},
+    "whispery": {"Ee": 10 ** (-4.6 / 20), "Ra": 0.07, "Rg": 0.94, "Rk": 0.32},
+    "creaky": {"Ee": 10 ** (-1.8 / 20), "Ra": 0.008, "Rg": 1.13, "Rk": 0.2},
+}
+
+
+def lf_times_from_ratios(params, period_ms):
+    """Convert LF ratios [Ra, Rg, Rk] to timings expected by lfmodel.dgf()."""
+
+    period_s = period_ms / 1000.0
+    ratios = {**params, "T0": period_s}
+    timings = lfmodel.convert_lf_params(ratios, "R -> T")
+    return {key: float(timings[key]) for key in ("T0", "Te", "Tp", "Ta")}
+
+
+def synthesize_lf_period(
+    params,
+    *,
+    period_ms=DEFAULT_PERIOD_MS,
+    samples_per_period=DEFAULT_SAMPLES_PER_PERIOD,
+    normalize_power=False,
+):
+    """Synthesize glottal flow derivative and flow for one LF period."""
+
+    period_s = period_ms / 1000.0
+    time_axis = np.linspace(0.0, period_s, samples_per_period)
+    dt = time_axis[1] - time_axis[0]
+
+    lf_params = lf_times_from_ratios(params, period_ms)
+    d_flow = params["Ee"] * np.asarray(lfmodel.dgf(time_axis, lf_params))
+    flow = np.cumsum(d_flow) * dt
+
+    if normalize_power:
+        avg_power = (np.sum(d_flow**2) * dt) / period_s
+        scale = 1.0 / np.sqrt(avg_power) if avg_power > 0.0 else 1.0
+        d_flow = d_flow * scale
+        flow = flow * scale
+
+    return {
+        "t": time_axis * 1e3,  # milliseconds
+        "du": d_flow,
+        "u": flow,
+        "timings": lf_params,
+    }
+
+
+def lf_modality_waveforms(
+    *,
+    period_ms=DEFAULT_PERIOD_MS,
+    samples_per_period=DEFAULT_SAMPLES_PER_PERIOD,
+    normalize_power=False,
+):
+    """Return synthesized LF waveforms for the four OPENGLOT modalities."""
+
+    data = {}
+    for name, params in LF_MODALITIES.items():
+        data[name] = synthesize_lf_period(
+            params,
+            period_ms=period_ms,
+            samples_per_period=samples_per_period,
+            normalize_power=normalize_power,
+        )
+    return data
+
+
+def lf_relaxation_open_phase(Rd, tc, N, open_phase_only=False, eps=1e-5):
     """Generate normalized LF exemplar with given relaxation coefficient Rd on the open phase [0, tc] with N samples
 
     Here Rd in [0.3, 2.7] according to Fant (1995) indicates tense to lax phonation.
@@ -61,14 +131,56 @@ def lf_relaxation_open_phase(Rd, tc, N, open_phase_only, eps=1e-5):
 
 
 if __name__ == "__main__":
+    import pandas as pd
     from matplotlib import pyplot as plt
 
+    # Visualize the four LF modalities
+    waves = lf_modality_waveforms(
+        period_ms=DEFAULT_PERIOD_MS, normalize_power=False
+    )
+
+    records = []
+    for name, wave in waves.items():
+        timings = wave["timings"]
+        records.append(
+            {
+                "phonation": name,
+                "Te (ms)": timings["Te"] * 1e3,
+                "Tp (ms)": timings["Tp"] * 1e3,
+                "Ta (ms)": timings["Ta"] * 1e3,
+            }
+        )
+
+    timing_table = pd.DataFrame.from_records(records).set_index("phonation")
+    print(timing_table)
+
+    fig, (ax_du, ax_u) = plt.subplots(2, 1, figsize=(8, 6), sharex=True)
+    for name in ["modal", "breathy", "whispery", "creaky"]:
+        wave = waves[name]
+        ax_du.plot(wave["t"], wave["du"], label=name)
+        ax_u.plot(wave["t"], wave["u"], label=name)
+
+    ax_du.set_ylabel("dU/dt (a.u.)")
+    ax_du.set_title("LF glottal flow derivatives")
+    ax_du.legend(loc="upper right")
+
+    ax_u.set_xlabel("Time (ms)")
+    ax_u.set_ylabel("U (a.u.)")
+    ax_u.set_title("LF glottal flow")
+    ax_u.legend(loc="upper right")
+
+    fig.tight_layout()
+
+    # Original relaxation open-phase smoke test
     tc = 6.0
     Rd = 1.0  # modal
     N = 265
 
-    d = lf_relaxation_open_phase(Rd, tc, N)
+    d = lf_relaxation_open_phase(Rd, tc, N, open_phase_only=False)
 
-    plt.plot(d["t"], d["du"], label="du")
-    plt.plot(d["t"], d["u"], label="u")
+    plt.figure()
+    plt.plot(d["t"], d["du"], label="du (relaxation)")
+    plt.plot(d["t"], d["u"], label="u (relaxation)")
     plt.legend()
+    plt.title("lf_relaxation_open_phase check")
+    plt.show()

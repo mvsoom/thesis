@@ -19,6 +19,8 @@ Config:
 }
 ```
 
+No errors or exceptions during run
+
 ## Observations
 
 - Likely that GCI (`te`) timing is crucial as there are no "extra" poles to model errors in offset => check if P = 9 improves spack fit wrt. P = 8
@@ -26,7 +28,16 @@ Config:
 
 ## Questions
 
-- Is `polarity_skew` always correctly inferred?
+- Is `polarity_skew` always correctly inferred? NO
   * Note: polarities are not applied, but this has no influence anyway on spack or periodickernel (only would if spack:refined)
-- Is spack:d > periodickernel?
-- Does `prior_pi` matter?
+- Is spack:d > periodickernel? COMPARABLE
+- Does `prior_pi` matter? NO
+
+## First analysis
+
+Awful results, nothing seems to improve dgf_rmse
+
+- We need MORE samples to enhance inference => increase target_fs
+- scale_dgf_to_unit_power was not triggered => fixed this bug now
+- prior_pi has no influence => kick it
+- same for P => kick it
