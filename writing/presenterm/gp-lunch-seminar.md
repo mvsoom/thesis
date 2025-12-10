@@ -236,7 +236,7 @@ and fit the coefficients a to data y by least squares:
 â = argminₐ ‖Φa − y‖²
   = (ΦᵀΦ)⁻¹Φᵀy
 ```
-=> This crashes numerically for inverse problems
+=> This crashes numerically for ill-posed problems
 
 <!-- column: 1 -->
 <!-- pause -->
@@ -287,11 +287,15 @@ Gaussian processes are what you use when you do know the kind.
 
 -->
 
-Choosing Σ looks a lot like Gaussian process regression!
+
 
 ```bash +exec +acquire_terminal
 python live/gp.py
 ```
+
+<!-- pause -->
+
+Choosing Σ looks a lot like Gaussian process regression!
 
 ## Good
 

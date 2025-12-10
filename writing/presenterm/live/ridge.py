@@ -66,7 +66,7 @@ Phi_grid = phi(x_grid)
 # ---------------- parameters ----------------
 
 t_null = 0.0
-log10_lambda = -2.0  # ridge scale
+log10_lambda = -6.0  # ridge scale
 log10_aniso = 0.0  # anisotropy on a_3 (quadratic term)
 
 # ---------------- helpers ----------------
@@ -142,9 +142,9 @@ def redraw():
     )
     gp_cmd(
         "set label 2 "
-        "sprintf('λ = 10^{%.0f},  Σ = diag(1, 1, %.2f)', %.0f, %.2f) "
+        "sprintf('λ = 10^{%.2f},  Σ^{-1} = diag(1, 1, %.2f)', %.0f, %.2f) "
         "at graph 0.65,0.85 tc rgb 'white' font ',12'"
-        % (log10_lambda, cov[2], log10_lambda, cov[2])
+        % (log10_lambda, 1 / cov[2], log10_lambda, 1 / cov[2])
     )
 
     gp_cmd(
@@ -219,13 +219,13 @@ try:
             elif ch == "z":
                 t_null += 0.1
             elif ch == "j":
-                log10_lambda -= 1.0
+                log10_lambda -= 0.25
             elif ch == "k":
-                log10_lambda += 1.0
+                log10_lambda += 0.25 * (log10_lambda < -1.0)
             elif ch == "l":
-                log10_aniso -= 0.2
-            elif ch == "m":
                 log10_aniso += 0.2
+            elif ch == "m":
+                log10_aniso -= 0.2
             redraw()
 finally:
     gp.stdin.close()
