@@ -425,7 +425,7 @@ EOF
 
 ```bash +image
 gnuplot <<'GP'
-set term pngcairo size 600,450 background rgb "black" enhanced
+set term pngcairo size 800,600 background rgb "black" enhanced
 
 set border lc rgb "#4c566a"
 set tics textcolor rgb "#4c566a"
