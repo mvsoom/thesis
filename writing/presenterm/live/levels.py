@@ -5,24 +5,61 @@ import sys
 import termios
 import tty
 
+import jax
 import numpy as np
 
 # ============================================================
 # USER-SUPPLIED HOOKS (YOU FILL THESE IN LATER)
 # ============================================================
+from utils import lfmodel
+
+lf_dgf = jax.jit(lfmodel.dgf)
+
+# %%
+# Generate examplar
+T = 6.0
+N = 800
+NUM_PERIODS = 3
+
+t, dt = np.linspace(0.0, T * NUM_PERIODS, N, retstep=True)
+
+
+def generate_examplar(Rd):
+    p = lfmodel.convert_lf_params({"T0": T, "Rd": Rd}, "Rd -> T")
+
+    du = np.zeros_like(t)
+
+    for i in range(NUM_PERIODS):
+        du = du + np.array(lf_dgf(t - i * T, p))
+    u = np.cumsum(du) * dt
+
+    # Do gauge
+    te = t[np.argmin(du)]  # instant of peak excitation
+    ct = t - te  # center time axis
+    to = 0.0 - te  # time of opening where du is zero
+
+    power = (du**2).sum() * dt / T
+    du /= np.sqrt(power)
+    u /= np.sqrt(power)
+
+    d = {
+        "Rd": Rd,
+        "ct": ct,
+        "to": to,
+        "du": du,
+        "u": u,
+    }
+    return d
 
 
 def sample_example(params=None):
     """
     Return one waveform sample from the simulator model.
-    x-axis is [0, 10].
     """
-    # placeholder: slightly noisy sine with shape
-    x = np.linspace(0.0, 10.0, 400)
-    y = np.sin(2 * np.pi * x / 10.0)
-    y += 0.2 * np.sin(4 * np.pi * x / 10.0)
-    y += 0.05 * np.random.randn(len(x))
-    return x, y
+    Rd = np.random.uniform(0.3, 2.7)
+    lf = generate_examplar(Rd)
+
+    return t, lf["u"]
 
 
 def fit_level(col_idx):
@@ -85,8 +122,8 @@ gp_cmd("set border lc rgb '#4c566a'")
 gp_cmd("set tics textcolor rgb '#4c566a'")
 gp_cmd("set xlabel 'x' tc rgb '#d8dee9'")
 gp_cmd("set ylabel 'f(x)' tc rgb '#d8dee9'")
-gp_cmd("set xrange [0:10]")
-gp_cmd("set yrange [-2.5:2.5]")
+gp_cmd(f"set xrange [0:{NUM_PERIODS * T}]")
+gp_cmd("set yrange [-0.1:2.5]")
 
 
 # ============================================================
@@ -95,7 +132,7 @@ gp_cmd("set yrange [-2.5:2.5]")
 
 n_cols = 4
 active_col = 3  # start on simulator
-n_samples = 5
+n_samples = 1
 
 # per-column stored samples: list of lists [(x,y), ...]
 samples = [[] for _ in range(n_cols)]
