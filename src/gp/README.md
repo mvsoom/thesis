@@ -5,6 +5,7 @@
     - [ ] Differentiation possible
     - [x] Scaling via weights
     - [ ] Subspace is an ordinary Transform
+    - [ ] Polynomial kernels (known expansion)
 
 - [ ] Hilbert
     - [x] Dont need axis info, only ndim
@@ -27,6 +28,10 @@
     - Basically we need to implement our MercerOp here
     - This is all laid out [here](https://chatgpt.com/s/t_692a3afacd4481919e43e54148abf6ec)
 
+
+- [ ] VI
+    - VI **always** acts on a Mercer form f = Phi z and optimizes for z | data ~ q(m, S) given hyperparams theta
+    - So this can be plugged in relatively easily
 
 ##
 

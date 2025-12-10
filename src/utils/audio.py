@@ -2,7 +2,7 @@ import math
 
 import numpy as np
 from numpy.lib.stride_tricks import sliding_window_view
-from scipy.signal import resample_poly
+from scipy.signal import find_peaks, resample_poly
 
 
 def resample(x: np.ndarray, sr_in: int, sr_out: int) -> np.ndarray:
@@ -84,19 +84,79 @@ def frame_signal_with_origins(x, frame_len, hop, origins):
     return frames
 
 
-def compute_gci_origins(one_gci, n, fs, true_pitch):
-    gci_t = one_gci / fs
+def detect_gcis_from_dgf(dgf, fs, true_pitch, search_radius=5):
+    dgf = np.asarray(dgf)
+    n = len(dgf)
+
+    # negative peaks -> invert
+    x = -dgf
+
+    # expected spacing
     T = 1.0 / true_pitch
-    duration = n / fs
+    min_sep = int(0.5 * fs * T)
 
-    k_start = int(np.ceil((0 - gci_t) / T))
-    k_end = int(np.floor((duration - gci_t) / T))
+    # dynamic threshold
+    thr = np.percentile(x, 95) * 0.3
 
-    gci_times = gci_t + np.arange(k_start, k_end + 1) * T
-    gci_samples = (gci_times * fs).round().astype(int)
-    gci_samples = np.clip(gci_samples, 0, n - 1)
+    peaks, _ = find_peaks(x, height=thr, distance=min_sep)
+    return np.sort(peaks)
 
-    return np.sort(gci_samples)
+
+def optimal_tau_from_gcis(t_gcis, T):
+    """
+    Given ordered GCIs t_i and nominal period T,
+    return the least-squares optimal τ such that:
+
+        t_i ≈ τ + i*T
+
+    τ = mean(t_i - i*T)
+    """
+    t_gcis = np.asarray(t_gcis)
+    N = len(t_gcis)
+    i = np.arange(N)
+    return np.mean(t_gcis - i * T)
+
+
+def ideal_grid_from_tau(tau, T, n_samples, fs):
+    """
+    Construct the ideal grid:
+
+        tau + i*T
+
+    until the end of the signal.
+    Returns integer sample indices.
+    """
+    duration = n_samples / fs
+    max_i = int(duration / T) + 2
+
+    times = tau + np.arange(max_i) * T
+    times = times[(times >= 0) & (times < duration)]
+
+    return np.round(times * fs).astype(int)
+
+
+def compute_aligned_origins_from_dgf(dgf, fs, true_pitch):
+    """
+    High-level function:
+    1) detect true GCIs,
+    2) compute optimal τ,
+    3) return ideal grid origins.
+
+    Guaranteed to give stable alignment across frames.
+    """
+    # Step 1 detect GCIs in sample domain
+    gci_samples = detect_gcis_from_dgf(dgf, fs, true_pitch)
+    t_gcis = gci_samples / fs
+
+    # Step 2 compute τ (closed form)
+    T = 1.0 / true_pitch
+    tau = optimal_tau_from_gcis(t_gcis, T)
+
+    # Step 3 generate idealized aligned grid
+    origins = ideal_grid_from_tau(tau, T, len(dgf), fs)
+
+    return origins, gci_samples, tau
+
 
 
 def fit_affine_lag_nrmse(x, y, maxlag):
