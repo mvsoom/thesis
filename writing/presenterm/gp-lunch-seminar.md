@@ -300,7 +300,7 @@ No need to choose Φ or Σ by hand!
 <!-- column: 0 -->
 
 ```bash +exec +acquire_terminal
-python live/gp.py
+python live/gaussian.py
 ```
 
 <!-- column: 1 -->

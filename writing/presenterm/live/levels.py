@@ -6,7 +6,14 @@ import termios
 import tty
 
 import jax
+import jax.numpy as jnp
 import numpy as np
+
+from gp.blr import blr_from_mercer
+from gp.periodic import PeriodicSE
+from utils.jax import vk
+
+RNG = np.random.default_rng(1234)
 
 # ============================================================
 # USER-SUPPLIED HOOKS (YOU FILL THESE IN LATER)
@@ -52,23 +59,65 @@ def generate_examplar(Rd):
     return d
 
 
-def sample_example(params=None):
-    """
-    Return one waveform sample from the simulator model.
-    """
-    Rd = np.random.uniform(0.3, 2.7)
+def sample_example_lf(params=None):
+    Rd = RNG.uniform(0.3, 2.7)
     lf = generate_examplar(Rd)
+    return lf
 
-    return t, lf["u"]
+
+def sample_example(col):
+    match col:
+        case 0:
+            kernel = 0.2 * PeriodicSE(
+                ell=jnp.array(1.0), period=jnp.array(4.0), J=20
+            )
+            gp = blr_from_mercer(kernel, t)
+            f = gp.sample(vk())
+
+        case 3:
+            Rd = RNG.uniform(0.3, 2.7)
+            lf = sample_example_lf()
+            f = lf["u"]
+
+    return t, f
 
 
-def fit_level(col_idx):
-    """
-    Fit operation for a given column index.
-    Stub for now.
-    """
-    # later: hyperparam learning / amplitude learning
-    pass
+# EXAMPLES = [sample_example() for _ in range(10)]
+
+
+def fit_level(col):
+    match col:
+        case 1:
+            fit_level_1()
+        case 2:
+            fit_level_2()
+
+
+from tinygp import GaussianProcess
+
+
+def build_gp(t, theta):
+    kernel = jnp.exp(theta["log_amp"]) * PeriodicSE(
+        ell=jnp.exp(theta["log_ell"]), period=jnp.exp(theta["log_ell"]), J=20
+    )
+
+    return GaussianProcess(kernel, t, diag=1e-6)
+
+
+def fit_level_1():
+    # TODO
+    exemplars = [sample_example(3) for _ in range(10)]
+
+    def total_log_likelihood(theta, exemplars):
+        ll = 0.0
+        for t, f in exemplars:
+            gp = build_gp(t, theta)
+            ll += gp.log_probability(f)
+        return ll
+
+
+def fit_level_2():
+    pass  # nothing yet
 
 
 # ============================================================
@@ -123,7 +172,7 @@ gp_cmd("set tics textcolor rgb '#4c566a'")
 gp_cmd("set xlabel 'x' tc rgb '#d8dee9'")
 gp_cmd("set ylabel 'f(x)' tc rgb '#d8dee9'")
 gp_cmd(f"set xrange [0:{NUM_PERIODS * T}]")
-gp_cmd("set yrange [-0.1:2.5]")
+gp_cmd("set yrange [-2.5:2.5]")
 
 
 # ============================================================
@@ -139,8 +188,17 @@ samples = [[] for _ in range(n_cols)]
 
 # initialise simulator column with samples
 for _ in range(n_samples):
-    samples[3].append(sample_example())
+    samples[3].append(sample_example(3))
 
+
+KERNEL = "periodickernel"  # spack:1 or whitenoise
+KERNEL_THETA = {
+    "sigma_a": 1.0,
+    "ell": 3,
+    "T": T,
+    "sigma_b": 1.0,
+    "sigma_c": 1.0,
+}
 
 # ============================================================
 # DRAW
@@ -195,7 +253,7 @@ def redraw():
 
 
 def resample_column(col):
-    samples[col] = [sample_example() for _ in range(n_samples)]
+    samples[col] = [sample_example(col) for _ in range(n_samples)]
 
 
 def fit_column(col):
@@ -221,10 +279,10 @@ try:
                 break
 
             elif k == "LEFT":
-                active_col = max(0, active_col - 1)
+                active_col = (active_col - 1) % n_cols
 
             elif k == "RIGHT":
-                active_col = min(n_cols - 1, active_col + 1)
+                active_col = (active_col + 1) % n_cols
 
             elif k == " ":
                 resample_column(active_col)
