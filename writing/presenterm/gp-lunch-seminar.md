@@ -208,7 +208,7 @@ A practical, engineered fix for instability in least squares caused by near coll
 Collinearity
 
 In linear regression collinearity means some columns of are nearly linear combinations of others.
-=> many different coefficients give almost the same fitted values
+=> many different amplitudes give almost the same fitted values
 
 ill-conditioned matrix Phi^T Phi
 When it happens
@@ -231,7 +231,7 @@ Given m basis functions Φ = [ϕ₁ | ϕ₂ | ... | ϕₘ], model a function f(x
 ```
 f(x) = a₁ϕ₁(x) + a₂ϕ₂(x) + ... + aₘϕₘ(x)
 ```
-and fit the coefficients a to data y by least squares:
+and fit the amplitudes a to data y by least squares:
 ```
 â = argminₐ ‖Φa − y‖²
   = (ΦᵀΦ)⁻¹Φᵀy
@@ -248,7 +248,7 @@ Introduce a minimal engineering fix:
 â = argminₐ ‖Φa − y‖² + λ‖a‖²
   = (ΦᵀΦ + λI)⁻¹ Φᵀy
 ```
-This stabilizes inversion by making large coefficients costly.
+This stabilizes inversion by making large amplitudes costly.
 Eigenvalues shifted by +λ.
 
 <!-- newlines: 1 -->
@@ -256,7 +256,7 @@ Eigenvalues shifted by +λ.
 
 ## Anisotropic ridge regression
 
-Assign different costs to different coefficients:
+Assign different costs to different amplitudes:
 ```
 â = argminₐ ‖Φa − y‖² + λ aᵀΣ⁻¹a
   = (ΦᵀΦ + λΣ⁻¹)⁻¹ Φᵀy
@@ -265,7 +265,7 @@ Assign different costs to different coefficients:
 <!-- pause -->
 
 ```bash +exec +acquire_terminal
-/// python live/ridge.py
+python live/ridge.py
 ```
 
 Gaussian processes
@@ -285,45 +285,73 @@ Ridge regression is what you do when you know you need regularization but don’
 
 Gaussian processes are what you use when you do know the kind.
 
+***Choosing Σ looks a lot like Gaussian process regression!***
+
+Notice: we also moved in the nullspace, but we didn't do it by assigning costs.
+
+We did it in terms of a high-level "lengthscale" concept, not on the individual coefficient level.
+
+No need to choose Φ or Σ by hand!
+
+
 -->
 
-
+<!-- column_layout: [1, 1] -->
+<!-- column: 0 -->
 
 ```bash +exec +acquire_terminal
 python live/gp.py
 ```
 
+<!-- column: 1 -->
 <!-- pause -->
 
-Choosing Σ looks a lot like Gaussian process regression!
 
-## Good
+Gaussian process | ridge regression
+--|--
+condition on data | move along the nullspace
+change hyperparameters | change Σ
 
-Gaussian processes are ill-posed problem killers.
+<!-- newlines: 3 -->
+<!-- column_layout: [1, 1] -->
+<!-- column: 0 -->
+<!-- pause -->
 
-They specify **high-level structure** in function space:
+# Good
+
+Gaussian processes are naturally born ill-posed problem killers because hyperparameter optimization regularizes automatically.
+No need to choose Σ!
+
+Instead, costs are specified at a high functional level, not at the amplitude level, and determine model properties such as:
 
 * lengthscale (smoothness)
 * differentiability
 * periodicity
 * relevance of input dimensions
 
-They compose: k1 * k2, etc. Kernel algebra.
+They compose in a kernel algebra: k₁ * k₂ + k₃, etc.
 
-No need to choose Φ or Σ by hand!
+<!-- column: 1 -->
+<!-- pause -->
 
-## Bad
+# Bad
 
-O(N³) inference cost and sometimes black-box.
+- O(N³) inference cost
+- Inference quality depends on kernel...
+- ... but this can feel like black-box magic at times
 
 Ridge regression <=> Gaussian processes
 =======================================
 
-Well known that linear models are GPs
+<!-- speaker_note:
 
-But GPs can also be transformed into BLRs!
+It is well known that linear models are GPs
+
+But GPs can also be transformed into ridge regression models!
 
 You can go _either_ way
+
+-->
 
 ```bash +exec_replace
 graph-easy --from=dot --as_boxart << 'EOF'
@@ -334,35 +362,55 @@ digraph {
 EOF
 ```
 
+<!-- newlines: 2 -->
 <!-- column_layout: [1, 1] -->
-
 <!-- column: 0 -->
+<!-- pause -->
 
-extra benfits:
-- very easy representation for any stationary kernel
-- O(N) inference, not N^3, generally reasonable approximation
-- reveals the structure of the GP because we can rotate Phi x Sigma^(1/2) which gives us equally weighted basis functions, a bit like PCA
-- all sparse VIs are compatible/based on this, so we get arbitrary likelihoods, batching, etc
-- (any ones you can think of here?)
+# Good
+- O(N) inference, not O(N³)
+- Works really well in practice
+- Almost all kernels used in daily life are easily quantifiable
+- Plugs into VI
+- Turns it into a white-box
+  - Level 1 and level 2 learning
 
 <!-- column: 1 -->
+<!-- pause -->
 
-downsides:
-- still an approx, which might break down
-- might require many basisfunctions in higher dims : O(10) max, tho many clever ways try to go around this [MCMC : fourier features, reorthogonalizing: Eleftheriadis2023, ...]
-- nonstationary kernels are generally hard to get BLR repr from
-- (any ones you can think of here?)
+# Bad
+- Still an approximation, which might or might not be appropriate
+- Nonstationary kernels are harder to quantize
+- Might require many basisfunctions m in higher dims
+- Kernel algebra rapdily increases m
 
 Quantization [1]
 ================
 
 <!-- column_layout: [1,1] -->
-
 <!-- column: 0 -->
-
 <!-- newlines: 2 -->
 
 # Hilbert-GP
+
+A stationary kernel is translation invariant, so it admits a spectral representation:
+
+```
+k(r) = ∫ S(ω) e^{iωr} dω
+```
+
+Hilbert-GP approximates this integral by regular quadrature.
+This results in the following ridge regression model:
+
+```
+f(x) = a₁ϕ₁(x) + a₂ϕ₂(x) + ... + aₘϕₘ(x)
+
+
+ϕₖ(x) = √(2/L) · sin(ωₖ x),   ωₖ = kπ / L
+  Σₖₖ = S(ωₖ)
+```
+
+So higher frequencies have higher cost => determines lengthscale and smoothness.
 
 <!-- column: 1 -->
 
@@ -375,22 +423,50 @@ digraph {
 EOF
 ```
 
-<!-- reset_layout -->
+```bash +image
+gnuplot <<'GP'
+set term pngcairo size 600,450 background rgb "black" enhanced
 
-best method for this currently in low dim is Hilbert-GP
+set border lc rgb "#4c566a"
+set tics textcolor rgb "#4c566a"
 
-which is basically quadrature of bochners theorem
+set xlabel "frequency ω" tc rgb "#d8dee9"
+set ylabel "S(ω)" tc rgb "#d8dee9"
 
-fixed basis functions , but we get the diagonal weights, which is insae
+set xrange [0:10]
+set yrange [1e-5:2]
+set logscale y
 
-here we should do another interactive demo, perhaps in 2D now?
+# Legend
+set key top right
+set key tc rgb "#d8dee9"
+set key spacing 1.2
+set key box lc rgb "#4c566a"
 
-we should show the spectrum at least
+set title "Kernel magnitude spectra (ℓ = 1)" tc rgb "#d8dee9"
 
-```typst +render +no_background +width:20%
-$Phi = sin(x)$
+# lengthscale
+ell = 1.0
 
-$lambda_k = S(omega_k)$
+# Matérn parameters
+k12 = sqrt(2*0.5)/ell
+k32 = sqrt(2*1.5)/ell
+k52 = sqrt(2*2.5)/ell
+
+# Spectral densities (up to constants)
+S12(w) = 1.0 / (w*w + k12*k12)**(1.0)
+S32(w) = 1.0 / (w*w + k32*k32)**(2.0)
+S52(w) = 1.0 / (w*w + k52*k52)**(3.0)
+
+# Squared exponential spectrum
+SSE(w) = exp(-0.5 * ell*ell * w*w)
+
+plot \
+    S12(x) w l lw 3 lc rgb "#bf616a" title "Matérn ν=1/2", \
+    S32(x) w l lw 3 lc rgb "#d08770" title "Matérn ν=3/2", \
+    S52(x) w l lw 3 lc rgb "#a3be8c" title "Matérn ν=5/2", \
+    SSE(x) w l lw 3 lc rgb "#81a1c1" dt 2 title "SE"
+GP
 ```
 
 Quantization [2]
@@ -484,13 +560,19 @@ convert -density 300 assets/uvx_learning_curve.png -background none  -channel RG
 convert -density 300 assets/uvx.png -background none  -channel RGB -negate png:-
 ```
 
-Learning from examples: levels 1 & 2
-====================================
+Levels 1 & 2
+============
+
+
+level | Gaussian process | ridge regression
+--|--|--
+1 | prior and posterior uncertainty | learning the amplitudes a
+2 | hyperparam learning | learning the basis Φ and costs Σ
 
 Another thing that ridge regression analogy makes clear:
 
 - Level 2 learning = GP hyperparam learning = learning the covariance matrix
-- Level 1 learning = learning the coefficients
+- Level 1 learning = learning the amplitudes
 
 bonus: this allows "level 1" learning
 

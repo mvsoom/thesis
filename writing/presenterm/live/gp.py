@@ -7,21 +7,6 @@ import tty
 
 import numpy as np
 
-# ------------------------------------------------------------
-# Key bindings (shown once, pedagogical order)
-# ------------------------------------------------------------
-print(
-    "\n"
-    "Gaussian process blackboard demo\n"
-    "\n"
-    "space : sample at current x and advance\n"
-    "a / z : move x left / right\n"
-    "j / k : decrease / increase lengthscale\n"
-    "p     : toggle global posterior mean and bands\n"
-    "c     : clear and restart\n"
-    "q     : quit\n"
-)
-
 
 def cls():
     sys.stdout.write("\033[2J\033[H")
@@ -65,12 +50,20 @@ def k_sqexp(x, y, ell):
 # ------------------------------------------------------------
 # gnuplot setup
 # ------------------------------------------------------------
-gp_cmd('set term kitty background rgb "black" size 1600,900')
+gp_cmd("set term kitty background rgb 'black' size 1600,900")
 gp_cmd("unset key")
 gp_cmd("set xrange [0:10]")
 gp_cmd("set yrange [-3:3]")
-gp_cmd("set border lc rgb 'gray'")
-gp_cmd("set tics textcolor rgb 'gray'")
+gp_cmd("set xlabel 'x' tc rgb '#d8dee9'")
+gp_cmd("set ylabel 'f(x)' tc rgb '#d8dee9'")
+gp_cmd("set border lc rgb '#4c566a'")
+gp_cmd("set tics textcolor rgb '#4c566a'")
+
+gp_cmd(
+    "set label 10 "
+    "'space: sample   a/z: move x   j/k: ℓ   p: mean   v: variance   c: clear   q: quit' "
+    "at screen 0.05,0.96 tc rgb '#d8dee9'"
+)
 
 # ------------------------------------------------------------
 # state
@@ -85,7 +78,8 @@ dx = 0.25
 X = []
 Y = []
 
-show_posterior = False
+show_mean = False  # p
+show_variance = False  # v
 
 
 # ------------------------------------------------------------
@@ -111,39 +105,74 @@ def posterior():
     return mu, np.sqrt(np.maximum(var, 0))
 
 
+def conditional_at_x():
+    if not X:
+        return 0.0, 1.0
+
+    Xv = np.array(X)
+    Yv = np.array(Y)
+
+    K = k_sqexp(Xv, Xv, ell) + 1e-12 * np.eye(len(X))
+    kx = k_sqexp(np.array([x_next]), Xv, ell)
+
+    L = np.linalg.cholesky(K)
+    alpha = np.linalg.solve(L.T, np.linalg.solve(L, Yv))
+
+    mu = (kx @ alpha).item()
+    v = np.linalg.solve(L, kx.T)
+    std = np.sqrt(max(1.0 - (v * v).sum(), 0))
+
+    return mu, std
+
+
 # ------------------------------------------------------------
 # redraw
 # ------------------------------------------------------------
 def redraw():
     plot_terms = []
 
-    if show_posterior:
+    mu = std = None
+    if show_mean or show_variance:
         mu, std = posterior()
+
+    if show_mean:
+        plot_terms.append("'-' w l lw 2 lc rgb '#88c0d0'")
+
+    if show_variance and show_mean:
         plot_terms += [
-            "'-' w l lc rgb '#88c0d0'",  # mean
-            "'-' w l lc rgb '#81a1c1'",  # +2 sigma
-            "'-' w l lc rgb '#81a1c1'",  # -2 sigma
+            "'-' w l lc rgb '#81a1c1'",
+            "'-' w l lc rgb '#81a1c1'",
         ]
 
     if X:
         plot_terms.append("'-' w p pt 7 ps 1.4 lc rgb '#bf616a'")
 
+    # lengthscale bar + guide
     plot_terms += [
-        "'-' w l lw 4 lc rgb '#a3be8c'",  # lengthscale bar
-        "'-' w l dt 2 lc rgb '#4c566a'",  # guide line
-        "'-' w l lw 3 lc rgb '#d08770'",  # cond +-2 sigma
-        "'-' w p pt 7 ps 1.5 lc rgb '#d08770'",  # cond mean
-        "'-' w l lc rgb '#d08770'",  # sideways Gaussian
+        "'-' w l lw 4 lc rgb '#a3be8c'",
+        "'-' w l dt 2 lc rgb '#4c566a'",
     ]
+
+    # vertical uncertainty only if v is on
+    if show_variance:
+        plot_terms += [
+            "'-' w l lw 3 lc rgb '#d08770'",
+            "'-' w p pt 7 ps 1.5 lc rgb '#d08770'",
+        ]
+
+    # sideways Gaussian: ALWAYS ON
+    plot_terms.append("'-' w l lc rgb '#d08770'")
 
     gp_cmd("plot " + ",".join(plot_terms))
 
-    # global posterior
-    if show_posterior:
+    # posterior mean
+    if show_mean:
         for x, y in zip(xs, mu):
             gp_cmd(f"{x} {y}")
         gp_cmd("e")
 
+    # posterior bands
+    if show_variance and show_mean:
         for x, y in zip(xs, mu + 2 * std):
             gp_cmd(f"{x} {y}")
         gp_cmd("e")
@@ -164,36 +193,23 @@ def redraw():
     gp_cmd(f"9.5 {y_ls}")
     gp_cmd("e")
 
-    # conditional at x_next
-    if not X:
-        mu_n, std_n = 0.0, 1.0
-    else:
-        Xv = np.array(X)
-        Yv = np.array(Y)
-        K = k_sqexp(Xv, Xv, ell) + 1e-12 * np.eye(len(X))
-        kx = k_sqexp(np.array([x_next]), Xv, ell)
-
-        L = np.linalg.cholesky(K)
-        alpha = np.linalg.solve(L.T, np.linalg.solve(L, Yv))
-        mu_n = (kx @ alpha).item()
-        v = np.linalg.solve(L, kx.T)
-        std_n = np.sqrt(max(1.0 - (v * v).sum(), 0))
-
-    # vertical guide
+    # guide line
     gp_cmd(f"{x_next} -3")
     gp_cmd(f"{x_next} 3")
     gp_cmd("e")
 
-    # uncertainty bar
-    gp_cmd(f"{x_next} {mu_n - 2 * std_n}")
-    gp_cmd(f"{x_next} {mu_n + 2 * std_n}")
-    gp_cmd("e")
+    mu_n, std_n = conditional_at_x()
 
-    # mean dot
-    gp_cmd(f"{x_next} {mu_n}")
-    gp_cmd("e")
+    # vertical bar (only if v on)
+    if show_variance:
+        gp_cmd(f"{x_next} {mu_n - 2 * std_n}")
+        gp_cmd(f"{x_next} {mu_n + 2 * std_n}")
+        gp_cmd("e")
 
-    # sideways Gaussian
+        gp_cmd(f"{x_next} {mu_n}")
+        gp_cmd("e")
+
+    # sideways Gaussian (always)
     ys = np.linspace(mu_n - 3 * std_n, mu_n + 3 * std_n, 80)
     pdf = np.exp(-0.5 * ((ys - mu_n) / std_n) ** 2)
     pdf /= pdf.max()
@@ -210,21 +226,8 @@ def redraw():
 def sample_next():
     global x_next
 
-    if not X:
-        y = rng.standard_normal()
-    else:
-        Xv = np.array(X)
-        Yv = np.array(Y)
-        K = k_sqexp(Xv, Xv, ell) + 1e-12 * np.eye(len(X))
-        kx = k_sqexp(np.array([x_next]), Xv, ell)
-
-        L = np.linalg.cholesky(K)
-        alpha = np.linalg.solve(L.T, np.linalg.solve(L, Yv))
-        mu = (kx @ alpha).item()
-        v = np.linalg.solve(L, kx.T)
-        var = max(1.0 - (v * v).sum(), 0)
-
-        y = mu + np.sqrt(var) * rng.standard_normal()
+    mu_n, std_n = conditional_at_x()
+    y = mu_n + std_n * rng.standard_normal()
 
     X.append(x_next)
     Y.append(y)
@@ -255,25 +258,22 @@ try:
                 break
             elif c == " ":
                 sample_next()
-                redraw()
             elif c == "a":
                 x_next = max(0.0, x_next - dx)
-                redraw()
             elif c == "z":
                 x_next = min(10.0, x_next + dx)
-                redraw()
             elif c == "j":
                 ell *= 0.9
-                redraw()
             elif c == "k":
                 ell *= 1.1
-                redraw()
             elif c == "p":
-                show_posterior = not show_posterior
-                redraw()
+                show_mean = not show_mean
+            elif c == "v":
+                show_variance = not show_variance
             elif c == "c":
                 clear_all()
-                redraw()
+
+            redraw()
 finally:
     gp.stdin.close()
     cls()
