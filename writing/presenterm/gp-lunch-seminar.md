@@ -560,42 +560,29 @@ convert -density 300 assets/uvx_learning_curve.png -background none  -channel RG
 convert -density 300 assets/uvx.png -background none  -channel RGB -negate png:-
 ```
 
-Levels 1 & 2
-============
+Learning on levels 1 & 2
+========================
 
 level | Gaussian process | ridge regression
 --|--|--
-1 | prior and posterior uncertainty | learning the amplitudes a
-2 | hyperparam learning | learning the basis Φ and costs Σ
+0 | prior | prior
+1 | hyperparam learning | learning the basis Φ and costs Σ
+2 |   | learning the amplitudes a
 
-Level 1: learning coordinates in a fixed geometry
 
-Level 2: learning the geometry itself
+# Quantization creates a more white-box model, which allows for a bonus: ***learning from examples***
 
-Quantization unlocks a bonus: ***learning from examples***.
+Level 0: no learning
 
-Another thing that ridge regression analogy makes clear:
+Level 1: learning the geometry itself
 
-- Level 2 learning = GP hyperparam learning = learning the covariance matrix
-- Level 1 learning = learning the amplitudes
+Level 2: learning the coordinates inside the geometry
 
-bonus: this allows "level 1" learning
 
-say you have examplars of what your prior should try to emulate from a simulation
 
-with ordinary GP: optimize hyperparams and you get something more like it: level 2 learned
-
-but usually not quite refined enough if your examplars have definite shape
-
-and here we go back to my use case
-
-say we have a glottal flow model that can generate samples
-
-if i quantize my prior, i can learn the shape from it both level 1 (amplitude level) and level 2 (high level)
-
-this results in another BLR model where amps have defintie prior mean and covariance
-
-here we show level 1 and level 2 adaptation for whitenoise kernel, periodickernel and my spack kernel (custom derived) which should be a plot containing: col 1: prior, no conditioning, col 2: prior, level 1 learnt, col 3: prior, level 1 + level 2 learnt and rows are the kernels. each cell contains samples from the prior and pressing a key adds another examplar to the learning examplar pool
+```bash +exec +acquire_terminal
+python live/levels.py
+```
 
 Results
 =======

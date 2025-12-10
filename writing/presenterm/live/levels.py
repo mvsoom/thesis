@@ -3,7 +3,6 @@
 import subprocess
 import sys
 import termios
-import time
 import tty
 
 import jax
@@ -13,131 +12,169 @@ from tinygp import GaussianProcess
 
 from gp.blr import blr_from_mercer
 from gp.periodic import PeriodicSE
+from pack.refine import learn_surrogate_blr
 from utils import lfmodel
 from utils.jax import vk
-
-# ============================================================
-# RNG
-# ============================================================
 
 RNG = np.random.default_rng(1234)
 
 # ============================================================
-# LF MODEL
+# LF EXEMPLARS
 # ============================================================
 
 lf_dgf = jax.jit(lfmodel.dgf)
 
-T = 6.0
+T = 6.0  # single-period duration for LF model
 N = 800
-NUM_PERIODS = 3
-
+NUM_PERIODS = 3  # how many periods to tile
 t, dt = np.linspace(0.0, T * NUM_PERIODS, N, retstep=True)
-t_jax = jnp.array(t)
 
 
 def generate_examplar(Rd):
     p = lfmodel.convert_lf_params({"T0": T, "Rd": Rd}, "Rd -> T")
+
     du = np.zeros_like(t)
     for i in range(NUM_PERIODS):
         du = du + np.array(lf_dgf(t - i * T, p))
     u = np.cumsum(du) * dt
+
+    # gauge + normalization (as in your working code)
+    te = t[np.argmin(du)]  # instant of peak excitation
+    ct = t - te  # centred time axis
+    to = 0.0 - te
+
     power = (du**2).sum() * dt / T
+    du /= np.sqrt(power)
     u /= np.sqrt(power)
-    return u
+
+    return {
+        "Rd": Rd,
+        "ct": ct,
+        "to": to,
+        "du": du,
+        "u": u,
+    }
 
 
 def sample_example_lf():
     Rd = RNG.uniform(0.3, 2.7)
-    return generate_examplar(Rd)
+    lf = generate_examplar(Rd)
+    return lf
+
+
+# tiny helper for refine.py so _as_arrays sees .t and .du
+class Exemplar:
+    def __init__(self, t, y):
+        self.t = t
+        self.du = y
 
 
 # ============================================================
-# LEVEL PARAMETERS
+# KERNEL / PRIOR SETUP
 # ============================================================
 
-# Level 0: deliberately wrong
-ELL0 = 1.0
-AMP0 = 0.2
-PERIOD0 = 4.5
+# Level 0 prior: deliberately wrong-ish
+ELL_L0 = 1.0  # too small
+SIGMA_L0 = 0.5  # a bit small
+PERIOD_L0 = 4.5  # deliberately off
 
-# Level 1: correct amp + period, learn ell
-AMP1 = 1.0
-PERIOD1 = T
+# Level 1: we will learn ell; amp & period are "true"
+SIGMA_L1 = 1.0
+PERIOD_TRUE = T  # correct period
 
-ell_level1 = ELL0
-optimizing_level1 = False
+# Learned ell for level 1 (starts at same as L0)
+ell_level1 = ELL_L0
 
-
-# ============================================================
-# GP BUILDERS
-# ============================================================
-
-
-def build_gp_level1(t_jax, ell_value):
-    kernel = AMP1 * PeriodicSE(
-        ell=jnp.array(ell_value),
-        period=jnp.array(PERIOD1),
-        J=20,
-    )
-    return GaussianProcess(kernel, t_jax, diag=1e-2)
-
-
-@jax.jit
-def loglik_single(ell, y):
-    gp = build_gp_level1(t_jax, ell)
-    return gp.log_probability(y)
-
-
-@jax.jit
-def total_log_likelihood(ell, Y):
-    return jnp.sum(jax.vmap(lambda y: loglik_single(ell, y))(Y))
-
+# Level 2: imitation prior (BLR) learned from exemplars
+blr_level2 = None
 
 # ============================================================
-# SAMPLING BY COLUMN
+# USER-FACING SAMPLING HOOK
 # ============================================================
 
 
 def sample_example(col):
+    global ell_level1, blr_level2
+
     if col == 0:
-        kernel = AMP0 * PeriodicSE(
-            ell=jnp.array(ELL0),
-            period=jnp.array(PERIOD0),
+        # Level 0: fixed wrong-ish kernel
+        kernel = SIGMA_L0 * PeriodicSE(
+            ell=jnp.array(ELL_L0),
+            period=jnp.array(PERIOD_L0),
             J=20,
         )
         gp = blr_from_mercer(kernel, t)
-        return t, np.array(gp.sample(vk()))
+        f = gp.sample(vk())
+        return t, np.asarray(f)
 
     if col == 1:
-        kernel = AMP1 * PeriodicSE(
+        # Level 1: learned ell, correct amp & period
+        kernel = SIGMA_L1 * PeriodicSE(
             ell=jnp.array(ell_level1),
-            period=jnp.array(PERIOD1),
+            period=jnp.array(PERIOD_TRUE),
             J=20,
         )
         gp = blr_from_mercer(kernel, t)
-        return t, np.array(gp.sample(vk()))
+        f = gp.sample(vk())
+        return t, np.asarray(f)
+
+    if col == 2:
+        # Level 2: imitation prior
+        if blr_level2 is None:
+            # fall back to Level 1 behaviour before fitting
+            kernel = SIGMA_L1 * PeriodicSE(
+                ell=jnp.array(ell_level1),
+                period=jnp.array(PERIOD_TRUE),
+                J=20,
+            )
+            gp = blr_from_mercer(kernel, t)
+            f = gp.sample(vk())
+            return t, np.asarray(f)
+        else:
+            f = blr_level2.sample(vk())
+            return t, np.asarray(f)
 
     if col == 3:
-        return t, sample_example_lf()
+        # Simulator
+        lf = sample_example_lf()
+        f = lf["u"]
+        return t, np.asarray(f)
 
+    # should never happen
     return t, np.zeros_like(t)
 
 
 # ============================================================
-# LEVEL 1 FITTING (1D SEARCH)
+# LEVEL-1 FIT: LEARN ELL BY 1D SEARCH
 # ============================================================
+
+def build_gp_for_ell(t_data, ell):
+    kernel = SIGMA_L1 * PeriodicSE(
+        ell=jnp.array(ell),
+        period=jnp.array(PERIOD_TRUE),
+        J=20,
+    )
+    return GaussianProcess(kernel, t_data, diag=1e-6)
+
+
+def total_log_likelihood_ell(ell, exemplars):
+    # exemplars are (t, f) tuples from the simulator
+    ell = float(ell)
+    ll = 0.0
+    for t_ex, f_ex in exemplars:
+        t_ex_j = jnp.asarray(t_ex)
+        f_ex_j = jnp.asarray(f_ex)
+        gp = build_gp_for_ell(t_ex_j, ell)
+        ll = ll + gp.log_probability(f_ex_j)
+    return float(ll)
 
 
 def fit_level_1():
-    global ell_level1, optimizing_level1, samples
+    global ell_level1
 
-    optimizing_level1 = True
+    # fixed small exemplar pool
+    exemplars = [sample_example(3) for _ in range(1)]
 
-    # exemplar batch
-    Y = jnp.stack([jnp.array(sample_example_lf()) for _ in range(5)], axis=0)
-
-    # initial bracket
     lo, hi = 1.0, 10.0
 
     for step in range(12):
@@ -149,13 +186,22 @@ def fit_level_1():
             ]
         )
 
-        vals = np.array(
-            [float(total_log_likelihood(float(m), Y)) for m in mids]
-        )
+        vals = []
+        for m in mids:
+            kernel = SIGMA_L1 * PeriodicSE(
+                ell=jnp.array(float(m)),
+                period=jnp.array(PERIOD_TRUE),
+                J=20,
+            )
+            ll = 0.0
+            for t_ex, f_ex in exemplars:
+                gp = GaussianProcess(kernel, jnp.array(t_ex), diag=1e-2)
+                ll += float(gp.log_probability(jnp.array(f_ex)))
+            vals.append(ll)
 
+        vals = np.array(vals)
         best = mids[np.argmax(vals)]
 
-        # shrink bracket
         if best == lo:
             hi = 0.5 * (lo + hi)
         elif best == hi:
@@ -165,11 +211,50 @@ def fit_level_1():
             hi = hi - 0.25 * (hi - lo)
 
         ell_level1 = float(best)
+
         samples[1] = [sample_example(1)]
         redraw()
-        time.sleep(0.05)
 
-    optimizing_level1 = False
+
+# ============================================================
+# LEVEL-2 FIT: IMITATION PRIOR VIA BLR ENVELOPE
+# ============================================================
+
+
+def fit_level_2():
+    """Learn BLR surrogate prior matching posteriors over many exemplars."""
+    global blr_level2, ell_level1
+
+    # we assume fit_level_1 has run, so ell_level1 is sensible
+    kernel = SIGMA_L1 * PeriodicSE(
+        ell=jnp.array(ell_level1),
+        period=jnp.array(PERIOD_TRUE),
+        J=20,
+    )
+
+    # more exemplars here; fitting is just linear algebra
+    n_exemplars = 40
+    exemplars = []
+    for _ in range(n_exemplars):
+        lf = sample_example_lf()
+        # use u as "du" just for the talk – visually nicer
+        exemplars.append(Exemplar(t, lf["u"]))
+
+    blr_level2 = learn_surrogate_blr(
+        kernel,
+        exemplars,
+        evaluation_times=t,
+        noise_variance=1e-4,
+        envelope_jitter=1e-8,
+        enforce_zero_mean=False,
+    )
+
+
+def fit_level(col):
+    if col == 1:
+        fit_level_1()
+    elif col == 2:
+        fit_level_2()
 
 
 # ============================================================
@@ -195,7 +280,7 @@ class Keys:
 
 def read_key():
     c = sys.stdin.read(1)
-    if c == "\x1b":
+    if c == "\x1b":  # escape
         c2 = sys.stdin.read(2)
         if c2 == "[D":
             return "LEFT"
@@ -206,7 +291,7 @@ def read_key():
 
 
 # ============================================================
-# GNUPLOT
+# GNUPLOT SETUP
 # ============================================================
 
 gp = subprocess.Popen(["gnuplot"], stdin=subprocess.PIPE, text=True)
@@ -232,17 +317,24 @@ gp_cmd("set yrange [-2.5:2.5]")
 # ============================================================
 
 n_cols = 4
-active_col = 3
+active_col = 3  # start on simulator
+n_samples = 1  # max one per column in this demo
 
+# per-column stored samples: list of (x, y), but at most one each
 samples = [[] for _ in range(n_cols)]
-samples[3] = [sample_example(3)]
+
+# initialise simulator column
+for _ in range(n_samples):
+    samples[3].append(sample_example(3))
 
 titles = [
-    "Level 0: prior",
+    "Level 0: prior (wrong kernel)",
     "Level 1: GP learned prior",
-    "Level 2: imitation prior",
+    "Level 2: imitation prior (BLR)",
     "Simulator",
 ]
+
+status_msgs = ["", "", "", ""]  # extra status text per column
 
 
 # ============================================================
@@ -263,24 +355,53 @@ def redraw():
         gp_cmd("set bmargin at screen 0.12")
 
         title = titles[col]
-        if col == 1 and optimizing_level1:
-            title += " (optimizing...)"
+        if status_msgs[col]:
+            title += f"  [{status_msgs[col]}]"
         if col == active_col:
             title += "  <"
 
         gp_cmd(f"set title '{title}' tc rgb 'white'")
 
-        if samples[col]:
-            gp_cmd("plot '-' w l lw 2 lc rgb '#88c0d0'")
-            x, y = samples[col][0]
+        plot_terms = []
+        for _ in samples[col]:
+            plot_terms.append("'-' w l lw 1 lc rgb '#88c0d0'")
+
+        if not plot_terms:
+            plot_terms = ["0 w p pt 7 ps 0"]
+
+        gp_cmd("plot " + ",".join(plot_terms))
+
+        for x, y in samples[col]:
             for xi, yi in zip(x, y):
-                gp_cmd(f"{xi} {yi}")
+                gp_cmd(f"{float(xi)} {float(yi)}")
             gp_cmd("e")
-        else:
-            gp_cmd("plot 0 w p pt 7 ps 0")
 
     gp_cmd("unset multiplot")
-    gp_cmd("pause 0")
+
+
+# ============================================================
+# ACTIONS
+# ============================================================
+
+
+def resample_column(col):
+    samples[col] = [sample_example(col) for _ in range(n_samples)]
+
+
+def fit_column(col):
+    if col not in (1, 2):
+        return
+
+    # show that we’re working
+    status_msgs[col] = "optimizing..."
+    redraw()
+
+    fit_level(col)
+
+    status_msgs[col] = "trained"
+    # after training, don’t change existing samples, but future space-presses
+    # will use updated priors
+    redraw()
 
 
 # ============================================================
@@ -299,16 +420,21 @@ try:
 
             if k == "q":
                 break
+
             elif k == "LEFT":
                 active_col = (active_col - 1) % n_cols
+
             elif k == "RIGHT":
                 active_col = (active_col + 1) % n_cols
+
             elif k == " ":
-                samples[active_col] = [sample_example(active_col)]
-            elif k == "f" and active_col == 1:
-                fit_level_1()
+                resample_column(active_col)
+
+            elif k == "f":
+                fit_column(active_col)
 
             redraw()
+
 finally:
     try:
         gp.stdin.close()
