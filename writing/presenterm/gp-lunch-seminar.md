@@ -1,5 +1,5 @@
 ---
-title: "[TODO] Title"
+title: "Quantization of Gaussian processes"
 author: Marnix Van Soom [VUB]
 event: GP lunch seminar 111225
 
@@ -39,7 +39,9 @@ EOF
 <!-- column: 1 -->
 <!-- alignment: center -->
 
-> I know the human being and fish can coexist peacefully!
+> *I know the human being and fish can coexist peacefully!*
+>
+> -- George W. Bush
 
 <!-- pause -->
 
@@ -84,15 +86,12 @@ digraph {
 EOF
 ```
 
-given d, find (u, h)
+Given d, find (u, h).
 
-# a blind inversion problem
+This a blind identification problem:
 
-# Ill-posed
-
-## Needs regularization
-
-<!-- pause -->
+- Ill-posed
+- Needs regularization
 
 <!-- column: 1 -->
 
@@ -105,6 +104,8 @@ digraph {
 EOF
 ```
 
+<!-- pause -->
+
 ![](assets/blind_demo_smooth.gif)
 
 
@@ -113,52 +114,159 @@ Ill-posed problems
 <!-- speaker_note:
 
 i am workign on "speech inversion"
-this is a blind deconvolution problem (or whatever its called): many to one
-=> need prior information to constrain to whatevers plausibe
+this is a blind identification problem problem (or whatever its called): many to one
+=> need prior information to constrain the set of mathematically possible solutions: they must adhere to what we already know to be plausible or true
 
 [now this is a crowd of engineers so they think in costs, so ill talk about assigning initial costs and that bayesian inference is a way to correctly work with these costs: bayesian inference is ... bookkeeping]
 -->
 
-then: zoom out
+<!-- column_layout: [1,1] -->
 
-many problems are of this kind: regression etc => we got many good off the shelf models we can use (matlab algs, python libs), but how do we "get them where we want them": be general enough but kinda do our bidding, kinda "know" what we want?
+<!-- column: 0 -->
 
-this is a hard question and very general
+# Ill-posed inverse problems are everywhere
 
-we can start by thinking about science's workhorse: _linear regression_
+- Many-to-one mappings
+- Repeated measurements
+- Any interpolation problem!
+- Any extrapolation problem!
+
+The data admit many solutions.
+
+=> Which solution(s) do we want?
+
+<!-- newlines: 1 -->
+
+# Simplest ill-posed problem
+
+```
+y = a₁ + a₂
+```
+
+Suppose we observe: y = 1.
+
+=> What is the solution space?
+
+<!-- column: 1 -->
+
+<!-- pause -->
+
+```bash +image
+gnuplot <<'GP'
+set term pngcairo size 560,560 background rgb "black" enhanced
+
+set size square
+unset key
+
+set border lc rgb "#4c566a"
+set tics textcolor rgb "#4c566a"
+set xlabel "a_1" textcolor rgb "#d8dee9"
+set ylabel "a_2" textcolor rgb "#d8dee9"
+set zeroaxis lc rgb "#434c5e"
+
+set label "a_1 + a_2 = 1" at -1.3,1.2 tc rgb "#88c0d0"
+# set label "ridge cost" at 0.7,0.6 tc rgb "#5e81ac"
 
 
+set xrange [-1.5:1.5]
+set yrange [-1.5:1.5]
 
-Linear regression
+set parametric
+set trange [-2*pi:2*pi]
+
+# data constraint: a1 + a2 = 1
+x_line(t) = t
+y_line(t) = 1 - t
+
+# ridge circle radii
+r1 = 0.2
+r2 = 0.5
+r3 = 1.0
+
+# ridge solution (closest point to origin)
+a_star = 0.5
+
+plot \
+    x_line(t), y_line(t) w l lw 4 lc rgb "#88c0d0", \
+    r1*cos(t), r1*sin(t) w l lc rgb "#5e81ac" dt 2, \
+    r2*cos(t), r2*sin(t) w l lc rgb "#5e81ac" dt 2, \
+    r3*cos(t), r3*sin(t) w l lc rgb "#5e81ac" dt 2, \
+    a_star, a_star w p pt 7 ps 2 lc rgb "#bf616a"
+
+unset parametric
+GP
+```
+
+Ridge regression
 =================
 <!-- speaker_note:
+
+Ridge regression was introduced to stabilize least squares under near-singularity.
+
+A practical, engineered fix for instability in least squares caused by near collinearity.
+
+Collinearity
+
+In linear regression collinearity means some columns of are nearly linear combinations of others.
+=> many different coefficients give almost the same fitted values
+
+ill-conditioned matrix Phi^T Phi
+When it happens
+
+Not exotic at all:
+    Redundant measurements: same physical quantity measured in slightly different ways.
+
+    Polynomial features x, x², x³ on a narrow domain.
+
+    High dimension: more basisfunctions than n
+
 -->
 
-so, linear regression (meaning basis functions etc)
+<!-- column_layout: [1,1] -->
+<!-- column: 0 -->
 
-O(N) inference: fastest you can get
+# Linear regression
 
-```typst +render +width:40%
-$ "argmin"_a ||y - f(x; a)||^2 + lambda ||a||^2 $
+Given m basis functions Φ = [ϕ₁ | ϕ₂ | ... | ϕₘ], model a function f(x):
+```
+f(x) = a₁ϕ₁(x) + a₂ϕ₂(x) + ... + aₘϕₘ(x)
+```
+and fit the coefficients a to data y by least squares:
+```
+â = argminₐ ‖Φa − y‖²
+  = (ΦᵀΦ)⁻¹Φᵀy
+```
+=> This crashes numerically for inverse problems
+
+<!-- column: 1 -->
+<!-- pause -->
+
+# Ridge regression
+
+Introduce a minimal engineering fix:
+```
+â = argminₐ ‖Φa − y‖² + λ‖a‖²
+  = (ΦᵀΦ + λI)⁻¹ Φᵀy
+```
+This stabilizes inversion by making large coefficients costly.
+Eigenvalues shifted by +λ.
+
+<!-- newlines: 1 -->
+<!-- pause -->
+
+## Anisotropic ridge regression
+
+Assign different costs to different coefficients:
+```
+â = argminₐ ‖Φa − y‖² + λ aᵀΣ⁻¹a
+  = (ΦᵀΦ + λΣ⁻¹)⁻¹ Φᵀy
 ```
 
-ridge regression solved a lot of stuff
-
-and has a strong bearing on interpolation problems [WE MAKE ANOTHER INTERACTIVE DEMO HERE: got toy data and see what ridge regression does based on weights; can be ordinary LR or with basis functions, dont know whats best; try also random covariance matrices to see impact on fit]
-
-but it is arbitraruy: which weights/alpha/ridge do we set?
-
-why not a general covariance matrix?
-
-how do we pick it?
-
-also: how do pick the basis functions? they aobviously matter a lot
+<!-- pause -->
 
 ```bash +exec +acquire_terminal
-python liveridge.py
+/// python live/ridge.py
 ```
-
-> How do we choose Phi and lambda?
 
 Gaussian processes
 ==================
@@ -171,29 +279,41 @@ and we did it by just suplying HIGH LEVEL INFORMATION!
 => let the model work out the algebraic consequences.
 so this really does what we wanti th
 
+
+
+Ridge regression is what you do when you know you need regularization but don’t know what kind.
+
+Gaussian processes are what you use when you do know the kind.
+
 -->
 
+Choosing Σ looks a lot like Gaussian process regression!
 
 ```bash +exec +acquire_terminal
-python livegp.py
+python live/gp.py
 ```
 
+## Good
 
+Gaussian processes are ill-posed problem killers.
 
-Interesting fact about GPs:
+They specify **high-level structure** in function space:
 
-High level information made quantitative
-- Lengthscale
-- Differentiability class
-- (Quasi)-periodicity
-- Which covariates have a bearing on the target function
+* lengthscale (smoothness)
+* differentiability
+* periodicity
+* relevance of input dimensions
 
-They do exactly what we like, but are O(N³) and esoteric
+They compose: k1 * k2, etc. Kernel algebra.
 
-No need to pick Phi and lambda
+No need to choose Φ or Σ by hand!
 
-Linear regression <=> Gaussian processes
-========================================
+## Bad
+
+O(N³) inference cost and sometimes black-box.
+
+Ridge regression <=> Gaussian processes
+=======================================
 
 Well known that linear models are GPs
 
@@ -205,7 +325,7 @@ You can go _either_ way
 graph-easy --from=dot --as_boxart << 'EOF'
 digraph {
     rankdir = LR;
-    "Gaussian process" -> "BLR" [label="quantize!"];
+    "Gaussian process" -> "ridge" [label="quantize!"];
 }
 EOF
 ```
@@ -246,7 +366,7 @@ Quantization [1]
 graph-easy --from=dot --as_boxart << 'EOF'
 digraph {
     rankdir = LR;
-    "Stationary GP" -> "BLR" [label="Hilbert!"];
+    "Stationary GP" -> "ridge" [label="Hilbert!"];
 }
 EOF
 ```
@@ -292,7 +412,7 @@ Learning camera calibration on a test set of 30k+ samples takes 1 minute, with a
 graph-easy --from=dot --as_boxart << 'EOF'
 digraph {
     rankdir = LR;
-    "Stationary/NN GP" -> "BLR" [label="Spherical!"];
+    "Stationary/NN GP" -> "ridge" [label="Spherical!"];
 }
 EOF
 ```
@@ -339,7 +459,7 @@ Learning camera calibration on a test set of 30k+ samples takes 1 minute, with a
 graph-easy --from=dot --as_boxart << 'EOF'
 digraph {
     rankdir = LR;
-    "Stationary/NN GP" -> "BLR" [label="Spherical!"];
+    "Stationary/NN GP" -> "ridge" [label="Spherical!"];
 }
 EOF
 ```
@@ -362,6 +482,11 @@ convert -density 300 assets/uvx.png -background none  -channel RGB -negate png:-
 
 Learning from examples: levels 1 & 2
 ====================================
+
+Another thing that ridge regression analogy makes clear:
+
+- Level 2 learning = GP hyperparam learning = learning the covariance matrix
+- Level 1 learning = learning the coefficients
 
 bonus: this allows "level 1" learning
 
@@ -392,7 +517,6 @@ Summary
 =======
 
 <!-- column_layout: [1, 1] -->
-
 <!-- column: 0 -->
 
 # Takeaway:
@@ -403,40 +527,38 @@ Summary
 - Set hyperparameters, or fit to examples
   * Level 1
   * Level 1 & 2
-- Enjoy better inference
-
-## Advantages:
-
-- O(N) inference, not O(N^3)
-- Principled cost control
-- Any likelihood
-
-## Disadvantages:
-
-- Still an approximation
-- Lower dimensions: O(10)
-  * Though clever tricks exist
+- Enjoy better inference when lucky
 
 <!-- column: 1 -->
 
 ```bash +exec_replace
 graph-easy --from=dot --as_boxart << 'EOF'
 digraph {
-    "Gaussian process" -> "Linear regression" [label="quantize!"];
-    
-    "Examples" -> "Linear regression" [label="level 1 and 2"]
-    "Examples" -> "Gaussian process" [label="level 2 only"]
+    "Gaussian process" -> "Ridge regression" [label="quantize!"];
+    "Ridge regression" -> "Gaussian process" [label="special\ncase of"];
 }
 EOF
 ```
 
-```bash +exec_replace
-graph-easy --from=dot --as_boxart << 'EOF'
-digraph {
-    "Stationary GP" -> "Linear regression" [label="Hilbert!"]
-}
-EOF
-```
+<!-- reset_layout -->
+<!-- newlines: 1 -->
+<!-- column_layout: [1, 1] -->
+<!-- column: 0 -->
+
+## Advantages:
+
+- O(N) inference, not O(N³)
+- Level 1 & 2 learning
+- Principled cost control
+- Any likelihood
+
+<!-- column: 1 -->
+
+## Disadvantages:
+
+- Still an approximation
+- Requires lower input dimensions: O(10)
+  * Though variations exist that go up to O(200)
 
 References
 ==========

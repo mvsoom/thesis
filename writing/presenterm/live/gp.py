@@ -22,6 +22,12 @@ print(
     "q     : quit\n"
 )
 
+
+def cls():
+    sys.stdout.write("\033[2J\033[H")
+    sys.stdout.flush()
+
+
 # ------------------------------------------------------------
 # gnuplot
 # ------------------------------------------------------------
@@ -92,7 +98,7 @@ def posterior():
     Xv = np.array(X)
     Yv = np.array(Y)
 
-    K = k_sqexp(Xv, Xv, ell) + 1e-6 * np.eye(len(X))
+    K = k_sqexp(Xv, Xv, ell) + 1e-12 * np.eye(len(X))
     Ks = k_sqexp(xs, Xv, ell)
 
     L = np.linalg.cholesky(K)
@@ -164,7 +170,7 @@ def redraw():
     else:
         Xv = np.array(X)
         Yv = np.array(Y)
-        K = k_sqexp(Xv, Xv, ell) + 1e-6 * np.eye(len(X))
+        K = k_sqexp(Xv, Xv, ell) + 1e-12 * np.eye(len(X))
         kx = k_sqexp(np.array([x_next]), Xv, ell)
 
         L = np.linalg.cholesky(K)
@@ -209,7 +215,7 @@ def sample_next():
     else:
         Xv = np.array(X)
         Yv = np.array(Y)
-        K = k_sqexp(Xv, Xv, ell) + 1e-6 * np.eye(len(X))
+        K = k_sqexp(Xv, Xv, ell) + 1e-12 * np.eye(len(X))
         kx = k_sqexp(np.array([x_next]), Xv, ell)
 
         L = np.linalg.cholesky(K)
@@ -238,6 +244,7 @@ def clear_all():
 # ------------------------------------------------------------
 # run
 # ------------------------------------------------------------
+cls()
 redraw()
 
 try:
@@ -269,3 +276,4 @@ try:
                 redraw()
 finally:
     gp.stdin.close()
+    cls()
