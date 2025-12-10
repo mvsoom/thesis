@@ -310,7 +310,7 @@ python live/gp.py
 Gaussian process | ridge regression
 --|--
 condition on data | move along the nullspace
-change hyperparameters | change Σ
+change hyperparameters | change costs Σ
 
 <!-- newlines: 3 -->
 <!-- column_layout: [1, 1] -->
@@ -563,11 +563,16 @@ convert -density 300 assets/uvx.png -background none  -channel RGB -negate png:-
 Levels 1 & 2
 ============
 
-
 level | Gaussian process | ridge regression
 --|--|--
 1 | prior and posterior uncertainty | learning the amplitudes a
 2 | hyperparam learning | learning the basis Φ and costs Σ
+
+Level 1: learning coordinates in a fixed geometry
+
+Level 2: learning the geometry itself
+
+Quantization unlocks a bonus: ***learning from examples***.
 
 Another thing that ridge regression analogy makes clear:
 
