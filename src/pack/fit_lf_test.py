@@ -207,7 +207,7 @@ gpl = BayesianLinearRegressor(
 # %%
 from utils.reskew import dgf_polarity
 
-num_samples = 5
+num_samples = 1
 
 plt.figure(figsize=(6, 4))
 for i, k in enumerate(range(num_samples)):
