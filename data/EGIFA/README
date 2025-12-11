@@ -1,0 +1,110 @@
+Contact information:
+Yu-Ren Chien <yrchien@ntu.edu.tw>
+Jon Gudnason <jg@ru.is>
+
+EGIFA performs evaluation of glottal inverse filtering algorithms.  For detailed description, see:
+Y.-R. Chien, D. D. Mehta, J. Gudnason, M. Zanartu, and T. F. Quatieri, "Performance evaluation of glottal inverse filtering algorithms using a physiologically based articulatory speech synthesizer," IEEE/ACM Transactions on Audio, Speech, and Language Processing, submitted.
+
+The evaluation requires Matlab R2016b, and a data set generated with VocalTractLab.  Two readily applicable data sets are available also from the authors.
+
+To test an inverse filtering algorithm on a data set, use test_vtl3.m.  Type 'help test_vtl3' in Matlab to get help.  To measure the performance, use score_vtl12.m for sustained vowels, and score_vtl_continuous1.m for continuous speech.
+
+# Own notes
+Matlab 2025b with {Signal Processing, System Identification, Wavelet} Toolbox
+
+## Data
+Data: both vowel/ (~0.6 s) and speech/ (~3 s) are monotone/fixed-F0 VTL synths; speech is a sentence with flat pitch, not prosodic speech.
+All signals at 44.1 kHz
+
+/vowel
+consists of pairs of (.wav, .mat) files where
+- .wav: mono speech, single channel; length ~ 0.6 sec
+- .mat: contains `glottal_flow`, `lower_area`, `upper_area` timeseries
+
+/speech
+- .wav: same as in vowel; length ~ 3 sec
+- .mat: same as above
+
+### GF vs DGF
+
+Input .mats: contain GF
+Output .mats: contain DGF (saved as `uu`)
+Scoring: differences the ground truth GF before comparing with inferred GFs
+
+## GIF methods via test_vtl3.m
+
+GIF methods & flags (for test_vtl3.m, which calls inverse_filter9.m)
+
+- Closed-phase LPC (default): no flag (uses projParam('cp')).
+- Weighted covariance 1 (rgauss): --wca1.
+- Weighted covariance 2 (ame): --wca2.
+- Iterative Adaptive Inverse Filtering (IAIF): --iaif.
+- Complex Cepstrum Decomposition (CCD): --ccd.
+
+All of these rely on GCIs EXCEPT --iaif.
+- For --ccd: this is pitch-synchronuous, so needs good analysis windows, and this is choosen from GCI events 
+
+These GCIs are estimated with DYPSA.
+Supply --sg for ground truth GCIs via the input .mat files with optional offset to check error degradation.
+
+To run:
+```matlab
+% cd .
+mkdir('vowel/res_iaif');
+test_vtl3('--data','vowel/', '--res','vowel/res_iaif/', '--iaif');
+% running time: 3 minutes
+```
+
+## Scoring
+
+Note trailing backslash at end: 'vowel/res_iaif/'. REQUIRED
+
+/vowel
+Just operates on a /res_*/ folder which has to be a child folder of vowel/
+
+```matlab
+score_vtl12('vowel/res_iaif/');
+Number of samples: 750
+Average normalized median absolute error: 0.32116
+(standard deviation: 0.20104)
+Average normalized median error: -0.0081173
+(standard deviation: 0.069188)
+% running time: <1 min
+% output:
+% Number of samples: 750
+% Average normalized median absolute error: 0.32116
+% (standard deviation: 0.20104)
+% Average normalized median error: -0.0081173
+% (standard deviation: 0.069188)
+```
+
+/speech
+Just operates on a /res_*/ folder which has to be a child folder of speech/
+
+```matlab
+% example
+score_vtl_continuous1('speech/res/');
+
+% different metric
+score_vtl_continuous1('/home/marnix/pro/science/thesis/data/EGIFA/speech/res_iaif/', '--naq'); 
+% output
+% Number of samples: 125
+% Average median absolute error: 0.032604
+% (standard deviation: 0.014665)
+% Average median error: 0.02359
+(standard deviation: 0.023921)
+
+% running time: <5 sec
+```
+
+## Frame sizes and other hyperparams
+
+- Common fs: inputs resampled to 20 kHz in `inverse_filter9`; ground truth (flow/area) resampled from 44.1 kHz to 20 kHz when used (`--sg`, scoring). Outputs `uu` at 20 kHz.
+
+- DYPSA (GCIs/GOIs): runs at 20 kHz; Voicebox defaults (LPC frame 20 ms, group-delay smoothing ~0.45 ms, cross-corr window ~200 samples ~10 ms).
+
+- CP/WCA (`default`, `--wca1`, `--wca2` → `weightedlpc3`): frame/window 32 ms, hop 16 ms; LPC order ≈ fs/1000 (20th order at 20 kHz); preemphasis 10 Hz; closed-phase weighting from GCIs/GOIs (cp/wca1/wca2 differ only in weighting parameters).
+
+- IAIF (`--iaif`): `lpcauto` frames 32 ms with 16 ms hop; default LPC orders p=10, g=4, r=10; high-pass at 60 Hz (FIR 1024 taps) unless `h=0` when calling `iaif` directly.
+
+- CCD (`--ccd`): SRH pitch tracker resamples to 16 kHz (25 ms frame, 5 ms hop for LPC residual; 100 ms SRH window, 10 ms hop). GCIs from `--sg` if provided; otherwise SEDREAMS with mean f0. CCD estimation runs at 20 kHz input from `inverse_filter9`.
