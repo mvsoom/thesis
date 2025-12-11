@@ -7,7 +7,9 @@ cache/
 writing/latex/
 typst/
 
-data/
+data/OPENGLOT/
+
+**.dat
 
 experiments/**/.jupyter_cache/
 experiments/**/runs/
