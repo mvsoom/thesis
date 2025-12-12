@@ -44,6 +44,7 @@ cfh = '';
 h1h2 = 0;
 hrf = 0;
 naq = 0;
+best_affine = 0;
 ind_arg = 1;
 while ind_arg <= nargin,
   switch varargin{ind_arg}
@@ -69,6 +70,8 @@ while ind_arg <= nargin,
       hrf = 1;
     case '--naq'
       naq = 1;
+    case '--best_affine'
+      best_affine = 1;
     otherwise
       folder = varargin{ind_arg};
   end
@@ -124,6 +127,18 @@ while ischar(file),
   [oa1, oa2] = extractInstantsFromAreaFunction(AreaFnc);
   gci = oa1 - interval(1) + 1;
   gci = gci( gci>=1 & gci<=length(interval) );
+
+  % Optional affine+lag alignment (best RMSE normalized by std of overlap)
+  if best_affine
+    f0_hz = infer_f0_from_name(file, fs);
+    maxlag = max(1, round(fs / f0_hz));
+    [signal1, signal2, gci] = best_affine_align(signal1, signal2, gci, maxlag);
+    if isempty(signal1) || isempty(signal2) || isempty(gci)
+      file = fgetl(fid);
+      continue
+    end
+    rms1 = sqrt(mean(signal1.^2));
+  end
   if h1h2 | hrf | naq
     [oa1, oa2, oa3, oa4, oa5] = ...
         extractVoiceFeatures3(cumsum(signal1/fs), fs, gci);
@@ -193,3 +208,77 @@ else
   disp([ 'Average normalized median error: ' error_string ])
 end
 disp([ '(standard deviation: ' num2str(std(signed_error)) ')' ])
+
+end  % end of main function
+
+% Local helper: infer F0 (Hz) from filename class code (default 100 Hz)
+function f0_hz = infer_f0_from_name(fname, fs)
+  try
+    cc = parse_vtl_name(fname);
+    switch cc{3}
+      case '1', f0_hz = 90;
+      case '2', f0_hz = 120;
+      case '3', f0_hz = 150;
+      case '4', f0_hz = 180;
+      case '5', f0_hz = 210;
+      otherwise, f0_hz = 100;
+    end
+  catch
+    f0_hz = 100;
+  end
+end
+
+% Local helper: best affine+lag alignment; trims signals and GCIs to overlap
+function [s1o, s2o, gcio] = best_affine_align(s1, s2, gci, maxlag)
+  n = length(s1);
+  best_nrmse = Inf;
+  best_k = 0;
+  best_a = 1;
+  best_b = 0;
+  best_len = 0;
+  for k = -maxlag:maxlag
+    if k >= 0
+      xs = s2(1+k:end);
+      ys = s1(1:end-k);
+    else
+      xs = s2(1:end+k);
+      ys = s1(1-k:end);
+    end
+    m = length(xs);
+    if m < 2, continue; end
+    xm = mean(xs); ym = mean(ys);
+    xc = xs - xm; yc = ys - ym;
+    varx = mean(xc.^2);
+    covxy = mean(xc .* yc);
+    a = 0; if varx ~= 0, a = covxy / varx; end
+    b = ym - a * xm;
+    err = ys - (a * xs + b);
+    rmse = sqrt(mean(err.^2));
+    sy = sqrt(mean(yc.^2));
+    nrmse = Inf; if sy ~= 0, nrmse = rmse / sy; end
+    if nrmse < best_nrmse
+      best_nrmse = nrmse;
+      best_k = k;
+      best_a = a;
+      best_b = b;
+      best_len = m;
+    end
+  end
+  if best_len < 2
+    s1o = []; s2o = []; gcio = [];
+    return
+  end
+  % Construct aligned overlap
+  if best_k >= 0
+    s1o = s1(1:end-best_k);
+    s2o = best_a * s2(1+best_k:end) + best_b;
+    offset = 0;
+  else
+    s1o = s1(1-best_k:end);
+    s2o = best_a * s2(1:end+best_k) + best_b;
+    offset = -best_k;
+  end
+  % Adjust GCIs into the trimmed segment
+  gcio = gci - offset;
+  gcio = gcio(gcio>=1 & gcio<=length(s1o));
+end

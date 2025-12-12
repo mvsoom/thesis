@@ -70,7 +70,8 @@ if ~exist(res, 'dir')
   mkdir(res);
 end
 
-ind = 0;
+% Collect files to process (for progress reporting)
+files = {};
 fid = fopen([data 'ls.out'], 'rt');
 file = fgetl(fid);
 while ischar(file),
@@ -80,13 +81,25 @@ while ischar(file),
     in_subset = 0;
   end
   if in_subset
-    ind = ind + 1;
-    audio = [data file(1:end-4) '.wav'];
-    flow = [res file(1:end-4) '.mat'];
-    list = [{prog} {'--audio'} {audio} {'--flow'} {flow} passed_down];
-    feval(list{:});
-    ind%, fflush(stdout)
+    files{end+1} = file; %#ok<AGROW>
   end
   file = fgetl(fid);
 end
 fclose(fid);
+
+nfiles = numel(files);
+fprintf('Processing %d files...\n', nfiles);
+
+for ind = 1:nfiles
+  file = files{ind};
+  audio = [data file(1:end-4) '.wav'];
+  flow = [res file(1:end-4) '.mat'];
+  list = [{prog} {'--audio'} {audio} {'--flow'} {flow} passed_down];
+  feval(list{:});
+  if mod(ind, max(1, floor(nfiles/100))) == 0 || ind == nfiles
+    fprintf('  %d/%d (%.1f%%)\r', ind, nfiles, 100*ind/nfiles);
+  end
+end
+if nfiles > 0
+  fprintf('\n');
+end
