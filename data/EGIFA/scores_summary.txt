@@ -1,0 +1,93 @@
+EGIFA batch run 12-Dec-2025 09:50:07
+
+=== Method: cp | Dataset: vowel ===
+Number of samples: 750
+Average normalized median absolute error: 0.26774
+(standard deviation: 0.18735)
+Average normalized median error: 6.471e-05
+(standard deviation: 0.05156)
+
+
+=== Method: cp | Dataset: speech ===
+Number of samples: 125
+Average normalized median absolute error: 0.40329
+(standard deviation: 0.11367)
+Average normalized median error: -0.015971
+(standard deviation: 0.026265)
+
+
+=== Method: wca1 | Dataset: vowel ===
+Number of samples: 750
+Average normalized median absolute error: 0.28902
+(standard deviation: 0.18054)
+Average normalized median error: 0.00023977
+(standard deviation: 0.061953)
+
+
+=== Method: wca1 | Dataset: speech ===
+Number of samples: 125
+Average normalized median absolute error: 0.3904
+(standard deviation: 0.12123)
+Average normalized median error: -0.016871
+(standard deviation: 0.028058)
+
+
+=== Method: wca2 | Dataset: vowel ===
+Number of samples: 750
+Average normalized median absolute error: 0.2854
+(standard deviation: 0.17002)
+Average normalized median error: 0.0011433
+(standard deviation: 0.070274)
+
+
+=== Method: wca2 | Dataset: speech ===
+Number of samples: 125
+Average normalized median absolute error: 0.39442
+(standard deviation: 0.11728)
+Average normalized median error: -0.017523
+(standard deviation: 0.026792)
+
+
+=== Method: iaif | Dataset: vowel ===
+Number of samples: 750
+Average normalized median absolute error: 0.32116
+(standard deviation: 0.20104)
+Average normalized median error: -0.0081173
+(standard deviation: 0.069188)
+
+
+=== Method: iaif | Dataset: speech ===
+Number of samples: 125
+Average normalized median absolute error: 0.42823
+(standard deviation: 0.11206)
+Average normalized median error: -0.021849
+(standard deviation: 0.026912)
+
+
+=== Method: ccd | Dataset: vowel ===
+Number of samples: 750
+Average normalized median absolute error: 0.33628
+(standard deviation: 0.23789)
+Average normalized median error: 0.040656
+(standard deviation: 0.10977)
+
+=== Method: ccd | Dataset: speech ===
+Number of samples: 125
+Average normalized median absolute error: 0.41391
+(standard deviation: 0.20883)
+Average normalized median error: -0.012089
+(standard deviation: 0.13053)
+
+=== Method: whitenoise | Dataset: vowel ===
+Number of samples: 750
+Average normalized median absolute error: 0.48321
+(standard deviation: 0.27745)
+Average normalized median error: -0.030572
+(standard deviation: 0.081573)
+
+=== Method: whitenoise | Dataset: speech ===
+umber of samples: 125
+Average normalized median absolute error: 0.58323
+(standard deviation: 0.2836)
+Average normalized median error: -0.051649
+(standard deviation: 0.083671)

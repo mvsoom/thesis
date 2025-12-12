@@ -47,6 +47,7 @@ wca1 = 0;
 wca2 = 0;
 use_iaif = 0;
 ccd = 0;
+whitenoise = 0;
 sg = '';
 ind_arg = 1;
 while ind_arg <= nargin,
@@ -73,6 +74,8 @@ while ind_arg <= nargin,
       use_iaif = 1;
     case '--ccd'
       ccd = 1;
+    case '--whitenoise'
+      whitenoise = 1;
     case '--sg'
       ind_arg = ind_arg + 1;
       if ind_arg <= nargin
@@ -104,6 +107,15 @@ fs = 20000;
 [sp, fs_sp] = audioread(audio);
 sp = resample(sp,fs,fs_sp); 
 sp = sp * 10^6; % converting to cubic cm per sec
+
+% Null model: white noise with matched length and scale
+if whitenoise
+  sigma = std(sp);
+  if sigma==0, sigma = 1; end
+  uu = randn(size(sp)) * sigma;
+  save(flow, 'uu')
+  return
+end
 
 % Obtain GCI and GOIs
 voicebox('dy_cpfrac', 0.35);
