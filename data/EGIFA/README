@@ -12,6 +12,13 @@ To test an inverse filtering algorithm on a data set, use test_vtl3.m.  Type 'he
 # Own notes
 Matlab 2025b with {Signal Processing, System Identification, Wavelet} Toolbox
 
+## Bridges
+data/EGIFA/python_matlab_test.py
+data/EGIFA/matlab_python_test.m
+
+We have to bring our algo to this testing env, whose score metric is flawed
+and bring their algos to our testing env, which has a better scoring metric
+
 ## Data
 Data: both vowel/ (~0.6 s) and speech/ (~3 s) are monotone/fixed-F0 VTL synths; speech is a sentence with flat pitch, not prosodic speech.
 All signals at 44.1 kHz

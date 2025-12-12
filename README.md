@@ -16,3 +16,9 @@ sudo apt install direnv
 direnv allow
 ```
 There are convenient plugins for `vscode` to have the `.envrc` file loaded automatically, which will expose the environment variables in the Jupyter notebooks.
+
+For evaluation experiments, install latest `matlab` version.
+Then, with venv activated, do:
+```bash
+pip install matlabengine
+```
