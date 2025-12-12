@@ -12,6 +12,25 @@ To test an inverse filtering algorithm on a data set, use test_vtl3.m.  Type 'he
 # Own notes
 Matlab 2025b with {Signal Processing, System Identification, Wavelet} Toolbox
 
+TL;DR
+The MAE score used here is very nondiscriminate and VERY sensitive to delays in the time domain
+Its SD (stddev) is also insane, and makes ranking basically obsolete (even though they use ranking tests)
+Worse: when using the --oracle method (ie use ground truth as the test solution), the oracle scores EQUALLY to most methods, even slightly worse than a few
+This is because the orace is off by 14 samples; when using --oracle-delayed the oracle has zero error, as it should
+They also use per-cycle metrics but this is bullocks: there is an affine shift equivalence class for scoring metrics THAT MUST OPERATE ON THE FRAME LEVEL (not cycle level) BECAUSE LPC IS APPLIED AT THE FRAME LEVEL
+The authors (Chien+) also did not do null model (--whitenoise) calibration and go over this fixed delay of 14 samples (0.65 msec) very lightly
+The other metrics (H1H2, NAQ) also don't really fix any of these problems; many of them are sensitive to this shift too
+
+Therefore: we test our method with their eval suite, and expect to score basically ~in the middle => really basic test. Plus we also reproduce their numbers so all implementations work (already confirmed)
+- We only do this with our final implementation; it can choose its own window and has access to GCI information, both estimated from waveform or ground truth
+- We can also do this with our own whitekernel/periodickernel implementations for baselines
+
+The REAL test is bringing these algos to our testing env, which is far superior and actually implements the correct equivalence class (affine shifts)
+AND evaluates the inferred spectrum via formants, which is a metric that ALSO IMPLEMENTS EQUIVALENCE CLASSES
+- We only do this with our final implementation
+- Each GIF implemented here has its own params etc (and windows)
+
+
 ## Bridges
 data/EGIFA/python_matlab_test.py
 data/EGIFA/matlab_python_test.m
