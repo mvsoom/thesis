@@ -48,6 +48,8 @@ wca2 = 0;
 use_iaif = 0;
 ccd = 0;
 whitenoise = 0;
+oracle = 0;
+oracle_delayed = 0;
 sg = '';
 ind_arg = 1;
 while ind_arg <= nargin,
@@ -76,6 +78,10 @@ while ind_arg <= nargin,
       ccd = 1;
     case '--whitenoise'
       whitenoise = 1;
+    case '--oracle'
+      oracle = 1;
+    case '--oracle-delayed'
+      oracle_delayed = 1;
     case '--sg'
       ind_arg = ind_arg + 1;
       if ind_arg <= nargin
@@ -107,6 +113,29 @@ fs = 20000;
 [sp, fs_sp] = audioread(audio);
 sp = resample(sp,fs,fs_sp); 
 sp = sp * 10^6; % converting to cubic cm per sec
+
+% Oracle: emit ground-truth derivative flow, resampled and scaled
+if oracle || oracle_delayed
+  gt = load([audio(1:end-4) '.mat']);
+  if isfield(gt, 'glottal_flow')
+    gf = gt.glottal_flow;
+  elseif isfield(gt, 'flow')
+    gf = gt.flow;
+  else
+    error('Oracle mode: no glottal_flow/flow in ground-truth file');
+  end
+  gf = resample(gf, fs, 44100);
+  gf = gf(:);                     % ensure column vector
+  gf = gf * 10^6;                 % convert to cubic cm per sec
+  uu = [0; diff(gf)] * fs;        % derivative
+  if oracle_delayed
+    % Scorers drop first 14 samples (dd=-14). Advance estimate by padding here.
+    pad = 13;
+    uu = [zeros(pad,1); uu];
+  end
+  save(flow, 'uu')
+  return
+end
 
 % Null model: white noise with matched length and scale
 if whitenoise

@@ -91,3 +91,17 @@ Average normalized median absolute error: 0.58323
 (standard deviation: 0.2836)
 Average normalized median error: -0.051649
 (standard deviation: 0.083671)
+
+=== Method: oracle | Dataset: vowel ===
+Number of samples: 750
+Average normalized median absolute error: 0.31004
+(standard deviation: 0.14258)
+Average normalized median error: -0.029319
+(standard deviation: 0.052189)
+
+=== Method: oracle | Dataset: speech ===
+Number of samples: 125
+Average normalized median absolute error: 0.41905
+(standard deviation: 0.17261)
+Average normalized median error: -0.047992
+(standard deviation: 0.074039)
