@@ -66,6 +66,9 @@ end
 if isempty(res)
   error('Result folder must be specified!')
 end
+if ~exist(res, 'dir')
+  mkdir(res);
+end
 
 ind = 0;
 fid = fopen([data 'ls.out'], 'rt');

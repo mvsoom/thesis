@@ -106,6 +106,14 @@ end
 
 
 function [sig] = FilterAndNormalize(sig,b_l,a_l)
+% Ensure finite input to the filter to avoid filtfilt errors.
+% Bad F0/GCI estimates can lead to empty/degenerate segments (NaN/Inf),
+% so zero them out; returning zeros here will yield a "punished" output
+% downstream rather than crashing the whole batch.
+sig(~isfinite(sig)) = 0;
+if all(sig==0)
+    return;
+end
 
 sig=filtfilt(b_l,a_l,sig);
 

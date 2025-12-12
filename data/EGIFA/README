@@ -40,6 +40,7 @@ GIF methods & flags (for test_vtl3.m, which calls inverse_filter9.m)
 - Weighted covariance 2 (ame): --wca2.
 - Iterative Adaptive Inverse Filtering (IAIF): --iaif.
 - Complex Cepstrum Decomposition (CCD): --ccd.
+- Null model: --whitenoise (outputs white noise with length and scale matched to input signal).
 
 All of these rely on GCIs EXCEPT --iaif.
 - For --ccd: this is pitch-synchronuous, so needs good analysis windows, and this is choosen from GCI events 
@@ -108,3 +109,32 @@ score_vtl_continuous1('/home/marnix/pro/science/thesis/data/EGIFA/speech/res_iai
 - IAIF (`--iaif`): `lpcauto` frames 32 ms with 16 ms hop; default LPC orders p=10, g=4, r=10; high-pass at 60 Hz (FIR 1024 taps) unless `h=0` when calling `iaif` directly.
 
 - CCD (`--ccd`): SRH pitch tracker resamples to 16 kHz (25 ms frame, 5 ms hop for LPC residual; 100 ms SRH window, 10 ms hop). GCIs from `--sg` if provided; otherwise SEDREAMS with mean f0. CCD estimation runs at 20 kHz input from `inverse_filter9`.
+
+## Null model
+
+--whitenoise switch:
+```
+test_vtl3('--data','vowel/', ...
+          '--res','vowel/res_whitenoise/', ...
+          '--whitenoise');
+```
+
+/vowels
+```
+>> score_vtl12('/home/marnix/pro/science/thesis/data/EGIFA/vowel/res_whitenoise/');
+Number of samples: 750
+Average normalized median absolute error: 0.48321
+(standard deviation: 0.27745)
+Average normalized median error: -0.030572
+(standard deviation: 0.081573)
+```
+
+/speech
+```
+>> score_vtl_continuous1('/home/marnix/pro/science/thesis/data/EGIFA/speech/res_whitenoise/');
+Number of samples: 125
+Average normalized median absolute error: 0.58323
+(standard deviation: 0.2836)
+Average normalized median error: -0.051649
+(standard deviation: 0.083671)
+```
