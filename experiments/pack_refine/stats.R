@@ -31,9 +31,11 @@ df[
     )
 ]
 
-# there are NO nan elbos!
+# there are only 10 nan elbos!
 # could this be due to results.posterior_pi = 0.5 initialized?
 summary(df$results.elbo)
+
+df <- df[!is.nan(results.elbo)]
 
 
 # test fx
@@ -92,5 +94,6 @@ ggplot(df[window_type == "adaptive" & gauge == FALSE & kernel %in% c("periodicke
 
 ## at 100 Hz spack dominate clearly
 
-ggplot(df[refine == FALSE & pitch == 100]) +
+ggplot(df[refine == FALSE & kernel %in% c("whitenoise", "periodickernel", "spack:3")]) +
     geom_density(aes(x = score, fill = kernel), alpha = 0.3)
+
