@@ -100,6 +100,8 @@ score_vtl_continuous1('/home/marnix/pro/science/thesis/data/EGIFA/speech/res_iai
 % running time: <5 sec
 ```
 
+Optional scoring flag: `--best_affine` applies a best affine + limited lag alignment (lag range capped by inferred F0) on the middle segment before computing the default errors.
+
 ## Frame sizes and other hyperparams
 
 - Common fs: inputs resampled to 20 kHz in `inverse_filter9`; ground truth (flow/area) resampled from 44.1 kHz to 20 kHz when used (`--sg`, scoring). Outputs `uu` at 20 kHz.
