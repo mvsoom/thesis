@@ -141,4 +141,6 @@
 
 #include "./chapter/bngif/main.typ"
 
+#include "./chapter/evaluation/main.typ"
+
 #include "./chapter/conclusion/main.typ"

@@ -4,11 +4,11 @@ library(data.table)
 library(ggrepel)
 
 # Get experiment dir from environment variable
-runs_file <- file.path(Sys.getenv("PROJECT_EXPERIMENTS_PATH"), "relaxation_centered/runs.csv")
+runs_file <- file.path(Sys.getenv("PROJECT_EXPERIMENTS_PATH"), "gfm_modal/runs.csv")
 runs <- data.table(fread(runs_file))
 
 df <- runs[, .(
-    Rd,
+    modality,
     kernel,
     logz,
     logzerr,
@@ -26,7 +26,7 @@ df <- runs[, .(
 df[
     ,
     `:=`(
-        Rd = factor(Rd, ordered = TRUE),
+        modality = as.factor(modality),
         kernel = as.factor(kernel)
     )
 ]
@@ -55,20 +55,20 @@ df <- df[
             te = mean(te)
         )
     },
-    by = .(Rd, kernel, centered, normalized)
+    by <- .(modality, kernel, centered, normalized)
 ]
 
 # set sorting index
-setorder(df, Rd, -logz)
+setorder(df, modality, -logz)
 
 # look at results manually (see README.md)
 View(df)
 
-# display top 5 results per Rd
+# display top 5 results per modality
 df[
     ,
     .SD[1:10],
-    by = Rd
+    by <- modality
 ]
 
 # investigate centered & normalized interaction with logz => consistent improvement for logz and H?
