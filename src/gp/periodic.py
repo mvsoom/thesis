@@ -242,3 +242,240 @@ if __name__ == "__main__":
         "rank(new)=",
         int(jnp.sum(eigs_new > 1e-8)),
     )
+
+
+# %%
+class AffineTransformedSPACK(Mercer):
+    alpha: JAXArray
+    beta: JAXArray
+    kernel: SPACK  # defines the external harmonic grid (period, J, etc.)
+
+    def __init__(self, *, alpha, beta, d, period, J, t1, t2):
+        self.alpha = alpha
+        self.beta = beta
+        self.kernel = SPACK(d=d, period=period, J=J, t1=t1, t2=t2)
+
+    def compute_omegas(self):
+        return self.kernel.compute_omegas()
+
+    def compute_phi(self, t):
+        # base features on the original grid
+        phi = self.kernel.compute_phi(t)  # (2J,)
+
+        # apply beta phase as rotation per harmonic
+        omegas = self.compute_omegas()  # (J,)
+        theta = omegas * (
+            self.beta / self.alpha
+        )  # matches exp(-i beta * omega/alpha)
+
+        c = jnp.cos(theta)
+        s = jnp.sin(theta)
+
+        J = self.kernel.J
+        cos = phi[:J]
+        sin = phi[J:]
+
+        cos2 = c * cos - s * sin
+        sin2 = s * cos + c * sin
+
+        # apply global alpha^{-1} (since Sigma gets alpha^{-2})
+        pref = 1.0 / self.alpha
+        return pref * jnp.concatenate([cos2, sin2], axis=0)
+
+    def compute_phi_integrated(self, t, t0):
+        # same story for integrated features: rotate, then scale
+        phi = self.kernel.compute_phi_integrated(t, t0)
+
+        omegas = self.compute_omegas()
+        theta = omegas * (self.beta / self.alpha)
+        c = jnp.cos(theta)
+        s = jnp.sin(theta)
+
+        J = self.kernel.J
+        cos = phi[:J]
+        sin = phi[J:]
+
+        cos2 = c * cos - s * sin
+        sin2 = s * cos + c * sin
+
+        # integral introduces another 1/alpha if your definition is in u-coordinates;
+        # in this "external basis" gauge, the only required scale is the same alpha^{-1}
+        # as for compute_phi, unless your integrated feature is defined as ∫ phi'(tau) dt.
+        pref = 1.0 / self.alpha
+        return pref * jnp.concatenate([cos2, sin2], axis=0)
+
+    def compute_weights_root(self):
+        spack = SPACK(
+            d=self.kernel.d,
+            period=self.alpha * self.kernel.period,
+            J=self.kernel.J,
+            t1=self.alpha * self.kernel.t1 - self.beta,
+            t2=self.alpha * self.kernel.t2 - self.beta,
+        )
+        return spack.compute_weights_root()
+
+
+def _compute_weights_root2(self) -> JAXArray:
+    k = self.kernel  # canonical SPACK
+
+    # original harmonic grid (period = T)
+    omegas = k.compute_omegas()  # (J,)
+
+    # evaluate canonical bitransform at scaled frequencies + shifted window
+    Phi_complex = jax.vmap(
+        lambda w: compute_phi_tilde(
+            w / self.alpha,
+            k.d,
+            k.M,
+            self.alpha * k.t1 - self.beta,
+            self.alpha * k.t2 - self.beta,
+        )
+    )(omegas)  # (J, R) complex
+
+    # apply affine phase: exp(-i beta * omega / alpha)
+    phase = jnp.exp(-1j * self.beta * omegas / self.alpha)  # (J,)
+    Phi_complex = phase[:, None] * Phi_complex
+
+    # real/imag split
+    Phi_R = jnp.real(Phi_complex)
+    Phi_I = jnp.imag(Phi_complex)
+
+    # A = [Phi_R  -Phi_I; Phi_I  Phi_R]
+    top = jnp.concatenate([Phi_R, -Phi_I], axis=1)
+    bot = jnp.concatenate([Phi_I, Phi_R], axis=1)
+    A = jnp.concatenate([top, bot], axis=0)
+
+    # alpha^{-1} at the root level (since Sigma gets alpha^{-2})
+    return A / (jnp.sqrt(2.0) * self.alpha)
+
+
+if __name__ == "__main__":
+    params = dict(
+        alpha=jnp.array(3.0),
+        beta=jnp.array(-1.0),
+        d=3,
+        period=jnp.array(1.0),
+        J=20,
+        t1=jnp.array(-5.0),
+        t2=jnp.array(4.0),
+    )
+
+    # build kernel
+    sp = AffineTransformedSPACK(**params)
+
+    # grid for evaluation
+    t = jnp.linspace(-5.0, 5.0, 200)
+
+    # ---- representation A (basis-soaked) ----
+    Phi1 = jax.vmap(sp.compute_phi)(t)  # (N, 2J)
+    L1 = sp.compute_weights_root()  # (2J, R)
+    K1 = Phi1 @ (L1 @ L1.T) @ Phi1.T  # (N, N)
+
+    # ---- representation B (weight-soaked) ----
+    Phi2 = jax.vmap(sp.kernel.compute_phi)(t)  # canonical basis
+    L2 = _compute_weights_root2(sp)
+    K2 = Phi2 @ (L2 @ L2.T) @ Phi2.T
+
+    # ---- compare kernels ----
+    err = jnp.max(jnp.abs(K1 - K2))
+    print(
+        "max kernel diff:", float(err)
+    )  # OK, still suffers from ill conditioned recursive relation for d>1, but good enough
+
+# %%
+if __name__ == "__main__":
+    import matplotlib.pyplot as plt
+    from tinygp import GaussianProcess
+
+    from utils.jax import vk
+
+    params = dict(
+        alpha=jnp.array(1 / 10.0),
+        beta=jnp.array(10.0),
+        d=1,
+        period=jnp.array(5.0),
+        J=20,
+        t1=jnp.array(0.0),
+        t2=jnp.array(2.0),
+    )
+
+    sp = AffineTransformedSPACK(**params)
+    t = jnp.linspace(-5.0, 5.0, 200)
+    gp = GaussianProcess(sp, t)
+
+    f = gp.sample(vk())
+
+    plt.plot(t, f)
+
+
+# %%
+class PACK(AffineTransformedSPACK):
+    sigma_b: float = eqx.field(default_factory=lambda: 1.0)
+    sigma_c: float = eqx.field(default_factory=lambda: 1.0)
+    center: float = eqx.field(default_factory=lambda: 0.0)
+
+    def __init__(
+        self,
+        *,
+        sigma_b: JAXArray = 1.0,
+        sigma_c: JAXArray = 1.0,
+        center: JAXArray = 0.0,
+        d: int,
+        period: JAXArray,
+        J: int,
+        t1: JAXArray,
+        t2: JAXArray,
+    ):
+        if jnp.any(sigma_b == 0):
+            raise ValueError("sigma_b must be nonzero")
+
+        self.sigma_b = sigma_b
+        self.sigma_c = sigma_c
+        self.center = center
+
+        alpha = sigma_c / sigma_b
+        beta = alpha * center
+
+        print("PACK init:", alpha, beta)
+
+        super().__init__(
+            alpha=alpha,
+            beta=beta,
+            d=d,
+            period=period,
+            J=J,
+            t1=t1,
+            t2=t2,
+        )
+
+    def compute_weights_root(self):
+        return super().compute_weights_root() * (self.sigma_b**self.kernel.d)
+
+if __name__ == "__main__":
+    import matplotlib.pyplot as plt
+    from tinygp import GaussianProcess
+
+    from gp.blr import blr_from_mercer
+    from utils.jax import vk
+
+    jax.config.update("jax_debug_nans", True)
+
+    params = dict(
+        sigma_b=0.010,
+        sigma_c=1,
+        center=+10,  # FIXME
+        d=0,
+        period=jnp.array(100.0),
+        J=50,
+        t1=jnp.array(-50.0),
+        t2=jnp.array(50.0),
+    )
+
+    sp = PACK(**params)
+    t = jnp.linspace(-20, 20, 500)
+    gp = blr_from_mercer(sp, t)
+
+    f = gp.sample(vk())
+
+    plt.plot(t, f)
+    # plt.plot(t, np.cumsum(f) * (t[1] - t[0]))
