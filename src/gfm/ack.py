@@ -1,4 +1,5 @@
 # %%
+
 import equinox as eqx
 import jax.numpy as jnp
 from tinygp.helpers import JAXArray
@@ -68,6 +69,12 @@ class ACK(Kernel):
         return K12
 
 
+def exp_im_psi(t, m):
+    """Compute e^{i m psi(t)} where psi(t) = arctan(t)"""
+    z = (1.0 + 1j * t) / jnp.sqrt(1.0 + t * t)
+    return z**m
+
+
 class TACK(Kernel):
     """Temporal arc cosine kernel of degree `d`
 
@@ -97,7 +104,67 @@ class TACK(Kernel):
         return K12
 
 
-class STACK(TACK):
+class DiagonalTACK(TACK):
+    """Temporal arc cosine kernel of degree `d` with LSigma = diag(sigma_b, sigma_c)
+
+    Note: fitting this kernel with an amplitude
+
+        The user should probably constrain sigma_c = 1.0 if we assume that the kernel used as
+
+            k = sigma_a * DiagonalTACK(..., sigma_c=sigma_c);
+
+        in this case sigma_a and sigma_c are non-distinguishable.
+    """
+
+    def __init__(
+        self,
+        d: int = 0,
+        normalized: bool = False,
+        sigma_b: float = 1.0,
+        sigma_c: float = 1.0,
+        center: float = 0.0,
+    ):
+        LSigma = jnp.array([[sigma_b, 0.0], [0.0, sigma_c]])
+        super().__init__(
+            d=d, normalized=normalized, LSigma=LSigma, center=center
+        )
+
+    def fourier_integrand(self, t: JAXArray, m: int) -> JAXArray:
+        """
+        Return INTEGRAND for PACK based on TACK such that
+
+            k^tilde(f, f') =
+                sum_m c_m^{(d)} H_m(f) conj(H_m(f'))
+
+            where
+
+                H_m(f) = int dt INTEGRAND exp(-i 2 pi f t)
+
+        Here we absorb the constant prefactors into INTEGRAND:
+
+            - Not normalized: 1 / sqrt(2 pi)
+            - Normalized: 1 / sqrt(J_d(0))
+        """
+        if jnp.ndim(t):
+            raise ValueError("Expected scalar input")
+
+        sigma_b, sigma_c = jnp.diag(self.LSigma)
+
+        beta = sigma_b / sigma_c
+        tau = t - self.center
+        psi_t = exp_im_psi(tau / beta, m)
+
+        if self.normalized:
+            Jd0 = compute_Jd(self.d, 1.0, 0.0)  # does not depend on LSigma
+            scale = 1 / jnp.sqrt(Jd0)
+            return scale * psi_t
+        else:
+            poly = sigma_c**self.d * (beta**2 + tau**2) ** (self.d / 2)
+            scale = 1 / jnp.sqrt(2 * jnp.pi)
+            return scale * poly * psi_t
+
+
+class STACK(DiagonalTACK):
     """Standard temporal arc cosine kernel of degree `d`"""
 
     pass
