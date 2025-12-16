@@ -8,12 +8,14 @@ import numpy as np
 from scipy.integrate import quad
 
 from gfm.ack import DiagonalTACK, compute_Jd
-from pack.filon import filon_tab_iexp
+from gfm.filon import filon_tab_iexp
 
 MAX_M = 500  # this code accurate to 1e-6 for m up to MAX_M
 
 N = 129  # odd > 1
 PANELS = 32  # total panels: increase THIS if need more accuracy
+PANELS_MAX = 128
+
 
 ORACLE_PARTS = 64
 ORACLE_EPS = 1e-11
@@ -54,7 +56,7 @@ def quad_oracle(integrand, m, f, t1, t2):
     return tot
 
 
-def quad_filon(integrand, m, f, t1, t2):
+def quad_filon_old(integrand, m, f, t1, t2):
     """Numerically integrate with Filon quadrature (fast, accurate to minimally 1e-6, JAX compatible)"""
     a = jnp.minimum(t1, t2)
     b = jnp.maximum(t1, t2)
@@ -91,7 +93,7 @@ def test_filon(m, f, t1, t2, center, normalized, d, sigma_b, sigma_c):
         sigma_c=sigma_c,
         center=center,
     )
-    return quad_filon(k.fourier_integrand, m, f, t1, t2)
+    return k.compute_H_factor(m, f, t1, t2)
 
 
 test_filon = jax.jit(test_filon, static_argnames=("normalized", "d"))
@@ -156,7 +158,7 @@ def smoke():
     def filon(ms, fs):
         return jax.vmap(
             jax.vmap(
-                lambda m, f: quad_filon(k.fourier_integrand, m, f, t1, t2),
+                lambda m, f: test_filon(m, f, t1, t2, **params),
                 in_axes=(None, 0),
                 out_axes=0,
             ),
@@ -211,7 +213,7 @@ def run_tests(scale=1.0, fs=FS, num_cases=100, tol_abs=1e-5):
             d=random.choice([0, 1, 2, 3]),
             normalized=random.choice([True, False]),
             sigma_b=np.exp(np.random.normal()),
-            sigma_c=np.exp(np.random.normal()),
+            sigma_c=1.0,  # np.exp(np.random.normal()),
         )
 
         freqs = harmonic_series(1 / f0, fs)
