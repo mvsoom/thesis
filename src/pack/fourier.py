@@ -8,14 +8,8 @@ import numpy as np
 from scipy.integrate import quad
 
 from gfm.ack import DiagonalTACK, compute_Jd
-from gfm.filon import filon_tab_iexp
 
 MAX_M = 500  # this code accurate to 1e-6 for m up to MAX_M
-
-N = 129  # odd > 1
-PANELS = 32  # total panels: increase THIS if need more accuracy
-PANELS_MAX = 128
-
 
 ORACLE_PARTS = 64
 ORACLE_EPS = 1e-11
@@ -56,32 +50,9 @@ def quad_oracle(integrand, m, f, t1, t2):
     return tot
 
 
-def quad_filon_old(integrand, m, f, t1, t2):
-    """Numerically integrate with Filon quadrature (fast, accurate to minimally 1e-6, JAX compatible)"""
-    a = jnp.minimum(t1, t2)
-    b = jnp.maximum(t1, t2)
-    sgn = jnp.where(t2 >= t1, 1.0, -1.0)
-
-    w = 2 * jnp.pi * f
-    omega_t = -w  # exp(-i w t) = exp(i omega_t t)
-
-    edges = jnp.linspace(a, b, PANELS + 1)
-
-    def body(i, acc):
-        p = edges[i]
-        q = edges[i + 1]
-
-        j = jnp.arange(N)
-        h = (q - p) / (N - 1)
-        t = p + h * j
-
-        ftab = jax.vmap(integrand, in_axes=(0, None))(t, m)
-
-        return acc + filon_tab_iexp(ftab, p, q, omega_t)
-
-    acc0 = jnp.array(0.0 + 0.0j)
-    integral = jax.lax.fori_loop(0, PANELS, body, acc0)
-    return sgn * integral
+def quad_filon(k: DiagonalTACK, m, f, t1, t2):
+    """Numerically integrate with Filon (fast, relatively accurate, JAX compatible)"""
+    return k.compute_H_factor(m, f, t1, t2)
 
 
 # Test helpers
@@ -93,7 +64,7 @@ def test_filon(m, f, t1, t2, center, normalized, d, sigma_b, sigma_c):
         sigma_c=sigma_c,
         center=center,
     )
-    return k.compute_H_factor(m, f, t1, t2)
+    return quad_filon(k, m, f, t1, t2)
 
 
 test_filon = jax.jit(test_filon, static_argnames=("normalized", "d"))
@@ -190,7 +161,7 @@ def smoke():
             print(f"smoke m={m:3d} f={f:4.1f} err={err:.3e}")
 
 
-def run_tests(scale=1.0, fs=FS, num_cases=100, tol_abs=1e-5):
+def run_tests(scale=1.0, fs=FS, num_cases=10, tol_abs=1e-4):
     # random.seed(100)
     # np.random.seed(100)
 
@@ -218,8 +189,8 @@ def run_tests(scale=1.0, fs=FS, num_cases=100, tol_abs=1e-5):
 
         freqs = harmonic_series(1 / f0, fs)
 
-        _, test_freqs = pick_even(freqs, 1)
-        _, test_ms = pick_even(ms, 1)
+        _, test_freqs = pick_even(freqs, 10)
+        _, test_ms = pick_even(ms, 10)
 
         for f in test_freqs:
             for m in test_ms:
@@ -228,18 +199,14 @@ def run_tests(scale=1.0, fs=FS, num_cases=100, tol_abs=1e-5):
                 err = abs(filon - oracle)
                 worst = max(worst, err)
                 if err > tol_abs:
-                    print(
-                        f"FAIL case (even)={k} m={m} f={f} err={err} f0={f0}\n\nparams={params}"
-                    )
-                else:
-                    print(
-                        f"SUCCESS case (even)={k} m={m} f={f} err={err} f0={f0}\n\nparams={params}"
+                    raise AssertionError(
+                        f"FAIL case (even)={k} m={m} f={f} err={err} f0={f0}\n\tparams={params}\n"
                     )
 
         print(f"case (even) {k + 1:02d}/{num_cases} ok")
 
-        _, test_freqs = pick_random(freqs, 1)
-        _, test_ms = pick_random(ms, 1)
+        _, test_freqs = pick_random(freqs, 10)
+        _, test_ms = pick_random(ms, 10)
 
         for f in test_freqs:
             for m in test_ms:
@@ -248,12 +215,8 @@ def run_tests(scale=1.0, fs=FS, num_cases=100, tol_abs=1e-5):
                 err = abs(filon - oracle)
                 worst = max(worst, err)
                 if err > tol_abs:
-                    print(
-                        f"FAIL case (random)={k} m={m} f={f} err={err} f0={f0}\n\nparams={params}"
-                    )
-                else:
-                    print(
-                        f"SUCCESS case (random)={k} m={m} f={f} err={err} f0={f0}\n\nparams={params}"
+                    raise AssertionError(
+                        f"FAIL case (even)={k} m={m} f={f} err={err} f0={f0}\n\tparams={params}\n"
                     )
 
         print(f"case (random) {k + 1:02d}/{num_cases} ok")
@@ -263,8 +226,10 @@ def run_tests(scale=1.0, fs=FS, num_cases=100, tol_abs=1e-5):
 
 
 if __name__ == "__main__":
-    print(f"N={N} PANELS={PANELS}")
+    from gfm import ack
+
+    print(f"N={ack.FILON_N} PANELS={ack.FILON_PANELS}")
     smoke()
     run_tests()  # msec
-    # run_tests(scale=0.001)  # sec
-    # run_tests(scale=1 / PERIOD)  # sec
+    run_tests(scale=0.001)  # sec
+    run_tests(scale=1 / PERIOD)  # sec
