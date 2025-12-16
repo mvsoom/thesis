@@ -40,94 +40,10 @@ ORACLE_EPS = 1e-11
 ORACLE_LIMIT = 300
 
 
-# ============================================================
-# ORACLE (unchanged)
-# ============================================================
-
-
-def quad_oracle_one_m_chunked(t1, t2, t0, m, f):
-    w = 2.0 * np.pi * f
-    edges = np.linspace(t1, t2, ORACLE_PARTS + 1)
-
-    def cos_m(t):
-        return np.cos(m * np.arctan(t - t0))
-
-    def sin_m(t):
-        return np.sin(m * np.arctan(t - t0))
-
-    tot = 0.0 + 0.0j
-
-    if w == 0.0:
-        for i in range(ORACLE_PARTS):
-            a, b = edges[i], edges[i + 1]
-            re = quad(
-                cos_m,
-                a,
-                b,
-                epsabs=ORACLE_EPS,
-                epsrel=ORACLE_EPS,
-                limit=ORACLE_LIMIT,
-            )[0]
-            im = quad(
-                sin_m,
-                a,
-                b,
-                epsabs=ORACLE_EPS,
-                epsrel=ORACLE_EPS,
-                limit=ORACLE_LIMIT,
-            )[0]
-            tot += re + 1j * im
-        return tot
-
-    for i in range(ORACLE_PARTS):
-        a, b = edges[i], edges[i + 1]
-        Ac = quad(
-            cos_m,
-            a,
-            b,
-            weight="cos",
-            wvar=w,
-            epsabs=ORACLE_EPS,
-            epsrel=ORACLE_EPS,
-            limit=ORACLE_LIMIT,
-        )[0]
-        Bs = quad(
-            sin_m,
-            a,
-            b,
-            weight="sin",
-            wvar=w,
-            epsabs=ORACLE_EPS,
-            epsrel=ORACLE_EPS,
-            limit=ORACLE_LIMIT,
-        )[0]
-        Bc = quad(
-            sin_m,
-            a,
-            b,
-            weight="cos",
-            wvar=w,
-            epsabs=ORACLE_EPS,
-            epsrel=ORACLE_EPS,
-            limit=ORACLE_LIMIT,
-        )[0]
-        As = quad(
-            cos_m,
-            a,
-            b,
-            weight="sin",
-            wvar=w,
-            epsabs=ORACLE_EPS,
-            epsrel=ORACLE_EPS,
-            limit=ORACLE_LIMIT,
-        )[0]
-        tot += (Ac + Bs) + 1j * (Bc - As)
-
-    return tot
-
 def quad_oracle(
     m, f, t1, t2, t0, normalized=True, d=0, sigma_b=1.0, sigma_c=1.0
 ):
+    """Numerically integrate"""
     w = 2.0 * np.pi * f
     edges = np.linspace(t1, t2, ORACLE_PARTS + 1)
     beta = sigma_b / sigma_c
