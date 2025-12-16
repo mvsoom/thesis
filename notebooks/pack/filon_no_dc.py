@@ -344,31 +344,7 @@ def filon_one(m, f, t1, t2, t0):
         acc0 = jnp.array(0.0 + 0.0j, DTYPE)
         return jax.lax.fori_loop(0, PANELS, body, acc0)
 
-    def eval_dc_u():
-        # u = atan(t - t0), dt = sec^2(u) du
-        ua = jnp.arctan(a - t0)
-        ub = jnp.arctan(b - t0)
-        edges = jnp.linspace(ua, ub, PANELS + 1)
-
-        omega_u = m.astype(jnp.float64)  # carrier exp(i m u)
-
-        def body(i, acc):
-            p = edges[i]
-            q = edges[i + 1]
-
-            j = jnp.arange(N)
-            h = (q - p) / (N - 1)
-            u = p + h * j
-
-            sec2 = (1.0 / jnp.cos(u)) ** 2
-            ftab = sec2.astype(DTYPE)
-
-            return acc + filon_tab_iexp(ftab, p, q, omega_u)
-
-        acc0 = jnp.array(0.0 + 0.0j, DTYPE)
-        return jax.lax.fori_loop(0, PANELS, body, acc0)
-
-    val = jax.lax.cond(w == 0.0, eval_dc_u, eval_t)
+    val = eval_t()
     return sgn * val
 
 
@@ -401,35 +377,11 @@ def filon_pack(k: DiagonalTACK, m, f, t1, t2):
         acc0 = jnp.array(0.0 + 0.0j, DTYPE)
         return jax.lax.fori_loop(0, PANELS, body, acc0)
 
-    def eval_dc_u():
-        # u = atan(t - t0), dt = sec^2(u) du
-        ua = jnp.arctan(a - k.center)
-        ub = jnp.arctan(b - k.center)
-        edges = jnp.linspace(ua, ub, PANELS + 1)
-
-        omega_u = m.astype(jnp.float64)  # carrier exp(i m u)
-
-        def body(i, acc):
-            p = edges[i]
-            q = edges[i + 1]
-
-            j = jnp.arange(N)
-            h = (q - p) / (N - 1)
-            u = p + h * j
-
-            sec2 = (1.0 / jnp.cos(u)) ** 2
-            ftab = sec2.astype(DTYPE)
-
-            return acc + filon_tab_iexp(ftab, p, q, omega_u)
-
-        acc0 = jnp.array(0.0 + 0.0j, DTYPE)
-        return jax.lax.fori_loop(0, PANELS, body, acc0)
-
-    val = jax.lax.cond(w == 0.0, eval_dc_u, eval_t)
+    val = eval_t()
     return sgn * val
 
 
-f = 2.1
+f = 0
 m = 0
 t0 = 1.23
 t1 = 0.1

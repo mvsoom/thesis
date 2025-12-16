@@ -182,7 +182,9 @@ def compute_phi_tilde(omega, d, M, t1, t2):
     assert len(c) == len(m)
     del m  # these match the indices of c
 
-    phi_tilde = jnp.sqrt(c / (2 * jnp.pi)) * H
+    phi_tilde = (
+        jnp.sqrt(c / (2 * jnp.pi)) * H
+    )  # FIXME: replace by jnp.sqrt(c) * H because we absorb the weights in the fourier_integrand()!
     return phi_tilde  # (2*M+1,)
 
 
