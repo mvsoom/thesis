@@ -84,6 +84,7 @@ def filon_tab_iexp(ftab, a, b, omega):
     return re + 1j * im
 
 
+
 if __name__ == "__main__":
     import numpy as np
     from scipy.integrate import quad

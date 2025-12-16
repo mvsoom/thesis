@@ -1,9 +1,12 @@
 # %%
 
 import equinox as eqx
+import jax
 import jax.numpy as jnp
 from tinygp.helpers import JAXArray
 from tinygp.kernels.base import Kernel
+
+from gfm.filon import filon_tab_iexp
 
 
 def compute_Jd(d, c, s):
@@ -104,10 +107,37 @@ class TACK(Kernel):
         return K12
 
 
-class DiagonalTACK(TACK):
+FILON_N = 129  # odd > 1
+FILON_PANELS = 32  # total panels: increase THIS if need more accuracy
+
+
+def quad_filon_omega(g, omega, u1, u2):
+    a = jnp.minimum(u1, u2)
+    b = jnp.maximum(u1, u2)
+    sgn = jnp.where(u2 >= u1, 1.0, -1.0)
+
+    edges = jnp.linspace(a, b, FILON_PANELS + 1)
+
+    def body(i, acc):
+        p = edges[i]
+        q = edges[i + 1]
+
+        j = jnp.arange(FILON_N)
+        h = (q - p) / (FILON_N - 1)
+        u = p + h * j
+
+        gtab = jax.vmap(g, in_axes=(0,))(u)
+        return acc + filon_tab_iexp(gtab, p, q, omega)
+
+    acc0 = jnp.array(0.0 + 0.0j)
+    integral = jax.lax.fori_loop(0, FILON_PANELS, body, acc0)
+    return sgn * integral
+
+
+class DiagonalTACK(Kernel):
     """Temporal arc cosine kernel of degree `d` with LSigma = diag(sigma_b, sigma_c)
 
-    Note: fitting this kernel with an amplitude
+    Note: when fitting this kernel with an amplitude:
 
         The user should probably constrain sigma_c = 1.0 if we assume that the kernel used as
 
@@ -116,52 +146,64 @@ class DiagonalTACK(TACK):
         in this case sigma_a and sigma_c are non-distinguishable.
     """
 
-    def __init__(
-        self,
-        d: int = 0,
-        normalized: bool = False,
-        sigma_b: float = 1.0,
-        sigma_c: float = 1.0,
-        center: float = 0.0,
-    ):
-        LSigma = jnp.array([[sigma_b, 0.0], [0.0, sigma_c]])
-        super().__init__(
-            d=d, normalized=normalized, LSigma=LSigma, center=center
+    d: int = eqx.field(static=True)
+    normalized: bool = eqx.field(static=True)
+
+    center: float = 0.0
+    sigma_b: float = 1.0
+    sigma_c: float = 1.0
+
+    def evaluate(self, t1: JAXArray, t2: JAXArray) -> JAXArray:
+        if jnp.ndim(t1) or jnp.ndim(t2):
+            raise ValueError("Expected scalar inputs")
+
+        LSigma = jnp.diag([self.sigma_b, self.sigma_c])
+
+        tack = TACK(
+            d=self.d,
+            normalized=self.normalized,
+            LSigma=LSigma,
+            center=self.center,
         )
+        return tack.evaluate(t1, t2)
 
-    def fourier_integrand(self, t: JAXArray, m: int) -> JAXArray:
-        """
-        Return INTEGRAND for PACK based on TACK such that
+    def compute_H_factor(
+        self, m: int, f: JAXArray, t1: JAXArray, t2: JAXArray
+    ) -> JAXArray:
+        """Compute H_m(f)"""
 
-            k^tilde(f, f') =
-                sum_m c_m^{(d)} H_m(f) conj(H_m(f'))
+        beta = self.sigma_b / self.sigma_c
+        w = 2.0 * jnp.pi * f
 
-            where
-
-                H_m(f) = int dt INTEGRAND exp(-i 2 pi f t)
-
-        Here we absorb the constant prefactors into INTEGRAND:
-
-            - Not normalized: 1 / sqrt(2 pi)
-            - Normalized: 1 / sqrt(J_d(0))
-        """
-        if jnp.ndim(t):
-            raise ValueError("Expected scalar input")
-
-        sigma_b, sigma_c = jnp.diag(self.LSigma)
-
-        beta = sigma_b / sigma_c
-        tau = t - self.center
-        psi_t = exp_im_psi(tau / beta, m)
+        # Change of variables: u = arctan((t - center) / beta)
+        u1 = jnp.arctan((t1 - self.center) / beta)
+        u2 = jnp.arctan((t2 - self.center) / beta)
 
         if self.normalized:
-            Jd0 = compute_Jd(self.d, 1.0, 0.0)  # does not depend on LSigma
-            scale = 1 / jnp.sqrt(Jd0)
-            return scale * psi_t
+            Jd0 = compute_Jd(self.d, 1.0, 0.0)
+            scale = 1.0 / jnp.sqrt(Jd0)
+
+            def g(u):
+                cu = jnp.cos(u)
+                sec2 = 1.0 / (cu * cu)
+                t = self.center + beta * jnp.tan(u)
+                jac = beta * sec2
+                return scale * jac * jnp.exp(-1j * w * t)
+
         else:
-            poly = sigma_c**self.d * (beta**2 + tau**2) ** (self.d / 2)
-            scale = 1 / jnp.sqrt(2 * jnp.pi)
-            return scale * poly * psi_t
+            scale = 1.0 / jnp.sqrt(2.0 * jnp.pi)
+
+            def g(u):
+                cu = jnp.cos(u)
+                sec = 1.0 / cu
+                sec2 = sec * sec
+                t = self.center + beta * jnp.tan(u)
+                jac = beta * sec2
+                poly = (self.sigma_c**self.d) * (beta**self.d) * (sec**self.d)
+                return scale * poly * jac * jnp.exp(-1j * w * t)
+
+        omega = jnp.asarray(m, dtype=jnp.float64)
+        return quad_filon_omega(g, omega=omega, u1=u1, u2=u2)
 
 
 class STACK(DiagonalTACK):
