@@ -108,7 +108,7 @@ class TACK(Kernel):
 
 
 FILON_N = 129  # odd > 1
-FILON_PANELS = 32  # total panels: increase THIS if need more accuracy
+FILON_PANELS = 64  # total panels: increase THIS if need more accuracy
 
 
 def quad_filon_omega(g, omega, u1, u2):
@@ -170,7 +170,11 @@ class DiagonalTACK(Kernel):
     def compute_H_factor(
         self, m: int, f: JAXArray, t1: JAXArray, t2: JAXArray
     ) -> JAXArray:
-        """Compute H_m(f)"""
+        """Compute H_m(f) for the (un)normalized DiagonalTACK kernel
+
+        Note: for sigma_c := 1 this has typically errors smaller than 1e-4 (tests are in src/pack/fourier.py).
+        Only when sigma_b becomes (very) small or (very) large can this sometimes have bad accuracy, but in this regime the kernels are likely degenerate anyway.
+        """
 
         beta = self.sigma_b / self.sigma_c
         w = 2.0 * jnp.pi * f
@@ -203,7 +207,18 @@ class DiagonalTACK(Kernel):
                 return scale * poly * jac * jnp.exp(-1j * w * t)
 
         omega = jnp.asarray(m, dtype=jnp.float64)
-        return quad_filon_omega(g, omega=omega, u1=u1, u2=u2)
+
+        return quad_filon_omega(
+            g,
+            omega=omega,
+            u1=u1,
+            u2=0.0,
+        ) + quad_filon_omega(
+            g,
+            omega=omega,
+            u1=0.0,
+            u2=u2,
+        )
 
 
 class STACK(DiagonalTACK):
