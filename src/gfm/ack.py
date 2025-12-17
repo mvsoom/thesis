@@ -1,12 +1,9 @@
 # %%
 
 import equinox as eqx
-import jax
 import jax.numpy as jnp
 from tinygp.helpers import JAXArray
 from tinygp.kernels.base import Kernel
-
-from gfm.filon import filon_tab_iexp
 
 
 def compute_Jd(d, c, s):
@@ -107,39 +104,12 @@ class TACK(Kernel):
         return K12
 
 
-FILON_N = 129  # odd > 1
-FILON_PANELS = 64  # total panels: increase THIS if need more accuracy
-
-
-def quad_filon_omega(g, omega, u1, u2):
-    a = jnp.minimum(u1, u2)
-    b = jnp.maximum(u1, u2)
-    sgn = jnp.where(u2 >= u1, 1.0, -1.0)
-
-    edges = jnp.linspace(a, b, FILON_PANELS + 1)
-
-    def body(i, acc):
-        p = edges[i]
-        q = edges[i + 1]
-
-        j = jnp.arange(FILON_N)
-        h = (q - p) / (FILON_N - 1)
-        u = p + h * j
-
-        gtab = jax.vmap(g, in_axes=(0,))(u)
-        return acc + filon_tab_iexp(gtab, p, q, omega)
-
-    acc0 = jnp.array(0.0 + 0.0j)
-    integral = jax.lax.fori_loop(0, FILON_PANELS, body, acc0)
-    return sgn * integral
-
-
 class DiagonalTACK(Kernel):
     """Temporal arc cosine kernel of degree `d` with LSigma = diag(sigma_b, sigma_c)
 
     Note: when fitting this kernel with an amplitude:
 
-        The user should probably constrain sigma_c = 1.0 if we assume that the kernel used as
+        The user should probably constrain sigma_c = 1.0 if we assume that the kernel is used as
 
             k = sigma_a * DiagonalTACK(..., sigma_c=sigma_c);
 
@@ -157,7 +127,7 @@ class DiagonalTACK(Kernel):
         if jnp.ndim(t1) or jnp.ndim(t2):
             raise ValueError("Expected scalar inputs")
 
-        LSigma = jnp.diag([self.sigma_b, self.sigma_c])
+        LSigma = jnp.diag(jnp.array([self.sigma_b, self.sigma_c]))
 
         tack = TACK(
             d=self.d,
@@ -166,59 +136,6 @@ class DiagonalTACK(Kernel):
             center=self.center,
         )
         return tack.evaluate(t1, t2)
-
-    def compute_H_factor(
-        self, m: int, f: JAXArray, t1: JAXArray, t2: JAXArray
-    ) -> JAXArray:
-        """Compute H_m(f) for the (un)normalized DiagonalTACK kernel
-
-        Note: for sigma_c := 1 this has typically errors smaller than 1e-4 (tests are in src/pack/fourier.py).
-        Only when sigma_b becomes (very) small or (very) large can this sometimes have bad accuracy, but in this regime the kernels are likely degenerate anyway.
-        """
-
-        beta = self.sigma_b / self.sigma_c
-        w = 2.0 * jnp.pi * f
-
-        # Change of variables: u = arctan((t - center) / beta)
-        u1 = jnp.arctan((t1 - self.center) / beta)
-        u2 = jnp.arctan((t2 - self.center) / beta)
-
-        if self.normalized:
-            Jd0 = compute_Jd(self.d, 1.0, 0.0)
-            scale = 1.0 / jnp.sqrt(Jd0)
-
-            def g(u):
-                cu = jnp.cos(u)
-                sec2 = 1.0 / (cu * cu)
-                t = self.center + beta * jnp.tan(u)
-                jac = beta * sec2
-                return scale * jac * jnp.exp(-1j * w * t)
-
-        else:
-            scale = 1.0 / jnp.sqrt(2.0 * jnp.pi)
-
-            def g(u):
-                cu = jnp.cos(u)
-                sec = 1.0 / cu
-                sec2 = sec * sec
-                t = self.center + beta * jnp.tan(u)
-                jac = beta * sec2
-                poly = (self.sigma_c**self.d) * (beta**self.d) * (sec**self.d)
-                return scale * poly * jac * jnp.exp(-1j * w * t)
-
-        omega = jnp.asarray(m, dtype=jnp.float64)
-
-        return quad_filon_omega(
-            g,
-            omega=omega,
-            u1=u1,
-            u2=0.0,
-        ) + quad_filon_omega(
-            g,
-            omega=omega,
-            u1=0.0,
-            u2=u2,
-        )
 
 
 class STACK(DiagonalTACK):
@@ -240,3 +157,7 @@ if __name__ == "__main__":
     denom = jnp.sqrt(k(t)[:, None] * k(t)[None, :])
 
     assert jnp.allclose((K / denom), Kn)
+
+    covar = DiagonalTACK(
+        d=1, normalized=True, sigma_b=0.1, sigma_c=1.0
+    ).evaluate(0.0, 1.0)

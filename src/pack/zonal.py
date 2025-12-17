@@ -103,6 +103,22 @@ def complex_coeffs(d, M):
     return c  # (2*M+1,)
 
 
+def nonzero_complex_coeffs(d, M, eps=1e-8):
+    """Return nonzero {c_m^((d))} for m in [-M,...,M]"""
+    a = 0.5 * cosine_coeffs(d, M)
+    ms = np.arange(0, M + 1)
+    assert len(a) == len(ms)
+
+    nonzero = np.abs(a) > eps
+    a = a[nonzero]
+    ms = ms[nonzero]
+
+    c = np.concat([a[::-1][:-1], a])
+    cms = np.concat([-ms[::-1][:-1], ms])
+
+    return cms, c
+
+
 def reconstruct_jd_ext(d, theta, M):
     """
     Reconstruct J_d^ext(theta) from its complex Fourier coefficients
