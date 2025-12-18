@@ -1,5 +1,4 @@
-"""Regression tests for PACK.compute_H_factor using its SciPy oracle."""
-
+# %%
 from __future__ import annotations
 
 import random
@@ -152,6 +151,7 @@ def run_tests(scale=1.0, fs=FS, num_cases=10, tol_abs=ABS_TOL):
 
 if __name__ == "__main__":
     smoke()
+
     run_tests()  # msec
     run_tests(scale=0.001)  # sec
     run_tests(scale=1 / PERIOD)  # sec
