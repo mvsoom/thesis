@@ -3,8 +3,9 @@ import jax
 import matplotlib.pyplot as plt
 import numpy as np
 
+from gfm.ack import DiagonalTACK
 from gp.blr import blr_from_mercer
-from gp.periodic import SPACK
+from pack import PACK
 from utils.jax import vk
 
 jax.config.update("jax_enable_x64", True)
@@ -80,7 +81,8 @@ t, dt = jnp.linspace(
 
 d = 1
 
-kernel = SPACK(d, T, num_harmonics, t1, t2)
+tack = DiagonalTACK(d=d, normalized=False)
+kernel = PACK(tack, T, t1, t2, J=num_harmonics)
 
 
 # %%
