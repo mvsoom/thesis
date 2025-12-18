@@ -6,13 +6,15 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 from scipy.integrate import quad
+from tensorflow_probability.substrates.jax.math import (
+    cholesky_update as jax_cholesky_update,
+)
 from tinygp.helpers import JAXArray
 
 from gfm.ack import DiagonalTACK, compute_Jd
 from gp.blr import blr_from_mercer
 from gp.mercer import Mercer
 from pack import zonal
-from pack.bitransform import build_k_tilde_matrix, compute_phi_tilde
 from pack.filon import filon_tab_iexp
 
 FILON_N = 129  # odd > 1
@@ -139,6 +141,15 @@ def quad_scipy_H_factor(k_d, f, fp, t1, t2):
     im = quad(outer_imag, t1, t2, **params)[0]
 
     return re + 1j * im
+
+
+def _chol_project_away(q):
+    # Returns lower-triangular C such that C @ C.T = I - qhat qhat.T
+    m = q.shape[0]
+    q = q / (jnp.linalg.norm(q) + 1e-30)
+    nugget = m * jnp.finfo(q.dtype).eps
+    eye = jnp.eye(m, dtype=q.dtype) * (1.0 + nugget)
+    return jax_cholesky_update(eye, q, -1.0)
 
 
 class PACK(Mercer):
@@ -281,23 +292,120 @@ class PACK(Mercer):
             axis=0,
         )  # (2J,)
 
+    def compute_phi_derivative(self, t: JAXArray) -> JAXArray:
+        omegas = 2.0 * jnp.pi * self.compute_harmonics()  # (J,)
+        scale = 2.0 / self.period
+
+        phase = omegas * t
+
+        cos_part = -scale * omegas * jnp.sin(phase)
+        sin_part = -scale * omegas * jnp.cos(phase)
+
+        return jnp.concatenate([cos_part, sin_part], axis=0)  # (2J,)
+
     def compute_weights_root(self):
-        harmonics = self.compute_harmonics()  # K
-        Phi_complex = jax.vmap(self.compute_phi_tilde)(harmonics)  # (K, R)
+        harmonics = self.compute_harmonics()  # (J,)
+        Phi_c = jax.vmap(self.compute_phi_tilde)(harmonics)  # (J, R)
 
-        Phi_R = jnp.real(Phi_complex)
-        Phi_I = jnp.imag(Phi_complex)
+        Phi_R = jnp.real(Phi_c)
+        Phi_I = jnp.imag(Phi_c)
 
-        # A = [Phi_R  -Phi_I; Phi_I  Phi_R] / sqrt(2)
         top = jnp.concatenate([Phi_R, -Phi_I], axis=1)
         bot = jnp.concatenate([Phi_I, Phi_R], axis=1)
-        A = jnp.concatenate([top, bot], axis=0)
+        L = jnp.concatenate([top, bot], axis=0) / jnp.sqrt(2.0)  # (2J, 2R)
+        return L
 
-        return A / jnp.sqrt(2.0)  # shape (2J, 2R)
+
+def _project_root_hard(L, Q):
+    """
+    Enforce Q z = 0 by projecting coefficient space.
+    Q: (Kc, D)
+    L: (D, R)
+    """
+    if Q.shape[0] == 0:
+        return L
+
+    U, _ = jnp.linalg.qr(Q.T, mode="reduced")  # (D, r)
+    P = jnp.eye(U.shape[0], dtype=L.dtype) - U @ U.T
+    return P @ L
+
+
+def _suppress_interval_energy(L, Phi, lam):
+    """
+    Apply (W^{-1} + lam Phi^T Phi)^{-1} update in root form.
+    Phi: (K, D)
+    L:   (D, R)
+    """
+    Phi_tilde = jnp.sqrt(lam) * Phi  # (K, D)
+    A = Phi_tilde @ L  # (K, R)
+
+    C = jnp.eye(A.shape[0], dtype=L.dtype) + A @ A.T
+    R = jnp.linalg.cholesky(C)
+
+    tmp = jax.scipy.linalg.solve_triangular(R, A, lower=True)
+    tmp = jax.scipy.linalg.solve_triangular(R.T, tmp, lower=False)
+
+    return L - (L @ A.T) @ tmp
+
+
+class ConstrainedPACK(Mercer):
+    k: PACK
+
+    # hard constraints
+    closure_condition: bool = True  # ∫_{t1}^{t2} f = 0
+    pin_phase: bool = True  # f(0) = 0
+    pin_derivative_phase: bool = True  # f'(0) = 0
+
+    # soft constraint
+    suppress_interval: bool = True
+    lam_interval: float = 1e4
+    K_interval: int = 128
+
+    def compute_phi(self, t: JAXArray) -> JAXArray:
+        return self.k.compute_phi(t)
+
+    def compute_weights_root(self) -> JAXArray:
+        L = self.k.compute_weights_root()  # (D, R), D = 2J
+
+        Qs = []
+
+        if self.closure_condition:
+            q = self.k.compute_phi_integrated(self.k.t2, self.k.t1)
+            Qs.append(q)
+
+        if self.pin_phase:
+            Qs.append(self.k.compute_phi(0.0))
+        if self.pin_derivative_phase:
+            Qs.append(self.k.compute_phi_derivative(0.0))
+
+        if Qs:
+            Q = jnp.stack(Qs, axis=0)  # (Kc, D)
+            L = _project_root_hard(L, Q)
+
+        if self.suppress_interval:
+            K = self.K_interval
+            ts = jnp.linspace(
+                self.k.t2,
+                self.k.period,
+                K,
+                endpoint=False,
+            )
+            Phi = jax.vmap(self.k.compute_phi)(ts)  # (K, D)
+
+            L = _suppress_interval_energy(
+                L,
+                Phi,
+                self.lam_interval,
+            )
+
+        return L
 
 
 if __name__ == "__main__":
     jax.config.update("jax_platform_name", "cpu")
+
+    import matplotlib.pyplot as plt
+    import numpy as np
 
     from utils.jax import vk
 
@@ -323,29 +431,36 @@ if __name__ == "__main__":
 
     print("k_tilde diff:", jnp.abs(x - y))
     # %%
-    import matplotlib.pyplot as plt
-    import numpy as np
 
     W = pack.compute_weights_root()
 
     plt.matshow(np.array(W))
 
     # %%
-    k = DiagonalTACK(d=1, normalized=True, sigma_b=1, sigma_c=1.0, center=0.7)
+    k = DiagonalTACK(d=1, normalized=True, sigma_b=0.1, sigma_c=1.0, center=0.7)
 
-    pack = PACK(k, period=1.0, t1=0.0, t2=0.9, J=512)
+    pack = PACK(k, period=1.0, t1=0.0, t2=0.8, J=512)
 
     t = jnp.linspace(0, 2, 1024)
 
     gp = blr_from_mercer(pack, t)
 
-    sample = jax.jit(gp.sample)
-
     # %%
     f = gp.sample(vk())
-    # u = np.cumsum(f) * (t[1] - t[0])
+    u = np.cumsum(f) * (t[1] - t[0])
 
     plt.plot(t, f)
-    # plt.plot(t, u)
+    plt.plot(t, u)
 
-# %%
+    # %%
+    # You can constrain this into behaving really like a LF model
+    cpack = ConstrainedPACK(pack)
+
+    cgp = blr_from_mercer(cpack, t)
+
+    # %%
+    f = cgp.sample(vk())
+    u = np.cumsum(f) * (t[1] - t[0])
+
+    plt.plot(t, f)
+    plt.plot(t, u)
