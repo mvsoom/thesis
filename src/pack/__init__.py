@@ -143,15 +143,6 @@ def quad_scipy_H_factor(k_d, f, fp, t1, t2):
     return re + 1j * im
 
 
-def _chol_project_away(q):
-    # Returns lower-triangular C such that C @ C.T = I - qhat qhat.T
-    m = q.shape[0]
-    q = q / (jnp.linalg.norm(q) + 1e-30)
-    nugget = m * jnp.finfo(q.dtype).eps
-    eye = jnp.eye(m, dtype=q.dtype) * (1.0 + nugget)
-    return jax_cholesky_update(eye, q, -1.0)
-
-
 class PACK(Mercer):
     k: DiagonalTACK
 
