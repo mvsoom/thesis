@@ -43,8 +43,8 @@ def posterior_latent(
         z ~ N(0, I)
 
     Here diagonal term is noise_variance (observational noise) PLUS jitter
-    (numerical stability, always added unless set to zero). To get zero
-    diagonal, set both noise_variance and jitter to 0.0.
+    (numerical stability, always added unless set to zero, scale aware).
+    To get zero diagonal, set both noise_variance and jitter to 0.0.
 
     From log likelihood formulas in Section 3.2 in [1].
 
@@ -68,19 +68,20 @@ def posterior_latent(
     N, M = Phi.shape
     R = cov_root.shape[1]
 
-    if jitter is None:
-        jitter = jnp.sqrt(jnp.finfo(y.dtype).eps)
-
-    sigma2 = noise_variance + jitter
-
     if PhiT_Phi is None:
         PhiT_Phi = Phi.T @ Phi
     if PhiT_y is None:
         PhiT_y = Phi.T @ y
 
-    # Z = sigma2 I_R + L^T Phi^T Phi L
-    Z = sigma2 * jnp.eye(R, dtype=Phi.dtype) + cov_root.T @ PhiT_Phi @ cov_root
+    A = cov_root.T @ PhiT_Phi @ cov_root
 
+    diag_scale = jnp.mean(jnp.diag(A))
+    eps = jnp.sqrt(jnp.finfo(y.dtype).eps) if jitter is None else jitter
+    jitter_eff = eps * diag_scale
+
+    sigma2 = noise_variance + jitter_eff
+
+    Z = A + sigma2 * jnp.eye(R, dtype=Phi.dtype)
     Lc, lower = linalg.cho_factor(Z, lower=True, check_finite=False)
 
     b = cov_root.T @ PhiT_y  # shape (R,)
@@ -375,14 +376,26 @@ class BayesianLinearRegressor(GaussianProcess):
 
         return ConditionResult(log_prob, gp)
 
-    def sample(self, key, X_test: JAXArray | None = None) -> JAXArray:
+    def sample(
+        self,
+        key,
+        X_test: JAXArray | None = None,
+        shape: tuple = (),
+    ) -> JAXArray:
         if X_test is None:
             Phi = self.state.Phi
         else:
             Phi = jax.vmap(self.phi)(X_test)
 
-        f = sample(key, Phi, self.cov_root) + Phi @ self.mu
-        return f
+        def _one_sample(k):
+            return sample(k, Phi, self.cov_root) + Phi @ self.mu
+
+        if shape == ():
+            return _one_sample(key)
+
+        keys = jax.random.split(key, int(jnp.prod(jnp.array(shape))))
+        samples = jax.vmap(_one_sample)(keys)
+        return samples.reshape(shape + samples.shape[1:])
 
 
 def blr_from_mercer(
