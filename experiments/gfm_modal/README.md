@@ -11,3 +11,25 @@ We redo the relaxation_centered experiment, but
 Looks good, tack kernels win for all modalities
 
 - Normalized kernels are typically better than unnormalized, but much higher information and very large sigma_a => same as in relaxation_centered experiment
+
+## Errored runs
+
+All tack:3 with centered=False, so neglible
+
+/home/marnix/thesis/experiments/gfm_modal/runs/modality=modal_kernel=tack:3_centered=False_normalized=True_iter=1.ipynb
+/home/marnix/thesis/experiments/gfm_modal/runs/modality=modal_kernel=tack:3_centered=False_normalized=True_iter=2.ipynb
+/home/marnix/thesis/experiments/gfm_modal/runs/modality=modal_kernel=tack:3_centered=False_normalized=True_iter=4.ipynb
+/home/marnix/thesis/experiments/gfm_modal/runs/modality=modal_kernel=tack:3_centered=False_normalized=True_iter=5.ipynb
+/home/marnix/thesis/experiments/gfm_modal/runs/modality=breathy_kernel=tack:3_centered=False_normalized=True_iter=1.ipynb
+/home/marnix/thesis/experiments/gfm_modal/runs/modality=breathy_kernel=tack:3_centered=False_normalized=True_iter=2.ipynb
+/home/marnix/thesis/experiments/gfm_modal/runs/modality=breathy_kernel=tack:3_centered=False_normalized=True_iter=3.ipynb
+/home/marnix/thesis/experiments/gfm_modal/runs/modality=breathy_kernel=tack:3_centered=False_normalized=True_iter=4.ipynb
+/home/marnix/thesis/experiments/gfm_modal/runs/modality=breathy_kernel=tack:3_centered=False_normalized=True_iter=5.ipynb
+/home/marnix/thesis/experiments/gfm_modal/runs/modality=whispery_kernel=tack:3_centered=False_normalized=True_iter=1.ipynb
+/home/marnix/thesis/experiments/gfm_modal/runs/modality=whispery_kernel=tack:3_centered=False_normalized=True_iter=2.ipynb
+/home/marnix/thesis/experiments/gfm_modal/runs/modality=whispery_kernel=tack:3_centered=False_normalized=True_iter=3.ipynb
+/home/marnix/thesis/experiments/gfm_modal/runs/modality=whispery_kernel=tack:3_centered=False_normalized=True_iter=5.ipynb
+/home/marnix/thesis/experiments/gfm_modal/runs/modality=creaky_kernel=tack:3_centered=False_normalized=True_iter=1.ipynb
+/home/marnix/thesis/experiments/gfm_modal/runs/modality=creaky_kernel=tack:3_centered=False_normalized=True_iter=2.ipynb
+/home/marnix/thesis/experiments/gfm_modal/runs/modality=creaky_kernel=tack:3_centered=False_normalized=True_iter=3.ipynb
+/home/marnix/thesis/experiments/gfm_modal/runs/modality=creaky_kernel=tack:3_centered=False_normalized=True_iter=5.ipynb
