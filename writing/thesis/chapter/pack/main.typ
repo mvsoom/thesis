@@ -50,14 +50,14 @@ Because of (a) and (b) the vowel waveform appears as a quasiperiodic string of e
 */
 
 To capture this steady-state behavior of the glottis, we idealize for now and assume perfect periodicity in this chapter, which gives rise a to periodic-yet-nonstationary Gaussian process governed by the _periodic arc cosine kernel_ (PACK).
-Looking ahead, @chapter:qpack then relaxes this assumption and models quasiperiodic glottal flows with the _quasiperiodic arc cosine kernel_ (QPACK), which is a complete nonparametric model for steady-state voiced speech.
+Looking ahead, @chapter:qpack then relaxes this assumption and models quasiperiodic glottal flows with the _quasiperiodic arc cosine kernel_ (QPACK), which is a complete nonparametric model for source signals driving steady-state voiced speech.
 Coupling back to @fig:quasi-periodicity, when paired with vocal tract filters, the PACK can model only synthetic waveforms as in (a), while the QPACK has full support for real speech waveforms as in (b).
 
 /*
 TODO: improve paragraph below. talk about the PACK model then learning from surrogate flow
 */
 We "finetune" the PACK on example generations of the LF model.
-Finally, we validate the PACK on `OPENGLOT-I` and `OPENGLOT-III`, as these both employ synthetic and perfectly periodic LF signals as their source signals.
+Finally, we validate the PACK on `OPENGLOT-I` and `OPENGLOT-III`, as these both employ synthetic and perfectly periodic LF signals as their source signals. // TODO: we will?
 
 #figure(
   grid(
@@ -566,7 +566,8 @@ This has advantages:
 
 In short: PCA: empirically-oriented and data exploration phase; BNGIF: try to turn what we know quantitatively in a uncertainty-calibrated model.
 
-== Evaluation on `OPENGLOT-I`
+
+// == Evaluation on `OPENGLOT-I`
 
 == Summary
 
