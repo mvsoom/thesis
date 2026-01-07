@@ -9,11 +9,14 @@ from jax.tree_util import DictKey, GetAttrKey, SequenceKey
 _KEY = jax.random.PRNGKey(int(time.time_ns()) % (2**32 - 1))
 
 
-def vk():
+def vk(key=None):
     """Volatile key for testing purposes -- don't use in production"""
-    global _KEY
-    _KEY, k = jax.random.split(_KEY)
-    return k
+    if key is None:
+        global _KEY
+        _KEY, k = jax.random.split(_KEY)
+        return k
+    else:
+        return jax.random.PRNGKey(key)
 
 
 def static_constant(default_value):
