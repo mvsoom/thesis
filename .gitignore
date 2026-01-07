@@ -7,7 +7,8 @@ cache/
 writing/latex/
 typst/
 
-data/OPENGLOT/
+data/*
+!data/EGIFA/
 
 **.dat
 

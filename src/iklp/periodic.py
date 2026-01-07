@@ -2,8 +2,7 @@ import jax
 import jax.numpy as jnp
 
 from iklp.mercer import psd_svd
-from utils import batch_generator
-from utils.caching import memory
+from utils import __memory__, batch_generator
 
 
 def f0_series(
@@ -47,7 +46,7 @@ def periodic_kernel(**kwargs):
     return jnp.array(f0s), jnp.stack(Ks)
 
 
-@memory.cache(ignore=["batch_size"])
+@__memory__.cache(ignore=["batch_size"])
 def periodic_kernel_phi(
     I: int = 400,
     M: int = 2048,
