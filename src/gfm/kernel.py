@@ -8,19 +8,19 @@ from gfm.ack import STACK, TACK
 def instantiate_kernel(kernel, theta, hyper={}):
     match kernel:
         case "matern:12":
-            k = theta["sigma_a"] * Exp(scale=theta["ell"])
+            k = theta["sigma_a"] ** 2 * Exp(scale=theta["ell"])
         case "matern:32":
-            k = theta["sigma_a"] * Matern32(scale=theta["ell"])
+            k = theta["sigma_a"] ** 2 * Matern32(scale=theta["ell"])
         case "matern:52":
-            k = theta["sigma_a"] * Matern52(scale=theta["ell"])
+            k = theta["sigma_a"] ** 2 * Matern52(scale=theta["ell"])
         case "matern:inf":
-            k = theta["sigma_a"] * ExpSquared(scale=theta["ell"])
+            k = theta["sigma_a"] ** 2 * ExpSquared(scale=theta["ell"])
         case "periodickernel":
             # Uses Yoshii+ (2013) parametrization (like we do in IKLP experiments):
             #   K = np.exp(-2 * (np.sin(np.pi * tau / T)) ** 2 / (ell**2))
             scale = hyper["T"]
             gamma = 2.0 / theta["ell"] ** 2
-            k = theta["sigma_a"] * ExpSineSquared(scale=scale, gamma=gamma)
+            k = theta["sigma_a"] ** 2 * ExpSineSquared(scale=scale, gamma=gamma)
         case _ if "tack" in kernel:
             d = int(kernel[-1])
             normalized = hyper.get("normalized", False)
@@ -34,7 +34,7 @@ def instantiate_kernel(kernel, theta, hyper={}):
                 LSigma = jnp.diag(
                     jnp.array([theta["sigma_b"], theta["sigma_c"]])
                 )
-                k = theta["sigma_a"] * TACK(
+                k = theta["sigma_a"] ** 2 * TACK(
                     d=d, normalized=normalized, center=center, LSigma=LSigma
                 )
         case _:
