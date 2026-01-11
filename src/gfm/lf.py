@@ -1,7 +1,7 @@
 # %%
 import numpy as np
 
-from utils import lfmodel
+from utils import constants, lfmodel
 
 DEFAULT_PERIOD_MS = 10.0  # 100 Hz
 DEFAULT_SAMPLES_PER_PERIOD = 1024
@@ -30,6 +30,8 @@ def synthesize_lf_period(
     period_ms=DEFAULT_PERIOD_MS,
     samples_per_period=DEFAULT_SAMPLES_PER_PERIOD,
     normalize_power=False,
+    add_noise=False,
+    cacheid=654561,
 ):
     """Synthesize glottal flow derivative and flow for one LF period."""
 
@@ -39,6 +41,7 @@ def synthesize_lf_period(
 
     lf_params = lf_times_from_ratios(params, period_ms)
     d_flow = params["Ee"] * np.asarray(lfmodel.dgf(time_axis, lf_params))
+
     flow = np.cumsum(d_flow) * dt
 
     if normalize_power:
@@ -46,6 +49,13 @@ def synthesize_lf_period(
         scale = 1.0 / np.sqrt(avg_power) if avg_power > 0.0 else 1.0
         d_flow = d_flow * scale
         flow = flow * scale
+
+    if add_noise:
+        rng = np.random.default_rng(cacheid)
+        noise_amp = np.sqrt(constants.NOISE_FLOOR_POWER)
+        noise = noise_amp * rng.normal(size=d_flow.shape)
+        d_flow = d_flow + noise
+        flow = flow + np.cumsum(noise) * dt
 
     return {
         "t": time_axis * 1e3,  # milliseconds
@@ -60,6 +70,7 @@ def lf_modality_waveforms(
     period_ms=DEFAULT_PERIOD_MS,
     samples_per_period=DEFAULT_SAMPLES_PER_PERIOD,
     normalize_power=False,
+    add_noise=False,
 ):
     """Return synthesized LF waveforms for the four OPENGLOT modalities."""
 
@@ -70,6 +81,7 @@ def lf_modality_waveforms(
             period_ms=period_ms,
             samples_per_period=samples_per_period,
             normalize_power=normalize_power,
+            add_noise=add_noise,
         )
     return data
 

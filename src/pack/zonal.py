@@ -103,7 +103,7 @@ def complex_coeffs(d, M):
     return c  # (2*M+1,)
 
 
-def nonzero_complex_coeffs(d, M, eps=1e-8):
+def nonzero_complex_coeffs(d, M, eps=1e-6):
     """Return nonzero {c_m^((d))} for m in [-M,...,M]"""
     a = 0.5 * cosine_coeffs(d, M)
     ms = np.arange(0, M + 1)
