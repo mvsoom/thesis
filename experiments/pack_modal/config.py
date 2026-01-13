@@ -1,7 +1,7 @@
 from itertools import product
 from random import Random
 
-rng = Random(12456423)
+rng = Random(33978946)
 
 
 def configurations():
@@ -11,13 +11,15 @@ def configurations():
         modality,
         kernel,
         normalized,
-        effective_num_harmonics,
+        single_sigma_c,
+        J,
         iteration,
     ) in product(
         ["modal", "breathy", "whispery", "creaky"],
         pack_kernels,
         [True, False],
-        [0.5, 0.75, 0.95, 1.25, 1.5],
+        [True, False],
+        [1, 2, 4, 8, 16, 32],
         [1],  # [1, 2, 3, 4, 5],
     ):
         yield {
@@ -25,7 +27,8 @@ def configurations():
             "modality": modality,
             "kernel": kernel,
             "normalized": normalized,
-            "effective_num_harmonics": effective_num_harmonics,
+            "single_sigma_c": single_sigma_c,
+            "J": J,
             "iteration": iteration,
-            "name": f"modality={modality}_kernel={kernel}_normalized={normalized}_effective_num_harmonics={effective_num_harmonics}_iter={iteration}",
+            "name": f"modality={modality}_kernel={kernel}_normalized={normalized}_single_sigma_c={single_sigma_c}_J={J}_iter={iteration}",
         }
