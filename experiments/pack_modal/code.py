@@ -93,7 +93,7 @@ def build_kernel(theta):
         J=J,
     )
 
-    return theta["sigma_a"] * pack
+    return theta["sigma_a"] ** 2 * pack
 
 
 def build_gp(theta):
