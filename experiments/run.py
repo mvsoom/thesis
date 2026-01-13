@@ -75,22 +75,50 @@ def jcache_cli(
     suppress_stdout=False,
     suppress_stderr=False,
 ):
+    import atexit
+    import signal
+
     exe = shutil.which("jcache")
     if not exe:
         raise RuntimeError("Could not find 'jcache' on PATH")
+
     env = os.environ.copy()
     if cache_path is not None:
         env["JUPYTERCACHE"] = str(cache_path)
+
     stdout = subprocess.DEVNULL if suppress_stdout else None
     stderr = subprocess.DEVNULL if suppress_stderr else None
-    res = subprocess.run(
+
+    p = subprocess.Popen(
         [exe] + list(args),
         cwd=str(cwd) if cwd else None,
         env=env,
         stdout=stdout,
         stderr=stderr,
+        start_new_session=True,  # new process group (POSIX)
     )
-    return res.returncode
+
+    def killpg(sig):
+        try:
+            os.killpg(p.pid, sig)
+        except ProcessLookupError:
+            pass
+
+    # Ensure cleanup on normal interpreter exit
+    atexit.register(lambda: killpg(signal.SIGTERM))
+
+    # Ensure cleanup on termination signals
+    for s in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP, signal.SIGQUIT):
+        signal.signal(s, lambda *_: killpg(signal.SIGTERM))
+
+    try:
+        return p.wait()
+    finally:
+        killpg(signal.SIGTERM)
+        try:
+            p.wait(timeout=2)
+        except Exception:
+            killpg(signal.SIGKILL)
 
 
 def prepare_from_config(exp, runs):
