@@ -1,4 +1,4 @@
-# gfm_model
+# gfm_modal
 
 We redo the relaxation_centered experiment, but
 
@@ -6,30 +6,15 @@ We redo the relaxation_centered experiment, but
 - With the full LF modal so the closed phase is "baked in"
 - Use period of 7 msec (= geometric mean for pitch ranges of adults)
 
+And:
+
+- With noise floor added (-60 dB)
+- Correctly multiplying the kernels with the variance, not amplitude, of sigma_a. This was a bug before
+
+Also halved nlive: 500 -> 256
+
 ## Prelim results
 
 Looks good, tack kernels win for all modalities
 
 - Normalized kernels are typically better than unnormalized, but much higher information and very large sigma_a => same as in relaxation_centered experiment
-
-## Errored runs
-
-All tack:3 with centered=False, so neglible
-
-/home/marnix/thesis/experiments/gfm_modal/runs/modality=modal_kernel=tack:3_centered=False_normalized=True_iter=1.ipynb
-/home/marnix/thesis/experiments/gfm_modal/runs/modality=modal_kernel=tack:3_centered=False_normalized=True_iter=2.ipynb
-/home/marnix/thesis/experiments/gfm_modal/runs/modality=modal_kernel=tack:3_centered=False_normalized=True_iter=4.ipynb
-/home/marnix/thesis/experiments/gfm_modal/runs/modality=modal_kernel=tack:3_centered=False_normalized=True_iter=5.ipynb
-/home/marnix/thesis/experiments/gfm_modal/runs/modality=breathy_kernel=tack:3_centered=False_normalized=True_iter=1.ipynb
-/home/marnix/thesis/experiments/gfm_modal/runs/modality=breathy_kernel=tack:3_centered=False_normalized=True_iter=2.ipynb
-/home/marnix/thesis/experiments/gfm_modal/runs/modality=breathy_kernel=tack:3_centered=False_normalized=True_iter=3.ipynb
-/home/marnix/thesis/experiments/gfm_modal/runs/modality=breathy_kernel=tack:3_centered=False_normalized=True_iter=4.ipynb
-/home/marnix/thesis/experiments/gfm_modal/runs/modality=breathy_kernel=tack:3_centered=False_normalized=True_iter=5.ipynb
-/home/marnix/thesis/experiments/gfm_modal/runs/modality=whispery_kernel=tack:3_centered=False_normalized=True_iter=1.ipynb
-/home/marnix/thesis/experiments/gfm_modal/runs/modality=whispery_kernel=tack:3_centered=False_normalized=True_iter=2.ipynb
-/home/marnix/thesis/experiments/gfm_modal/runs/modality=whispery_kernel=tack:3_centered=False_normalized=True_iter=3.ipynb
-/home/marnix/thesis/experiments/gfm_modal/runs/modality=whispery_kernel=tack:3_centered=False_normalized=True_iter=5.ipynb
-/home/marnix/thesis/experiments/gfm_modal/runs/modality=creaky_kernel=tack:3_centered=False_normalized=True_iter=1.ipynb
-/home/marnix/thesis/experiments/gfm_modal/runs/modality=creaky_kernel=tack:3_centered=False_normalized=True_iter=2.ipynb
-/home/marnix/thesis/experiments/gfm_modal/runs/modality=creaky_kernel=tack:3_centered=False_normalized=True_iter=3.ipynb
-/home/marnix/thesis/experiments/gfm_modal/runs/modality=creaky_kernel=tack:3_centered=False_normalized=True_iter=5.ipynb

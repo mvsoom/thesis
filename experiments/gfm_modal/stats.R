@@ -55,7 +55,9 @@ df <- df[
             te = mean(te)
         )
     },
-    by <- .(modality, kernel, centered, normalized)
+# styler: off
+    by = .(modality, kernel, centered, normalized)
+# styler: on
 ]
 
 # set sorting index
