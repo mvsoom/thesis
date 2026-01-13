@@ -1,9 +1,10 @@
 # %%
 # parameters, export
 modality = "modal"
-kernel = "pack:2"
-normalized = True
-effective_num_harmonics = 0.6
+kernel = "pack:1"
+normalized = False
+single_sigma_c = True
+J = 5
 iteration = 1
 seed = 4283955834
 
@@ -12,10 +13,10 @@ import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import numpy as np
+from tinygp import GaussianProcess
 
-from gfm.ack import DiagonalTACK
-from gp.blr import blr_from_mercer, log_probability
-from pack import PACK
+from prism.pack import PACK
+from utils.jax import vk
 
 jax.config.update("jax_enable_x64", True)
 jax.config.update("jax_log_compiles", False)
@@ -53,17 +54,10 @@ plt.legend()
 
 # %%
 d = int(kernel[-1])
-sigma_c = 1.0
-t1 = 0.0
-J = int(np.floor((fs / 2) / (1000 / period)) * effective_num_harmonics)
-print(f"Using J={J} harmonics (max frequency={J * (1000 / period)} Hz)")
-
 
 def ptform(u):
-    z = ndtri(u[:3])
-    t = period * u[-2:]  # uniform in [0, period]
-    x = np.concatenate([10.0**z, t])
-    return x
+    z = ndtri(u)
+    return 10.0**z
 
 
 def build_theta(x):
@@ -71,26 +65,18 @@ def build_theta(x):
         "sigma_noise": x[0],
         "sigma_a": x[1],
         "sigma_b": x[2],
-        "center": x[4],
-        "tc": x[3],
+        "sigma_c": x[3] if single_sigma_c else x[3 : 3 + J],
     }
 
 
 def build_kernel(theta):
-    tack = DiagonalTACK(
+    pack = PACK(
         d=d,
         normalized=normalized,
-        center=theta["center"],
-        sigma_b=theta["sigma_b"],
-        sigma_c=sigma_c,
-    )
-
-    pack = PACK(
-        tack,
-        period=period,
-        t1=t1,
-        t2=theta["tc"],
         J=J,
+        period=period,
+        sigma_b=theta["sigma_b"],
+        sigma_c=theta["sigma_c"],
     )
 
     return theta["sigma_a"] ** 2 * pack
@@ -98,41 +84,21 @@ def build_kernel(theta):
 
 def build_gp(theta):
     pack = build_kernel(theta)
-    return blr_from_mercer(pack, t, noise_variance=theta["sigma_noise"] ** 2)
+    gp = GaussianProcess(kernel=pack, X=t, diag=theta["sigma_noise"] ** 2)
+    return gp
 
 
-u = np.random.uniform(size=5)
+u = np.random.uniform(size=100)
 x = ptform(u)
 theta = build_theta(x)
 pack = build_kernel(theta)
 
 # %%
-# build generative model
-# Compute constants (basis does not depend on parameters)
-Phi = jax.vmap(pack.compute_phi)(t)
-
-PhiT_Phi = jnp.matmul(Phi.T, Phi)
-PhiT_y = jnp.matmul(Phi.T, du)
-
-
 @jax.jit
 def loglikelihood(x):
     theta = build_theta(x)
-    pack = build_kernel(theta)
-
-    # Bypass build_gp() to cache building Phi, PhiT_Phi, PhiT_y
-    cov_root = pack.compute_weights_root()
-    logl = log_probability(
-        y=du,
-        Phi=Phi,
-        cov_root=cov_root,
-        noise_variance=theta["sigma_noise"] ** 2,
-        PhiT_Phi=PhiT_Phi,
-        PhiT_y=PhiT_y,
-        jitter=0.0,
-    )
-
-    return logl
+    gp = build_gp(theta)
+    return gp.log_probability(du)
 
 
 loglikelihood(x)
@@ -143,30 +109,25 @@ rng = np.random.default_rng(seed)
 
 x = ptform(rng.uniform(size=100))
 theta = build_theta(x)
-ndim = len(theta)
+ndim = sum(v.size for v in theta.values())
 
-theta_noiseless = theta.copy()
-theta_noiseless["sigma_noise"] = 1e-6
+s = build_gp(theta).sample(vk(), shape=(3,))
 
-s = build_gp(theta_noiseless).sample(jax.random.PRNGKey(seed), shape=(3,))
-
-plt.title(
-    f"kernel: {kernel}, normalized: {normalized}, effective_num_harmonics: {effective_num_harmonics}"
-)
+plt.title(f"kernel: {kernel}, normalized: {normalized}, J: {J}")
 plt.plot(t, s.T, label="sample from GP prior")
 plt.legend()
 
 
 # %%
 # initialize our nested sampler
-nlive = 500
+nlive = 256
 
 sampler = NestedSampler(
     loglikelihood, ptform, ndim, nlive=nlive, rstate=rng, sample="rwalk"
 )
 
 with time_this() as elapsed:
-    sampler.run_nested(maxcall=1_000_000, print_progress=False)
+    sampler.run_nested(maxcall=1_000_000, print_progress=True)
 
 
 # %%
@@ -217,18 +178,20 @@ for x in xs[:5]:
 
 plt.plot(t, du, label="data")
 
-plt.title(
-    f"kernel: {kernel}, normalized: {normalized}, effective_num_harmonics: {effective_num_harmonics}"
-)
+plt.title(f"kernel: {kernel}, normalized: {normalized}, J: {J}")
 plt.legend()
 
 # %%
 from dynesty import plotting as dyplot
 
+labels = [
+    str(k) for k in theta.keys() for _ in range(J if k == "sigma_c" else 1)
+]
+
 try:
     fig, ax = dyplot.cornerplot(
         res,
-        labels=[str(k) for k in theta.keys()],
+        labels=labels,
         verbose=True,
         quantiles=[0.05, 0.5, 0.95],
     )
