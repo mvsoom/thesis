@@ -1,6 +1,10 @@
+"""
+Unlike alignment based functional PCA, state space models, or neural sequence encoders, the proposed method uses a reduced rank GP as a canonical projection that maps variable length and time warped simulator outputs into a common latent coordinate system with fixed dimension, enabling downstream probabilistic compression and mixture modeling.
+"""
+
 # %%
 # parameters, export
-kernel = "pack:1"
+kernel = "pack:0"  # higher d means longer runtime due to zonal Mercer expansion
 normalized = True
 J = 64
 iteration = 1
@@ -23,6 +27,7 @@ jax.config.update("jax_log_compiles", False)
 
 
 from utils import constants, time_this
+from utils.jax import vk
 
 # %%
 NUM_TRAIN = 1000
@@ -30,6 +35,7 @@ NUM_TRAIN = 1000
 lf_samples = source.get_lf_samples()
 
 train_lf_samples = lf_samples[:NUM_TRAIN]
+test_lf_samples = lf_samples[NUM_TRAIN:]
 
 
 def warp_time(t_ms, period_ms):
@@ -48,6 +54,23 @@ for lf_sample in train_lf_samples:
     log_prob_u = lf_sample["log_prob_u"]
     if np.isfinite(log_prob_u):
         samples.append(
+            {
+                "period_ms": period_ms,
+                "t_ms": t_ms,
+                "tau": warp_time(t_ms, period_ms),
+                "du": du,
+                "log_prob_u": lf_sample["log_prob_u"],
+            }
+        )
+
+test_samples = []
+for lf_sample in test_lf_samples:
+    du = lf_sample["u"]
+    t_ms = lf_sample["t"]
+    period_ms = lf_sample["p"]["T0"]
+    log_prob_u = lf_sample["log_prob_u"]
+    if np.isfinite(log_prob_u):
+        test_samples.append(
             {
                 "period_ms": period_ms,
                 "t_ms": t_ms,
@@ -92,6 +115,7 @@ plt.show()
 N_tau = int(max(sample["du"].shape[0] for sample in samples))
 tau_grid = np.linspace(0.0, 1.0, N_tau)
 tau = jnp.asarray(tau_grid)
+dtau = tau_grid[1] - tau_grid[0]
 
 du_tau = []
 for sample in samples:
@@ -130,7 +154,7 @@ def logprior(z):
     return jnp.sum(norm.logpdf(z))
 
 
-def build_theta(x):
+def build_theta(x, J=J):
     return {
         "sigma_noise": x[0],
         "sigma_a": x[1],
@@ -336,45 +360,6 @@ print(logZ)
 quad = jnp.einsum("ni,ij,nj->n", z_samples - z_map, H, z_samples - z_map)
 print(jnp.mean(quad), "expected", ndim)
 
-# %%
-import jax
-from jax import lax
-
-
-@jax.jit
-def envelope_from_posteriors(theta_map):
-    map_gp = build_gp(theta_map)
-
-    def step(carry, dui):
-        mu_mean, second_moment, n = carry
-
-        conditioned = map_gp.condition(dui).gp
-        mu = conditioned.mu
-        cov_root = conditioned.cov_root
-
-        Sigma = cov_root @ cov_root.T
-        S = Sigma + jnp.outer(mu, mu)
-
-        n_new = n + 1
-        w_old = n / n_new
-        w_new = 1.0 / n_new
-
-        mu_mean = jnp.where(n == 0, mu, w_old * mu_mean + w_new * mu)
-        second_moment = jnp.where(n == 0, S, w_old * second_moment + w_new * S)
-
-        return (mu_mean, second_moment, n_new), None
-
-    dim = map_gp.mu.shape[0]
-    init = (
-        jnp.zeros((dim,)),
-        jnp.zeros((dim, dim)),
-        jnp.array(0.0),
-    )
-
-    (mu_mean, second_moment, _), _ = lax.scan(step, init, du_tau)
-    Sigma_star = second_moment - jnp.outer(mu_mean, mu_mean)
-    return mu_mean, Sigma_star
-
 
 # %%
 def posterior_diag_report(theta_map, du_tau, eig_subset=24, seed=0):
@@ -461,52 +446,148 @@ sigma_w2 = constants.NOISE_FLOOR_POWER / scale
 
 print("Calibrated prior weight variance:", sigma_w2)
 
-
-# %%
-
-mu_star, Sigma_star = envelope_from_posteriors(theta_map)
-
-# %%
-from gp.blr import BayesianLinearRegressor
-
-Sigma_star_root = jnp.linalg.cholesky(
-    Sigma_star + 1e-9 * jnp.eye(Sigma_star.shape[0])
-)
-
-map_kernel = build_kernel(theta_map)
-
-gpl = BayesianLinearRegressor(
-    map_kernel.compute_phi, tau_grid, mu=mu_star, cov_root=Sigma_star_root
-)
-
-# %%
-from utils.jax import vk
-
-num_samples = 3
-
-dtau = tau_grid[1] - tau_grid[0]
-
-plt.figure(figsize=(6, 4))
-for i, k in enumerate(range(num_samples)):
-    du = gpl.sample(vk())
-    u = jnp.cumsum(du) * dtau
-
-    plt.plot(tau_grid, du, c="blue", alpha=1 / num_samples)
-
-    plt.plot(tau_grid, u, c="green", alpha=1 / num_samples)
-
-plt.title("Samples from learned surrogate prior over several periods")
-plt.xlabel("time (ms)")
-plt.ylabel("amplitude")
-plt.show()
-
 # %%
 ### PPCA mixture inference
-# %%
 import jax
 import jax.numpy as jnp
 import numpy as np
 from jax.scipy.special import logsumexp
+
+
+@jax.jit
+def _woodbury_logpdf_isotropic(x, m, sigma2, W):
+    """
+    log N(x | m, sigma2 I + W W^T)
+    x,m: [M]
+    W: [M, r]
+    """
+    M = x.shape[0]
+    xm = x - m
+    r = W.shape[1]
+
+    WtW = W.T @ W
+    S = jnp.eye(r, dtype=x.dtype) + WtW / sigma2
+    rhs = (W.T @ xm) / sigma2
+    y = jax.scipy.linalg.solve(S, rhs, assume_a="pos")
+
+    quad = (xm @ xm) / sigma2 - (rhs @ y)
+    sign, logdetS = jnp.linalg.slogdet(S)
+    logdetA = M * jnp.log(sigma2) + logdetS
+
+    return -0.5 * (M * jnp.log(2.0 * jnp.pi) + logdetA + quad)
+
+
+def choose_global_rank(mu, sigma_z2, rmax=128):
+    mu = np.array(mu)
+    mu0 = mu - mu.mean(axis=0, keepdims=True)
+    C = (mu0.T @ mu0) / max(mu.shape[0] - 1, 1)
+    lam = np.linalg.eigvalsh(C)[::-1]
+    r = int(np.sum(lam > sigma_z2))
+    r = max(1, min(r, rmax))
+    return r, lam
+
+
+def fit_mix_ppca(mu, K=4, r=64, sigma_z2=1e-8, n_iter=50, seed=0, verbose=True):
+    """
+    Standard mixture PPCA on x_i = mu_i.
+    Cov_k = W_k W_k^T + sigma_z2 I, with fixed rank r for all k.
+    """
+    mu = jnp.asarray(mu)
+    N, M = mu.shape
+
+    key = jax.random.PRNGKey(seed)
+    idx = jax.random.choice(key, N, shape=(K,), replace=False)
+    m = mu[idx, :]  # [K, M]
+    W = jnp.zeros((K, M, r), dtype=mu.dtype)
+    logpi = jnp.zeros((K,), dtype=mu.dtype) - jnp.log(K)
+
+    @jax.jit
+    def e_step(m, W, logpi):
+        def one_k(k):
+            mk = m[k, :]
+            Wk = W[k, :, :]
+            lpi = logpi[k]
+
+            def one_i(i):
+                return lpi + _woodbury_logpdf_isotropic(
+                    mu[i, :], mk, sigma_z2, Wk
+                )
+
+            return jax.vmap(one_i)(jnp.arange(N))
+
+        logp = jax.vmap(one_k)(jnp.arange(K)).T  # [N, K]
+        logZ = logsumexp(logp, axis=1, keepdims=True)
+        log_r = logp - logZ
+        rnk = jnp.exp(log_r)
+        ll = jnp.sum(logZ)
+        return rnk, ll
+
+    def m_step(rnk):
+        Nk = jnp.sum(rnk, axis=0) + 1e-30
+        logpi_new = jnp.log(Nk) - jnp.log(jnp.sum(Nk))
+        m_new = (rnk.T @ mu) / Nk[:, None]
+
+        # W_k from weighted covariance eigen-decomp, classic PPCA with fixed sigma_z2
+        def one_k(k):
+            rk = rnk[:, k]
+            mk = m_new[k, :]
+            xmc = mu - mk[None, :]
+            C = (xmc.T * rk) @ xmc / Nk[k]
+            C = 0.5 * (C + C.T)
+
+            lam, Q = jnp.linalg.eigh(C)  # ascending
+            lam = lam[::-1]
+            Q = Q[:, ::-1]
+
+            lam_r = lam[:r]
+            Q_r = Q[:, :r]
+            # PPCA: W = Q_r diag(sqrt(max(lam_r - sigma2, 0)))
+            gain = jnp.sqrt(jnp.maximum(lam_r - sigma_z2, 0.0))
+            Wk = Q_r * gain[None, :]
+            return Wk
+
+        W_new = jax.vmap(one_k)(jnp.arange(K))
+        return m_new, W_new, logpi_new, Nk
+
+    ll_hist = []
+    for it in range(n_iter):
+        rnk, ll = e_step(m, W, logpi)
+        m, W, logpi, Nk = m_step(rnk)
+        ll_hist.append(float(ll))
+        if verbose:
+            pis = np.array(jnp.exp(logpi))
+            # "effective rank" per component: number of nontrivial columns
+            eff = [
+                int(jnp.sum(jnp.linalg.norm(W[k], axis=0) > 1e-12))
+                for k in range(K)
+            ]
+            print(
+                f"iter {it:03d}  ll {float(ll):.3f}  pi {pis}  eff_rank {eff}"
+            )
+
+    return {
+        "m": m,
+        "W": W,
+        "logpi": logpi,
+        "sigma_z2": float(sigma_z2),
+        "ll_hist": ll_hist,
+    }
+
+
+# %%
+# %%
+map_gp = build_gp(theta_map)
+
+
+@jax.jit
+def one_mu(dui):
+    return map_gp.condition(dui).gp.mu
+
+
+mu_all = jax.vmap(one_mu)(du_tau)  # [N, M]
+
+
+# %%
 
 
 def calibrate_sigma_z2(Phi, sigma_u, nprobe=4096, seed=0):
@@ -524,243 +605,17 @@ def calibrate_sigma_z2(Phi, sigma_u, nprobe=4096, seed=0):
     return float((sigma_u * sigma_u) / max(s, 1e-30))
 
 
-@jax.jit
-def _woodbury_logpdf(x, m, sigma2, U):
-    """
-    log N(x | m, sigma2 I + U U^T)
-    x,m: [M]
-    U: [M, R]
-    sigma2: scalar > 0
-    Uses Woodbury + matrix det lemma with small (R x R) system.
-    """
-    M = x.shape[0]
-    xm = x - m
-    R = U.shape[1]
+sigma_u_like = float(theta_map["sigma_noise"])
+sigma_u_floor = 1e-3  # -60 dB amplitude
 
-    # A = sigma2 I + U U^T
-    # logdet(A) = M log(sigma2) + logdet(I + (U^T U)/sigma2)
-    UtU = U.T @ U
-    S = jnp.eye(R, dtype=x.dtype) + UtU / sigma2
-
-    # solve S y = (U^T xm)/sigma2
-    rhs = (U.T @ xm) / sigma2
-    y = jax.scipy.linalg.solve(S, rhs, assume_a="pos")
-
-    quad = (xm @ xm) / sigma2 - (rhs @ y)  # = xm^T A^{-1} xm
-    sign, logdetS = jnp.linalg.slogdet(S)
-    logdetA = M * jnp.log(sigma2) + logdetS
-
-    return -0.5 * (M * jnp.log(2.0 * jnp.pi) + logdetA + quad)
-
-
-def _concat_factors(Bk, Li):
-    # Bk: [M, rk], Li: [M, ri]
-    return jnp.concatenate([Bk, Li], axis=1)
-
-
-def _eig_cutoff_psd(S, lam_floor, rmax=None):
-    """
-    PSD project + eigen cutoff.
-    Returns B so that B B^T approximates S with eigenvalues clipped below lam_floor to 0.
-    """
-    S = 0.5 * (S + S.T)
-    lam, Q = jnp.linalg.eigh(S)  # ascending
-    keep = lam > lam_floor
-    lamk = jnp.where(keep, lam, 0.0)
-
-    if rmax is not None:
-        # keep only top rmax eigenvalues
-        idx = jnp.argsort(lamk)[::-1]
-        idx = idx[:rmax]
-        lamk2 = jnp.zeros_like(lamk).at[idx].set(lamk[idx])
-        lamk = lamk2
-
-    # Build factor from kept eigenpairs
-    idx2 = jnp.where(lamk > 0.0, size=lamk.shape[0], fill_value=0)[0]
-    lam_pos = lamk[idx2]
-    Q_pos = Q[:, idx2]
-    B = Q_pos * jnp.sqrt(lam_pos + 0.0)
-    return B
-
-
-def fit_mix_amp_prior(
-    mu,
-    cov_root,
-    K=4,
-    sigma_z2=1e-8,
-    lam_floor=1e-10,
-    rmax=128,
-    n_iter=40,
-    seed=0,
-    verbose=True,
-):
-    """
-    mu: [N, M] posterior means in weight space
-    cov_root: [N, M, R] posterior roots (so Sigma_i = L_i L_i^T)
-    K: number of mixture components
-    sigma_z2: isotropic term added to all covariances (kernel sigma_noise mapped to z, plus floor if you want)
-    lam_floor: eigen cutoff threshold applied to learned S_k
-    rmax: maximum rank for each component covariance factor B_k
-    """
-    mu = jnp.asarray(mu)
-    cov_root = jnp.asarray(cov_root)
-    N, M = mu.shape
-    R = cov_root.shape[2]
-
-    key = jax.random.PRNGKey(seed)
-    # init means from random samples
-    idx = jax.random.choice(key, N, shape=(K,), replace=False)
-    m = mu[idx, :]  # [K, M]
-    # init cov factors to zero-rank
-    B = jnp.zeros(
-        (K, M, 1), dtype=mu.dtype
-    )  # start with 1 col of zeros for shape stability
-    logpi = jnp.zeros((K,), dtype=mu.dtype) - jnp.log(K)
-
-    @jax.jit
-    def e_step(m, B, logpi):
-        # compute log responsibilities: [N, K]
-        def one_k(k):
-            Bk = B[k, :, :]
-            mk = m[k, :]
-            lpi = logpi[k]
-
-            def one_i(i):
-                Li = cov_root[i, :, :]
-                U = _concat_factors(Bk, Li)  # [M, rk+R]
-                return lpi + _woodbury_logpdf(mu[i, :], mk, sigma_z2, U)
-
-            return jax.vmap(one_i)(jnp.arange(N))
-
-        logp = jax.vmap(one_k)(jnp.arange(K)).T  # [N, K]
-        logZ = logsumexp(logp, axis=1, keepdims=True)
-        log_r = logp - logZ
-        r = jnp.exp(log_r)
-        ll = jnp.sum(logZ)
-        return r, ll
-
-    @jax.jit
-    def m_step(r):
-        Nk = jnp.sum(r, axis=0) + 1e-30  # [K]
-        logpi_new = jnp.log(Nk) - jnp.log(jnp.sum(Nk))
-
-        # means
-        m_new = (r.T @ mu) / Nk[:, None]  # [K, M]
-
-        # component covariances by de-noising: Cov(mu) - E[Sigma_i]
-        # Cxx_k = E[(x-m)(x-m)^T]
-        def cov_k(k):
-            rk = r[:, k]  # [N]
-            mk = m_new[k, :]
-            xmc = mu - mk[None, :]
-            # weighted covariance of means
-            Cxx = (xmc.T * rk) @ xmc / Nk[k]
-
-            # weighted average noise covariance from cov_root
-            # Cnoise = E[L L^T] = sum_i rk_i * sum_r L_i[:,r] L_i[:,r]^T / Nk
-            # einsum: (N,) (N,M,R) (N,M,R) -> (M,M)
-            Cnoise = jnp.einsum("i,imr,inr->mn", rk, cov_root, cov_root) / Nk[k]
-
-            S = Cxx - Cnoise
-            return S
-
-        S_all = jax.vmap(cov_k)(jnp.arange(K))  # [K, M, M]
-
-        # eig cutoff to get low-rank factor
-        def cut_k(k):
-            Sk = S_all[k, :, :]
-            Bk = _eig_cutoff_psd(Sk, lam_floor=lam_floor, rmax=rmax)
-            # Ensure at least one column for stable concatenation in E-step
-            Bk = jnp.where(
-                Bk.shape[1] == 0, jnp.zeros((M, 1), dtype=mu.dtype), Bk
-            )
-            return Bk
-
-        B_new = [cut_k(k) for k in range(K)]
-        # pad B factors to same rank for JAX arrays
-        ranks = [b.shape[1] for b in B_new]
-        rpad = int(max(ranks))
-        Bpad = []
-        for b in B_new:
-            pad = rpad - b.shape[1]
-            if pad > 0:
-                b = jnp.pad(b, ((0, 0), (0, pad)))
-            Bpad.append(b)
-        B_new = jnp.stack(Bpad, axis=0)  # [K, M, rpad]
-
-        return m_new, B_new, logpi_new, Nk
-
-    ll_hist = []
-    for it in range(n_iter):
-        r, ll = e_step(m, B, logpi)
-        m, B, logpi, Nk = m_step(r)
-        ll_hist.append(float(ll))
-        if verbose:
-            ranks = [
-                int(jnp.sum(jnp.linalg.norm(B[k], axis=0) > 0.0))
-                for k in range(K)
-            ]
-            pis = np.array(jnp.exp(logpi))
-            print(f"iter {it:03d}  ll {float(ll):.3f}  pi {pis}  rank {ranks}")
-
-    return {
-        "m": m,
-        "B": B,
-        "logpi": logpi,
-        "ll_hist": ll_hist,
-        "sigma_z2": float(sigma_z2),
-        "lam_floor": float(lam_floor),
-    }
-
-
-# %%
-# %%
-map_gp = build_gp(theta_map)
-
-
-@jax.jit
-def one(dui):
-    gp = map_gp.condition(dui).gp
-    return gp.mu, gp.cov_root
-
-
-mu_all, L_all = jax.vmap(one)(du_tau)  # mu_all: [N,M], L_all: [N,M,R]
-
-# %%
-# %%
-sigma_u = float(theta_map["sigma_noise"])  # amplitude
-sigma_z2_like = calibrate_sigma_z2(Phi, sigma_u)
-
-# also include your final floor (-60 dB amplitude => 1e-3) if you want it inside the fit
-sigma_z2_floor = calibrate_sigma_z2(Phi, 1e-3)
-
+sigma_z2_like = calibrate_sigma_z2(Phi, sigma_u_like)
+sigma_z2_floor = calibrate_sigma_z2(Phi, sigma_u_floor)
 sigma_z2 = sigma_z2_like + sigma_z2_floor
-print(
-    "sigma_z2_like",
-    sigma_z2_like,
-    "sigma_z2_floor",
-    sigma_z2_floor,
-    "sigma_z2",
-    sigma_z2,
-)
 
+r, lam = choose_global_rank(mu_all, sigma_z2, rmax=128)
+print("sigma_z2", sigma_z2, "chosen r", r)
 # %%
-# %%
-lam_floor = 1.0 * sigma_z2  # start here; tighten if you want fewer modes
-
-# %%
-
-with jax.default_device(cpu):  # avoid GPU OOM
-    fit = fit_mix_amp_prior(
-        mu_all,
-        L_all,
-        K=8,
-        sigma_z2=sigma_z2,
-        lam_floor=lam_floor,
-        rmax=128,
-        n_iter=10,
-        seed=0,
-    )
+fit = fit_mix_ppca(mu_all, K=4, r=r, sigma_z2=sigma_z2, n_iter=10, seed=0)
 
 
 # %%
@@ -773,7 +628,7 @@ def sample_mix_amp(fit, nsamples=1, key=jax.random.PRNGKey(0)):
       comp:   [nsamples] component indices
     """
     m = fit["m"]  # [K, M]
-    B = fit["B"]  # [K, M, Rk]
+    B = fit["W"]  # [K, M, Rk]
     logpi = fit["logpi"]  # [K]
     sigma_z2 = fit["sigma_z2"]
 
@@ -818,13 +673,12 @@ def sample_u_from_w(w, Phi, sigma_u_floor=1e-3, key=jax.random.PRNGKey(1)):
 
 
 # %%
-import matplotlib.pyplot as plt
-import numpy as np
+
 
 # sample waveforms
 K = fit["m"].shape[0]
 
-nsamples = 10 * K
+nsamples = 1 * K
 w_samp, comp = sample_mix_amp(fit, nsamples=nsamples, key=vk())
 u_samp = sample_u_from_w(w_samp, Phi, sigma_u_floor=None, key=None)
 
@@ -846,8 +700,8 @@ for k in range(K):
 
     uu = jnp.cumsum(u_np[idx], axis=1).T * dtau
 
-    ax.plot(tau_grid, u_np[idx].T, alpha=0.7)
-    # ax.plot(tau_grid, uu, alpha=0.7)
+    # ax.plot(tau_grid, u_np[idx].T, alpha=0.7)
+    ax.plot(tau_grid, uu, alpha=0.7)
     ax.set_title(f"component {k}   (n={len(idx)})")
     ax.set_ylabel("amplitude")
 
@@ -860,3 +714,103 @@ plt.tight_layout()
 plt.show()
 
 # %%
+# %%
+import jax
+import jax.numpy as jnp
+from tqdm import tqdm
+
+LOG10 = jnp.log(10.0)
+
+
+@jax.jit
+def _logpdf_iso_lowrank_batch(y, mu, sigma2, U):
+    """
+    y, mu: [B, T]
+    U:      [B, T, r]
+    sigma2: scalar
+    returns logpdf: [B]
+    """
+    B, T = y.shape
+    r = U.shape[-1]
+
+    ym = y - mu  # [B, T]
+    UtU = jnp.einsum("btr,bts->brs", U, U)  # [B, r, r]
+    S = jnp.eye(r)[None, :, :] + UtU / sigma2
+
+    rhs = jnp.einsum("btr,bt->br", U, ym) / sigma2
+    sol = jax.vmap(lambda A, b: jnp.linalg.solve(A, b))(S, rhs)
+
+    quad = jnp.sum(ym * ym, axis=1) / sigma2 - jnp.sum(rhs * sol, axis=1)
+
+    logdetS = jnp.linalg.slogdet(S)[1]
+    logdetA = T * jnp.log(sigma2) + logdetS
+
+    return -0.5 * (T * jnp.log(2.0 * jnp.pi) + logdetA + quad)
+
+
+def make_logp_u_fn(pack, fit, sigma_u2_floor):
+    m = fit["m"]  # [K, M]
+    W = fit["W"]  # [K, M, r]
+    logpi = fit["logpi"]
+    sigma_z2 = fit["sigma_z2"]
+    K = m.shape[0]
+
+    def logp_u_batch(tau, du):
+        """
+        tau: [B, T]
+        du:  [B, T]
+        returns log p(u): [B]
+        """
+        Phi = jax.vmap(lambda t: jax.vmap(pack.compute_phi)(t))(
+            tau
+        )  # [B, T, M]
+
+        # isotropic approx for sigma_z2 * Phi Phi^T
+        c = jnp.mean(jnp.sum(Phi * Phi, axis=2))
+        sigma2_eff = (
+            sigma_u2_floor + float(theta_map["sigma_noise"]) ** 2 + sigma_z2 * c
+        )
+
+        def one_k(k):
+            mu_u = Phi @ m[k]  # [B, T]
+            U = Phi @ W[k]  # [B, T, r]
+            return logpi[k] + _logpdf_iso_lowrank_batch(du, mu_u, sigma2_eff, U)
+
+        log_terms = jax.vmap(one_k)(jnp.arange(K))  # [K, B]
+        return logsumexp(log_terms, axis=0)  # [B]
+
+    return jax.jit(logp_u_batch)
+
+
+def kl_bans_fast(test_samples, fit, theta_map):
+    pack = build_kernel(theta_map)
+    sigma_u2_floor = float(constants.NOISE_FLOOR_POWER)
+
+    # bucket by length
+    buckets = {}
+    for s in test_samples:
+        T = len(s["tau"])
+        buckets.setdefault(T, []).append(s)
+
+    total_kl = 0.0
+    total_n = 0
+
+    for T, samples in tqdm(buckets.items()):
+        B = len(samples)
+
+        tau = jnp.stack([s["tau"] for s in samples])  # [B, T]
+        du = jnp.stack([s["du"] for s in samples])  # [B, T]
+        logq = jnp.array([s["log_prob_u"] for s in samples])  # [B]
+
+        logp_fn = make_logp_u_fn(pack, fit, sigma_u2_floor)
+        logp = logp_fn(tau, du)
+
+        total_kl += jnp.sum((logq - logp) / LOG10)
+        total_n += B
+
+    return float(total_kl / total_n)
+
+
+# usage:
+kl_bans = kl_bans_fast(test_samples[:100], fit, theta_map)
+print("KL divergence to BANs (fast):", kl_bans, "bans")
