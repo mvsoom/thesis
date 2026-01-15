@@ -128,3 +128,9 @@ def check_precisions(tree, return_issues=False):
 
     if return_issues:
         return issues
+
+
+def safe_cholesky(A, jitter=1e-6):
+    """Cholesky decomposition with scaled jitter"""
+    nuggets = jnp.mean(jnp.diag(A)) * jitter
+    return jnp.linalg.cholesky(A + nuggets * jnp.eye(A.shape[-1]))
