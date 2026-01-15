@@ -78,3 +78,100 @@ if __name__ == "__main__":
     plt.title("Spectrum via FFT")
     plt.xlim(0, k.M + 20)  # zero beyond M unlike PACK
     plt.show()
+
+# %%
+# pmatern_gpjax.py
+
+from typing import Optional, Sequence
+
+import gpjax as gpx
+import jax.numpy as jnp
+from gpjax.kernels.computations import DenseKernelComputation
+from gpjax.parameters import PositiveReal
+
+
+class gpxPeriodicMatern(gpx.kernels.AbstractKernel):
+    """
+    GPJax wrapper around tinygp PeriodicMatern.
+
+    Static:
+        nu
+        period
+        M
+
+    Learnable:
+        scale
+    """
+
+    nu: float
+    period: float
+    M: int
+
+    scale: PositiveReal
+
+    def __init__(
+        self,
+        *,
+        nu: float,
+        period: float = 1.0,
+        M: int = 128,
+        scale: float = 1.0,
+        active_dims: Optional[Sequence[int]] = None,
+        n_dims: Optional[int] = None,
+    ):
+        super().__init__(active_dims, n_dims, DenseKernelComputation())
+
+        # static
+        self.nu = nu
+        self.period = period
+        self.M = M
+
+        # GPJax-tracked parameter
+        self.scale = PositiveReal(jnp.array(scale), tag="scale")
+
+    def __call__(self, x, y):
+        """
+        x, y: shape (1, D) or (D,)
+        only x[..., 0] is used as time
+        """
+        t1 = x.squeeze()
+        t2 = y.squeeze()
+
+        k = PeriodicMatern(
+            nu=self.nu,
+            scale=self.scale.value,
+            period=self.period,
+            M=self.M,
+        )
+
+        return k.evaluate(t1, t2)
+
+
+if __name__ == "__main__":
+    import matplotlib.pyplot as plt
+
+    from utils.jax import vk
+
+    meanf = gpx.mean_functions.Zero()
+
+    kernels = [
+        gpxPeriodicMatern(nu=0.5),
+        gpxPeriodicMatern(nu=1.5),
+        gpxPeriodicMatern(nu=2.5),
+        gpxPeriodicMatern(nu=3.5),
+    ]
+
+    t = jnp.linspace(-1.0, 2.0, 512)
+
+    fig, axes = plt.subplots(
+        nrows=2, ncols=2, figsize=(7, 6), tight_layout=True
+    )
+
+    for k, ax in zip(kernels, axes.ravel(), strict=False):
+        prior = gpx.gps.Prior(mean_function=meanf, kernel=k)
+        rv = prior(t)
+        y = rv.sample(key=vk(), sample_shape=(3,))
+        ax.plot(t, y.T, alpha=0.7)
+        ax.set_title(f"PeriodicMatern ν={k.nu}")
+
+    plt.show()
