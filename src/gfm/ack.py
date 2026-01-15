@@ -50,14 +50,22 @@ class ACK(Kernel):
     normalized: bool = eqx.field(default_factory=lambda: False, static=True)
 
     def evaluate(self, X1: JAXArray, X2: JAXArray) -> JAXArray:
-        X1_norm = jnp.linalg.norm(X1)
-        X2_norm = jnp.linalg.norm(X2)
+        eps = 1e-12
+        eps_c = 1e-7  # keep c away from +-1 for stable grads
+
+        X1_norm = jnp.maximum(jnp.linalg.norm(X1), eps)
+        X2_norm = jnp.maximum(jnp.linalg.norm(X2), eps)
 
         R1 = X1 / X1_norm
         R2 = X2 / X2_norm
 
-        c = jnp.clip(jnp.dot(R1, R2), -1.0, 1.0)
-        s = jnp.sqrt(jnp.maximum(0.0, 1.0 - c * c))
+        c_raw = jnp.dot(R1, R2)
+
+        # IMPORTANT: clip strictly inside (-1, 1)
+        c = jnp.clip(c_raw, -1.0 + eps_c, 1.0 - eps_c)
+
+        theta = jnp.arccos(c)
+        s = jnp.sin(theta)
 
         Jd = compute_Jd(self.d, c, s)
 
@@ -66,6 +74,7 @@ class ACK(Kernel):
             K12 = Jd / Jd0
         else:
             K12 = (1.0 / jnp.pi) * (X1_norm**self.d) * (X2_norm**self.d) * Jd
+
         return K12
 
 
