@@ -5,7 +5,6 @@ import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import optax as ox
 from flax import nnx
-from gpjax.parameters import Parameter
 from tqdm import tqdm
 
 from prism.blockindependent import gpxBlockIndependent
@@ -13,6 +12,9 @@ from prism.pack import NormalizedPACK
 from surrogate import source
 from utils import constants
 from utils.jax import safe_cholesky, vk
+
+# FIXME
+jax.config.update("jax_debug_nans", True)
 
 # %%
 lf_samples = source.get_lf_samples()[:500]
@@ -54,6 +56,26 @@ dataset = gpx.Dataset(X=X, y=jnp.reshape(du, (-1, 1)))
 
 NUM_INDUCING = 16
 
+# z = jnp.linspace(tau.min(), tau.max(), NUM_INDUCING).reshape(-1, 1)
+z = jax.random.uniform(vk(), shape=(NUM_INDUCING, 1), minval=0.0, maxval=1.0)
+
+fig, ax = plt.subplots()
+ax.vlines(
+    z,
+    ymin=du.min(),
+    ymax=du.max(),
+    alpha=0.3,
+    linewidth=1,
+    label="Inducing point",
+)
+ax.scatter(tau, du, alpha=0.2, label="Observations")
+ax.legend()
+ax.set(xlabel=r"$x$", ylabel=r"$f(x)$")
+
+# %%
+
+plt.imshow(kernel.gram(z).to_dense())
+
 # %%
 meanf = gpx.mean_functions.Zero()
 likelihood = gpx.likelihoods.Gaussian(num_datapoints=dataset.n)
@@ -62,26 +84,31 @@ prior = gpx.gps.Prior(
 )
 p = prior * likelihood
 
-batch_size = 128
-num_iters = 3000
-num_restarts = 100
+best_opt_posterior = None
+best_elbo = -jnp.inf
 
-lr = 0.01
+frozen = nnx.Any(
+    nnx.PathContains("variational_mean"),
+    nnx.PathContains("variational_root_covariance"),
+)
 
-key = vk()
-keys = jax.random.split(key, num_restarts)
+# trainable filter is “everything except frozen”
+trainable = nnx.Not(frozen)
 
-
-def optimize(key):
-    key, subkey = jax.random.split(key)
+for i in range(10):
+    key = vk()
 
     z = jax.random.uniform(
-        subkey, shape=(NUM_INDUCING, 1), minval=0.0, maxval=1.0
+        vk(), shape=(NUM_INDUCING, 1), minval=0.0, maxval=1.0
     )
-
     q = gpx.variational_families.VariationalGaussian(
         posterior=p, inducing_inputs=z
     )
+
+    batch_size = 128
+    num_iters = 3000
+
+    lr = 0.001
 
     opt_posterior, history = gpx.fit(
         model=q,
@@ -91,29 +118,16 @@ def optimize(key):
         num_iters=num_iters,
         key=key,
         batch_size=batch_size,
-        trainable=Parameter,
-        log_rate=1000,
+        # trainable=trainable,
     )
 
-    return nnx.state(opt_posterior), history
+    print(history[-1])
 
+    if history[-1] > best_elbo:
+        best_elbo = history[-1]
+        best_opt_posterior = opt_posterior
 
-states, histories = jax.vmap(optimize)(keys)
-
-# %%
-# pick one posterior (e.g. best idx) and rebuild
-
-i = int(jnp.nanargmin(jnp.array([h[-1] for h in histories])))  # best elbo
-
-graphdef, _ = nnx.split(
-    gpx.variational_families.VariationalGaussian(
-        posterior=p,
-        inducing_inputs=jnp.zeros((NUM_INDUCING, 1)),
-    )
-)
-
-opt_posterior = nnx.merge(graphdef, jax.tree.map(lambda x: x[i], states))
-history = histories[i]
+opt_posterior = best_opt_posterior
 
 # %%
 plt.plot(history[0:])
@@ -149,9 +163,8 @@ t = jnp.linspace(0, 1, 500)
 
 Phi = jax.vmap(phi)(t)  # should be (N, M)
 
-# Plot mean and 3 sigma
 mu = Phi @ m  # (N,)
-std = jnp.sqrt(jnp.sum((Phi @ S) ** 2, axis=1))  # (N,)
+
 
 fig, ax = plt.subplots()
 ax.vlines(
@@ -162,31 +175,19 @@ ax.vlines(
     linewidth=1,
     label="Inducing point",
 )
-ax.scatter(tau, du, alpha=0.01, label="Observations")
-ax.plot(t, mu, ".", c="red", label="Posterior mean")
-ax.fill_between(
-    t,
-    mu - 3 * std,
-    mu + 3 * std,
-    color="red",
-    alpha=0.2,
-    label="Latent 3 sigma",
-)
+ax.scatter(tau, du, alpha=0.2, label="Observations")
+ax.plot(t, mu, ".", c="red", label="Posterior mean via feature map")
 ax.legend()
 ax.set(xlabel=r"$x$", ylabel=r"$f(x)$")
 
 # %%
 # Draw posterior samples
-num_samples = 4
-eps = jax.random.normal(vk(), shape=(m.shape[0], num_samples))
-u_samples = m[:, None] + S @ eps
+num_samples = 1
+eps = jax.random.normal(vk(), shape=(num_samples, m.shape[0]))
+m_samples = m + eps @ S
 
-fig, ax = plt.subplots()
-ax.plot(t, mu, ".", c="red", label="Posterior mean")
-ax.fill_between(t, mu - 3 * std, mu + 3 * std, alpha=0.2)
-
-ax.plot(t, Phi @ u_samples, alpha=0.7)
-fig.show()
+plt.plot(t, Phi @ m_samples.T)
+plt.show()
 
 # %%
 # Examine basis functions

@@ -2,6 +2,7 @@
 import gpjax as gpx
 import jax
 import jax.numpy as jnp
+import jax.scipy as jsp
 import matplotlib.pyplot as plt
 import optax as ox
 from flax import nnx
@@ -79,7 +80,7 @@ def optimize(key):
         subkey, shape=(NUM_INDUCING, 1), minval=0.0, maxval=1.0
     )
 
-    q = gpx.variational_families.VariationalGaussian(
+    q = gpx.variational_families.WhitenedVariationalGaussian(
         posterior=p, inducing_inputs=z
     )
 
@@ -127,31 +128,38 @@ print(
 # %%
 # Convert to the BLR implicit
 
-
-m = opt_posterior.variational_mean.value.squeeze()
-S = opt_posterior.variational_root_covariance.value
-
+mu_w = opt_posterior.variational_mean.value.squeeze()  # (M,)
+Sroot_w = opt_posterior.variational_root_covariance.value  # (M,M) lower-tri
 kernel = opt_posterior.posterior.prior.kernel
-Z = opt_posterior.inducing_inputs.value
+mean_fn = opt_posterior.posterior.prior.mean_function
+Z = opt_posterior.inducing_inputs.value  # (M,D)
 
 Kzz = kernel.gram(Z).to_dense()
-Lzz = safe_cholesky(Kzz)
-Kzz_inv = jax.scipy.linalg.cho_solve((Lzz, True), jnp.eye(Z.shape[0]))
+Lzz = safe_cholesky(Kzz)  # (M,M) lower
+
+mZ = mean_fn(Z).squeeze()  # (M,)
+
+# antiwhiten: q(u) in inducing space
+m_u = mZ + Lzz @ mu_w  # (M,)
+S_u_root = Lzz @ Sroot_w  # (M,M)
+# so S_u = S_u_root @ S_u_root.T
+
+Kzz_inv = jsp.linalg.cho_solve((Lzz, True), jnp.eye(Z.shape[0]))
 
 
 def phi(t):
-    x = jnp.asarray(t).reshape(1, 1)
-    Kxz = kernel.cross_covariance(x, Z)  # (1, M), Dense operator
-    return jax.scipy.linalg.cho_solve((Lzz, True), Kxz.T).squeeze()
+    x = jnp.asarray(t).reshape(1, -1)  # (1,D)
+    Kxz = kernel.cross_covariance(
+        x, Z
+    )  # (1,M) in GPJax ordering? you used x,Z; keep consistent
+    return jsp.linalg.cho_solve((Lzz, True), Kxz.T).squeeze()  # (M,)
 
 
 t = jnp.linspace(0, 1, 500)
+Phi = jax.vmap(phi)(t)  # (N,M)
 
-Phi = jax.vmap(phi)(t)  # should be (N, M)
-
-# Plot mean and 3 sigma
-mu = Phi @ m  # (N,)
-std = jnp.sqrt(jnp.sum((Phi @ S) ** 2, axis=1))  # (N,)
+mu = Phi @ m_u
+std = jnp.sqrt(jnp.sum((Phi @ S_u_root) ** 2, axis=1))
 
 fig, ax = plt.subplots()
 ax.vlines(
@@ -178,12 +186,19 @@ ax.set(xlabel=r"$x$", ylabel=r"$f(x)$")
 # %%
 # Draw posterior samples
 num_samples = 4
-eps = jax.random.normal(vk(), shape=(m.shape[0], num_samples))
-u_samples = m[:, None] + S @ eps
+eps = jax.random.normal(vk(), shape=(m_u.shape[0], num_samples))
+u_samples = m_u[:, None] + S_u_root @ eps
 
 fig, ax = plt.subplots()
 ax.plot(t, mu, ".", c="red", label="Posterior mean")
-ax.fill_between(t, mu - 3 * std, mu + 3 * std, alpha=0.2)
+ax.fill_between(
+    t,
+    mu - 3 * std,
+    mu + 3 * std,
+    color="red",
+    alpha=0.2,
+    label="Latent 3 sigma",
+)
 
 ax.plot(t, Phi @ u_samples, alpha=0.7)
 fig.show()
@@ -191,7 +206,7 @@ fig.show()
 # %%
 # Examine basis functions
 # Note: these model deviation from the mean, not the function values directly
-basisfunctions = Phi @ S
+basisfunctions = Phi @ S_u_root
 
 plt.plot(t, basisfunctions[:, :50])
 plt.show()
