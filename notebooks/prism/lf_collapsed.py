@@ -15,7 +15,7 @@ from utils import constants
 from utils.jax import safe_cholesky, vk
 
 # %%
-lf_samples = source.get_lf_samples()[:500]
+lf_samples = source.get_lf_samples()[:100]
 
 
 def warp_time(t_ms, period_ms):
@@ -51,8 +51,9 @@ plt.imshow(kernel.gram(X[:500, :]).to_dense())
 
 # %%
 dataset = gpx.Dataset(X=X, y=jnp.reshape(du, (-1, 1)))
+print("Number of datapoints:", dataset.n)
 
-NUM_INDUCING = 16
+NUM_INDUCING = 64
 
 # %%
 meanf = gpx.mean_functions.Zero()
@@ -62,11 +63,16 @@ prior = gpx.gps.Prior(
 )
 p = prior * likelihood
 
-batch_size = 128
-num_iters = 3000
-num_restarts = 100
+num_iters = 500
+num_restarts = 30
+batch_size = -1
 
-lr = 0.01
+# PROBLEM: cant minibatch with this => very noisy signal
+# SO WE LIMIT TO FULL BATCH FOR NOW WITH *LESS* SAMPLES
+# https://chatgpt.com/g/g-p-696643a2ef3c8191906b9083e9248891-prism/c/6968c34f-250c-8325-8472-43c98510b7cf
+# we can still impose closure constraint?
+
+lr = 0.001
 
 key = vk()
 keys = jax.random.split(key, num_restarts)
@@ -79,20 +85,20 @@ def optimize(key):
         subkey, shape=(NUM_INDUCING, 1), minval=0.0, maxval=1.0
     )
 
-    q = gpx.variational_families.VariationalGaussian(
+    q = gpx.variational_families.CollapsedVariationalGaussian(
         posterior=p, inducing_inputs=z
     )
 
     opt_posterior, history = gpx.fit(
         model=q,
-        objective=lambda p, d: -gpx.objectives.elbo(p, d),
+        objective=lambda p, d: -gpx.objectives.collapsed_elbo(p, d),
         train_data=dataset,
         optim=ox.adam(learning_rate=lr),
         num_iters=num_iters,
         key=key,
         batch_size=batch_size,
         trainable=Parameter,
-        log_rate=1000,
+        log_rate=100,
     )
 
     return nnx.state(opt_posterior), history
@@ -106,7 +112,7 @@ states, histories = jax.vmap(optimize)(keys)
 i = int(jnp.nanargmin(jnp.array([h[-1] for h in histories])))  # best elbo
 
 graphdef, _ = nnx.split(
-    gpx.variational_families.VariationalGaussian(
+    gpx.variational_families.CollapsedVariationalGaussian(
         posterior=p,
         inducing_inputs=jnp.zeros((NUM_INDUCING, 1)),
     )
@@ -125,75 +131,62 @@ print(
 )
 
 # %%
-# Convert to the BLR implicit
+Xtest = X[::100, :]
 
+latent_dist = opt_posterior(Xtest, train_data=dataset)
+predictive_dist = opt_posterior.posterior.likelihood(latent_dist)
 
-m = opt_posterior.variational_mean.value.squeeze()
-S = opt_posterior.variational_root_covariance.value
+inducing_points = opt_posterior.inducing_inputs.value
 
-kernel = opt_posterior.posterior.prior.kernel
-Z = opt_posterior.inducing_inputs.value
+samples = latent_dist.sample(key=vk(), sample_shape=(20,))
 
-Kzz = kernel.gram(Z).to_dense()
-Lzz = safe_cholesky(Kzz)
-Kzz_inv = jax.scipy.linalg.cho_solve((Lzz, True), jnp.eye(Z.shape[0]))
-
-
-def phi(t):
-    x = jnp.asarray(t).reshape(1, 1)
-    Kxz = kernel.cross_covariance(x, Z)  # (1, M), Dense operator
-    return jax.scipy.linalg.cho_solve((Lzz, True), Kxz.T).squeeze()
-
-
-t = jnp.linspace(0, 1, 500)
-
-Phi = jax.vmap(phi)(t)  # should be (N, M)
-
-# Plot mean and 3 sigma
-mu = Phi @ m  # (N,)
-std = jnp.sqrt(jnp.sum((Phi @ S) ** 2, axis=1))  # (N,)
+predictive_mean = predictive_dist.mean
+predictive_std = jnp.sqrt(predictive_dist.variance)  # all nans
 
 fig, ax = plt.subplots()
-ax.vlines(
-    opt_posterior.inducing_inputs.value,
-    ymin=du.min(),
-    ymax=du.max(),
-    alpha=0.3,
-    linewidth=1,
-    label="Inducing point",
-)
-ax.scatter(tau, du, alpha=0.01, label="Observations")
-ax.plot(t, mu, ".", c="red", label="Posterior mean")
+
+ax.plot(Xtest[:, 1], predictive_mean, ".", label="Predictive mean")
+
 ax.fill_between(
-    t,
-    mu - 3 * std,
-    mu + 3 * std,
-    color="red",
+    Xtest[:, 1],
+    predictive_mean - 2 * predictive_std,
+    predictive_mean + 2 * predictive_std,
     alpha=0.2,
-    label="Latent 3 sigma",
+    label="Two sigma",
+)
+
+
+ax.vlines(
+    x=inducing_points,
+    ymin=-1,
+    ymax=1,
+    alpha=0.3,
+    linewidth=0.5,
+    label="Inducing point",
 )
 ax.legend()
 ax.set(xlabel=r"$x$", ylabel=r"$f(x)$")
-
-# %%
-# Draw posterior samples
-num_samples = 4
-eps = jax.random.normal(vk(), shape=(m.shape[0], num_samples))
-u_samples = m[:, None] + S @ eps
-
-fig, ax = plt.subplots()
-ax.plot(t, mu, ".", c="red", label="Posterior mean")
-ax.fill_between(t, mu - 3 * std, mu + 3 * std, alpha=0.2)
-
-ax.plot(t, Phi @ u_samples, alpha=0.7)
-fig.show()
-
-# %%
-# Examine basis functions
-# Note: these model deviation from the mean, not the function values directly
-basisfunctions = Phi @ S
-
-plt.plot(t, basisfunctions[:, :50])
 plt.show()
 
 # %%
+Z = inducing_points
+Kmm = kernel.gram(Z).to_dense()
+Lzz = safe_cholesky(Kmm)  # Kmm = Lzz @ Lzz.T
+
+
+def psi(t):
+    x = jnp.asarray(t).reshape(1, -1)
+    Kxz = kernel.cross_covariance(x, Z)
+    return jax.scipy.linalg.solve_triangular(
+        Lzz, Kxz.T, lower=True
+    ).squeeze()  # psi = Lzz^{-1} Kzx
+
+
+t = jnp.linspace(0, 1, 500)
+Psi = jax.vmap(psi)(t)
+
+eps = jax.random.normal(vk(), shape=(NUM_INDUCING,))
+y = Psi @ eps
+plt.plot(t, y)
+plt.title("Posterior samples of latent function")
+plt.xlabel("tau")
