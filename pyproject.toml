@@ -32,6 +32,8 @@ dependencies = [
     "imageio>=2.37.2",
     "corner>=2.2.3",
     "praat-parselmouth>=0.4.7",
+    "scikit-learn>=1.7.2",
+    "gpjax>=0.12.2",
 ]
 
 # [project.optional-dependencies.dev]
