@@ -45,7 +45,7 @@ def pad_waveforms(waveforms, width=None, dtype=jnp.float64):
 
 
 def get_data(n=None, width=None):
-    lf_samples = source.get_lf_samples()[:n]
+    lf_samples = source.get_lf_samples(10_000)[:n]
 
     waveforms = list(get_waveforms(lf_samples))
 
