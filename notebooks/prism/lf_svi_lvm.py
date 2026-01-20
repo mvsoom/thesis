@@ -4,19 +4,24 @@ import gpjax as gpx
 import jax
 import jax.numpy as jnp
 import jax.scipy as jsp
+import numpy as np
 import optax as ox
 from flax import nnx
 from gpjax.dataset import Dataset
 from gpjax.fit import get_batch
 from gpjax.parameters import Parameter
 from matplotlib import pyplot as plt
+from sklearn.manifold import TSNE
+from sklearn.preprocessing import StandardScaler
 
 from prism.pack import NormalizedPACK
 from prism.svi import batch_collapsed_elbo_masked, get_data
 from utils.jax import vk
 
 # %%
-X, y = get_data(n=2000)
+num_train_samples = 2000
+
+X, y = get_data(n=num_train_samples)
 N, WIDTH = X.shape  # Number of waveforms in dataset, max waveform length
 
 dataset = Dataset(X=X, y=y)
@@ -78,6 +83,8 @@ states, histories = jax.vmap(optimize)(keys)
 
 # %%
 plt.plot(histories.T)
+plt.title("ELBO runs during training")
+plt.show()
 
 # %%
 # pick one posterior (e.g. best idx) and rebuild
@@ -95,6 +102,8 @@ opt_posterior = nnx.merge(graphdef, jax.tree.map(lambda x: x[i], states))
 history = histories[i]
 
 plt.plot(history)
+plt.title("ELBO during training (best run)")
+plt.show()
 
 # %%
 print(
@@ -140,7 +149,7 @@ plt.show()
 # Now we test if the learned RKHS is rich enough to reconstruct some test waveforms
 from prism.svi import infer_eps_posterior_single
 
-test_index = 3210
+test_index = 321
 
 mu_eps, Sigma_eps = infer_eps_posterior_single(
     opt_posterior, dataset.X[test_index], dataset.y[test_index]
@@ -197,15 +206,11 @@ mu_eps, Sigma_eps = jax.vmap(
 # %%
 from surrogate import source
 
-lf_samples = source.get_lf_samples()[:2000]
+lf_samples = source.get_lf_samples(10_000)[:num_train_samples]
 
-Oqs = [s["p"]["Oq"] for s in lf_samples]
+oq = np.array([s["p"]["Oq"] for s in lf_samples])
 
 # %%
-
-from sklearn.manifold import TSNE
-from sklearn.preprocessing import StandardScaler
-
 X_latent = StandardScaler().fit_transform(mu_eps)
 
 X_2d = TSNE(
@@ -217,7 +222,7 @@ X_2d = TSNE(
 ).fit_transform(X_latent)
 
 # scatter and color by Oq
-plt.scatter(*X_2d.T, c=Oqs, cmap="viridis")
+plt.scatter(*X_2d.T, c=oq, cmap="viridis")
 plt.colorbar(label="OQ (open quotient)")
 plt.title("t-SNE of inferred latent amplitudes colored by OQ")
 plt.xlabel("t-SNE dim 1")
@@ -267,11 +272,203 @@ plt.legend()
 plt.show()
 
 # %%
+# Posterior covariance matters?
+
+C = Sigma_eps[:100]  # (100,16,16)
+
+diag_energy = np.sum(np.square(np.diagonal(C, axis1=1, axis2=2)))
+total_energy = np.sum(np.square(C))
+offdiag_ratio = 1.0 - diag_energy / total_energy
+
+print("offdiag energy fraction:", offdiag_ratio)
+
+
+def cov_to_corr(S):
+    d = np.sqrt(np.diag(S))
+    return S / (d[:, None] * d[None, :])
+
+
+corrs = np.array([cov_to_corr(S) for S in C])  # (100,16,16)
+mean_corr = np.mean(np.abs(corrs), axis=0)
+
+# ignore diagonal
+mask = ~np.eye(16, dtype=bool)
+print("mean |corr| offdiag:", mean_corr[mask].mean())
+print("max  |corr| offdiag:", mean_corr[mask].max())
+
+ranks = []
+entropies = []
+
+for S in C:
+    w = np.linalg.eigvalsh(S)
+    w = np.clip(w, 1e-12, None)
+    p = w / w.sum()
+    H = -np.sum(p * np.log(p))
+    eff_rank = np.exp(H)
+    ranks.append(eff_rank)
+
+ranks = np.array(ranks)
+
+print("mean effective rank:", ranks.mean())
+print("min / max rank:", ranks.min(), ranks.max())
+
+import matplotlib.pyplot as plt
+
+i = 50
+mu = mu_eps[i]
+S = C[i]
+Sdiag = np.diag(np.diag(S))
+
+x_full = np.random.multivariate_normal(mu, S, size=500)
+x_diag = np.random.multivariate_normal(mu, Sdiag, size=500)
+
+# project onto first two principal directions of full covariance
+w, V = np.linalg.eigh(S)
+U = V[:, -2:]  # top 2 eigendirs
+
+pf = x_full @ U
+pd = x_diag @ U
+
+plt.figure(figsize=(4, 4))
+plt.scatter(pf[:, 0], pf[:, 1], s=5, alpha=0.4, label="full")
+plt.scatter(pd[:, 0], pd[:, 1], s=5, alpha=0.4, label="diag")
+plt.legend()
+plt.title("full vs diag posterior samples")
+plt.show()
+
+
+def kl_full_to_diag(S):
+    D = np.diag(np.diag(S))
+    invD = np.linalg.inv(D)
+    k = S.shape[0]
+    return 0.5 * (
+        np.trace(invD @ S) - k + np.log(np.linalg.det(D) / np.linalg.det(S))
+    )
+
+
+kls = np.array([kl_full_to_diag(S) for S in C])
+
+print("mean KL(full || diag):", kls.mean())
+print("max  KL:", kls.max())
+
+# %%
+# Apply a global whitening transform to the average posterior covariance
+# This establishes a global basis in which covariances are nearly diagonal
+# and there IS such a very good basis
+C = Sigma_eps  # [:100]    # (100,16,16)
+mu = mu_eps  # [:100]     # (100,16)
+
+import numpy as np
+
+# mean covariance
+Cbar = C.mean(axis=0)
+
+# eigendecomposition
+w, V = np.linalg.eigh(Cbar)
+w = np.clip(w, 1e-12, None)
+
+# whitening and unwhitening
+W = V @ np.diag(1.0 / np.sqrt(w)) @ V.T  # whitening
+Wi = V @ np.diag(np.sqrt(w)) @ V.T  # inverse (for decoding later)
+
+
+Cw = np.einsum("ij,njk,kl->nil", W, C, W.T)  # (100,16,16)
+
+diag_energy = np.sum(np.square(np.diagonal(Cw, axis1=1, axis2=2)))
+total_energy = np.sum(np.square(Cw))
+offdiag_ratio = 1.0 - diag_energy / total_energy
+
+print("WHITENED offdiag energy fraction:", offdiag_ratio)
+
+
+def cov_to_corr(S):
+    d = np.sqrt(np.diag(S))
+    return S / (d[:, None] * d[None, :])
+
+
+corrs_w = np.array([cov_to_corr(S) for S in Cw])
+mean_corr_w = np.mean(np.abs(corrs_w), axis=0)
+
+mask = ~np.eye(16, dtype=bool)
+print("WHITENED mean |corr| offdiag:", mean_corr_w[mask].mean())
+print("WHITENED max  |corr| offdiag:", mean_corr_w[mask].max())
+
+ranks_w = []
+
+for S in Cw:
+    w = np.linalg.eigvalsh(S)
+    w = np.clip(w, 1e-12, None)
+    p = w / w.sum()
+    H = -np.sum(p * np.log(p))
+    eff_rank = np.exp(H)
+    ranks_w.append(eff_rank)
+
+ranks_w = np.array(ranks_w)
+
+print("WHITENED mean effective rank:", ranks_w.mean())
+print("WHITENED min / max rank:", ranks_w.min(), ranks_w.max())
+
+
+def kl_full_to_diag(S):
+    D = np.diag(np.diag(S))
+    invD = np.linalg.inv(D)
+    k = S.shape[0]
+    return 0.5 * (
+        np.trace(invD @ S) - k + np.log(np.linalg.det(D) / np.linalg.det(S))
+    )
+
+
+kls_w = np.array([kl_full_to_diag(S) for S in Cw])
+
+print("WHITENED mean KL(full || diag):", kls_w.mean())
+print("WHITENED max  KL:", kls_w.max())
+
+i = 0
+mu0 = mu[i]
+S0 = C[i]
+S0w = Cw[i]
+
+# whitened mean too
+mu0w = W @ mu0
+
+Sdiag = np.diag(np.diag(S0w))
+
+x_full = np.random.multivariate_normal(mu0w, S0w, size=500)
+x_diag = np.random.multivariate_normal(mu0w, Sdiag, size=500)
+
+w, V = np.linalg.eigh(S0w)
+U = V[:, -2:]
+
+pf = x_full @ U
+pd = x_diag @ U
+
+import matplotlib.pyplot as plt
+
+plt.figure(figsize=(4, 4))
+plt.scatter(pf[:, 0], pf[:, 1], s=5, alpha=0.4, label="full (whitened)")
+plt.scatter(pd[:, 0], pd[:, 1], s=5, alpha=0.4, label="diag (whitened)")
+plt.legend()
+plt.title("whitened full vs diag")
+plt.show()
+
+# %%
+# Whiten and center mu_eps and Sigma_eps
+mu0 = mu.mean(axis=0)  # (16,)
+mu_eps_std = (mu - mu0) @ W.T  # (N,16)
+Sigma_eps_std = np.einsum("ij,njk,kl->nil", W, C, W.T)
+
+diag_eps_std = np.diagonal(Sigma_eps_std, axis1=1, axis2=2)
+
+# from eps_std to original:
+# w = w_std @ Wi.T + mu0
+# Sigma = Wi @ Sigma_std @ Wi.T
+
+# %%
 # dump mu_eps as .npz file
-from surrogate import source
-
-lf_samples = source.get_lf_samples()[:2000]
-
-oq = np.array([s["p"]["Oq"] for s in lf_samples])
-
-np.savez("mu_eps_gplvm.npz", mu_eps=mu_eps, oq=oq)
+np.savez(
+    "data/mu_eps_gplvm.npz",
+    mu_eps_std=mu_eps_std,
+    diag_eps_std=diag_eps_std,
+    oq=oq,
+)
+# %%

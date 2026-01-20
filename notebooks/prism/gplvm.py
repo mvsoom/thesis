@@ -20,7 +20,7 @@ data = np.load("./data/mu_eps_gplvm.npz")
 
 
 # Following the GPflow notation we assume this dataset has a shape of `[num_data, output_dim]`
-Y = tf.convert_to_tensor(data["mu_eps"], dtype=default_float())
+Y = tf.convert_to_tensor(data["mu_eps_std"], dtype=default_float())
 oq = data["oq"]
 
 ndata = None
@@ -34,7 +34,7 @@ print(
 )
 
 # %%
-latent_dim = 3  # number of latent dimensions
+latent_dim = 8  # number of latent dimensions
 num_inducing = 50  # number of inducing pts
 num_data = Y.shape[0]  # number of data points
 
@@ -77,14 +77,6 @@ gplvm = gpflow.models.BayesianGPLVM(
     kernel=kernel,
     inducing_variable=inducing_variable,
 )
-# Instead of passing an inducing_variable directly, we can also set the num_inducing_variables argument to an integer, which will randomly pick from the data.
-
-
-# We change the default likelihood variance, which is 1, to 0.01.
-
-# %%
-# gplvm.likelihood.variance.assign(0.01)
-
 
 optimizer = tf.keras.optimizers.Adam(learning_rate=0.01)
 
@@ -99,7 +91,7 @@ def step():
 
 
 history = []
-for it in range(5000):
+for it in range(10_000):
     loss = step()
     history.append(loss.numpy())
     if it % 100 == 0:
@@ -118,6 +110,11 @@ print_summary(gplvm)
 # %%
 print(gplvm.kernel.lengthscales)
 
+# plot inverse lengthscales
+plt.bar(range(latent_dim), 1.0 / gplvm.kernel.lengthscales.numpy())
+plt.xlabel("Latent dimension")
+plt.ylabel("Inverse lengthscale")
+plt.show()
 
 # %%
 # calculate empirical density
@@ -157,14 +154,15 @@ def latent_pair_density(Xmu, Xvar, pair, nx=200, ny=200, pad=0.5):
 X = gplvm.X_data_mean.numpy()
 
 pairs = list(combinations(range(latent_dim), 2))
+pairs = [(0, 1), (1, 5), (0, 5)]
 
 Xmu = gplvm.X_data_mean.numpy()
 Xvar = gplvm.X_data_var.numpy()
 
 fig, ax = plt.subplots(1, len(pairs), figsize=(5 * len(pairs), 4))
 
-showdensity = False
-showscatter = True
+showdensity = True
+showscatter = False  # False#True
 
 for a, pair in zip(np.atleast_1d(ax), pairs):
     if showdensity:
@@ -203,6 +201,35 @@ for q in range(X.shape[1]):
 
 
 # %%
+import plotly.express as px
+
+Xmu = gplvm.X_data_mean.numpy()
+
+i, j, k = 0, 1, 5  # choose any triple
+
+fig = px.scatter_3d(
+    x=Xmu[:, i],
+    y=Xmu[:, j],
+    z=Xmu[:, k],
+    color=oq,  # same array you used in matplotlib
+    color_continuous_scale="Viridis",
+    opacity=0.7,
+)
+
+fig.update_traces(marker=dict(size=2))
+fig.update_layout(
+    scene=dict(
+        xaxis_title=f"latent {i}",
+        yaxis_title=f"latent {j}",
+        zaxis_title=f"latent {k}",
+    ),
+    margin=dict(l=0, r=0, b=0, t=30),
+)
+
+fig.show()
+
+
+# %%
 # UPNEXT
 
 # realizing this is a ~3d manifold
@@ -214,6 +241,8 @@ for q in range(X.shape[1]):
 
 # nice imgs are in ./lvmm_q=2.png and ./lvmm_q=3.png
 
-# next: restarts
+# next: refind good one
+# next: whiten!
 # next: ingest data uncertainty
+# next: jax: restarts etc
 # next: sampling to data
