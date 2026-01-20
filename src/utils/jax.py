@@ -134,3 +134,39 @@ def safe_cholesky(A, jitter=1e-6):
     """Cholesky decomposition with scaled jitter"""
     nuggets = jnp.mean(jnp.diag(A)) * jitter
     return jnp.linalg.cholesky(A + nuggets * jnp.eye(A.shape[-1]))
+
+
+def kl_diag_gauss(mu, var, prior_mu, prior_var):
+    """
+    KL( N(mu,var) || N(prior_mu, prior_var) ) for diagonal covariances, summed over all entries.
+    """
+    mu = jnp.asarray(mu)
+    var = jnp.asarray(var)
+    prior_mu = jnp.asarray(prior_mu)
+    prior_var = jnp.asarray(prior_var)
+
+    var = jnp.clip(var, a_min=1e-18)
+    prior_var = jnp.clip(prior_var, a_min=1e-18)
+
+    t1 = jnp.log(prior_var) - jnp.log(var)
+    t2 = (var + (mu - prior_mu) ** 2) / prior_var
+    return 0.5 * jnp.sum(t1 - 1.0 + t2)
+
+
+def pca_reduce(X: np.ndarray, latent_dim: int) -> np.ndarray:
+    """
+    Linearly reduce the dimensionality of the input points `X` to `latent_dim` dimensions.
+
+    Matches the original PCA projection: covariance of centered data,
+    eigen-decomposition, and projection onto the top components.
+    """
+    if latent_dim > X.shape[1]:
+        raise ValueError("Cannot have more latent dimensions than observed")
+    X = np.asarray(X)
+    X_mean = np.mean(X, axis=0, keepdims=True)
+    X_centered = X - X_mean
+    # Divide by N (not N-1) to match the original covariance definition.
+    X_cov = (X_centered.T @ X_centered) / X.shape[0]
+    _, evecs = np.linalg.eigh(X_cov)
+    W = evecs[:, -latent_dim:]
+    return X_centered @ W
