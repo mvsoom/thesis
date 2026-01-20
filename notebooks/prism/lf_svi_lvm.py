@@ -19,7 +19,7 @@ from prism.svi import batch_collapsed_elbo_masked, get_data
 from utils.jax import vk
 
 # %%
-num_train_samples = 2000
+num_train_samples = 5000
 
 X, y = get_data(n=num_train_samples)
 N, WIDTH = X.shape  # Number of waveforms in dataset, max waveform length
