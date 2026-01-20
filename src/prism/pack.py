@@ -130,8 +130,8 @@ class gpxPACK(gpx.kernels.AbstractKernel):
         self.period = period
 
         # GPJax-tracked parameters
-        self.sigma_b = PositiveReal(jnp.array(sigma_b), tag="sigma_b")
-        self.sigma_c = PositiveReal(jnp.ones(J) * sigma_c, tag="sigma_c")
+        self.sigma_b = PositiveReal(jnp.array(sigma_b))
+        self.sigma_c = PositiveReal(jnp.ones(J) * sigma_c)
 
     def __call__(self, x, y):
         """
@@ -262,8 +262,8 @@ class gpxPACKStable(gpx.kernels.AbstractKernel):
         self.period = period
 
         # GPJax-tracked parameters
-        self.sigma_b = PositiveReal(jnp.array(sigma_b), tag="sigma_b")
-        self.sigma_c = PositiveReal(jnp.ones(J) * sigma_c, tag="sigma_c")
+        self.sigma_b = PositiveReal(jnp.array(sigma_b))
+        self.sigma_c = PositiveReal(jnp.ones(J) * sigma_c)
 
     def __call__(self, x, y):
         """
@@ -370,8 +370,8 @@ class NormalizedPACK(gpx.kernels.AbstractKernel):
 
         self._eps_c = float(eps_c)  # keep c strictly inside (-1, 1)
 
-        self.sigma_a = PositiveReal(jnp.array(sigma_a), tag="sigma_a")
-        self.sigma_b = PositiveReal(jnp.array(sigma_b), tag="sigma_b")
+        self.sigma_a = PositiveReal(jnp.array(sigma_a))
+        self.sigma_b = PositiveReal(jnp.array(sigma_b))
 
         sc = jnp.array(sigma_c)
         if sc.ndim == 0:
@@ -380,7 +380,7 @@ class NormalizedPACK(gpx.kernels.AbstractKernel):
             raise ValueError(
                 f"sigma_c must be scalar or shape ({self.J},), got {sc.shape}"
             )
-        self.sigma_c = PositiveReal(sc, tag="sigma_c")
+        self.sigma_c = PositiveReal(sc)
 
         # precompute normalization constant J_d(1, 0)
         # use the same eps_c convention to avoid boundary grads

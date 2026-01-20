@@ -127,7 +127,7 @@ class gpxPeriodicMatern(gpx.kernels.AbstractKernel):
         self.M = M
 
         # GPJax-tracked parameter
-        self.scale = PositiveReal(jnp.array(scale), tag="scale")
+        self.scale = PositiveReal(jnp.array(scale))
 
     def __call__(self, x, y):
         """
