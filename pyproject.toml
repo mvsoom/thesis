@@ -6,38 +6,36 @@ build-backend = "setuptools.build_meta"
 name            = "bngif"
 version         = "0.0.1"
 description     = "Bayesian nonparametric glottal inverse filtering"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 
-# Modules will be installed with `pip install -e .`
 dependencies = [
-    "matplotlib==3.10.6", # pinned because we pickle plot objects (see next line)
-    "dill==0.4.0",
-    "jax>=0.6",
+    "numpy>=2.0",
+    "scipy>=1.15",
+    "ml-dtypes>=0.5", # be safe wrt jax
+    "jax>=0.9,<0.10", # be safe wrt tfp-nightly
+    "tfp-nightly[jax]>=0.26.0.dev",
     "jaxopt>=0.8.5",
     "distrax>=0.1.5",
-    "setuptools>=68",
-    "pytest>=8.3.5",
-    "nbmake>=1.5.5",
-    "nbstripout>=0.8.1",
+    "tinygp>=0.3.0",
+    "gpjax>=0.12.2",
+    "mpmath>=1.3.0",
+    "sympy>=1.14.0",
+    "dynesty==2.1.5",
     "joblib>=1.5.1",
     "soundfile>=0.13.1",
+    "imageio>=2.37.2",
+    "praat-parselmouth>=0.4.7",
+    "scikit-learn>=1.7.2",
+    "matplotlib>=3.10",
+    "corner>=2.2.3",
+    "tqdm>=4.67.1",
     "papermill>=2.6.0",
     "scrapbook>=0.5.0",
     "jupyter_cache>=1.0.1",
-    "mpmath>=1.3.0",
-    "sympy>=1.14.0",
-    "tinygp>=0.3.0",
-    "dynesty==2.1.5",
-    "tqdm>=4.67.1",
-    "imageio>=2.37.2",
-    "corner>=2.2.3",
-    "praat-parselmouth>=0.4.7",
-    "scikit-learn>=1.7.2",
-    "gpjax>=0.12.2",
+    "pytest>=8.3.5",
+    "nbmake>=1.5.5",
+    "nbstripout>=0.8.1",
 ]
-
-# [project.optional-dependencies.dev]
-# contents = []
 
 [tool.setuptools]
 package-dir = {"" = "src"}
