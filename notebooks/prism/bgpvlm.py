@@ -10,12 +10,14 @@ from gpjax.dataset import Dataset
 from matplotlib import pyplot as plt
 
 from prism.bgplvm import BayesianGPLVM
+from utils import time_this
 from utils.jax import pca_reduce
 
 # %%
 data = np.load("./data/mu_eps_gplvm.npz")
 
 Y = np.asarray(data["mu_eps_std"])
+Yvar = data["diag_eps_std"]
 oq = data["oq"]
 
 ndata = None
@@ -44,13 +46,8 @@ X_var_init = np.ones((num_data, latent_dim))
 # Pick inducing inputs randomly from dataset initialization:
 
 # %%
-np.random.seed(1)  # for reproducibility
+np.random.seed(0)  # for reproducibility
 inducing_variable = np.random.permutation(X_mean_init)[:num_inducing]
-
-
-# We construct a Squared Exponential (SE) kernel operating on the two-dimensional latent space.
-# The `ARD` parameter stands for Automatic Relevance Determination, which in practice means that
-# we learn a different lengthscale for each of the input dimensions. See [Manipulating kernels](../advanced/kernels.ipynb) for more information.
 
 # %%
 lengthscales = np.array([1.0] * latent_dim)
@@ -70,28 +67,42 @@ elbo3 = new_model.elbo(jnp.array(Y))
 print("Initial ELBO (new jax): ", elbo3)
 # Initial ELBO:  -29403677.636068583
 
-D = Dataset(X=jnp.zeros((Y.shape[0], 1)), y=jnp.array(Y))
+D = Dataset(X=Yvar, y=jnp.array(Y))  # just a hack to get Yvar data to model
 
 
 def objective(model, data):
-    return -model.elbo(data.y)
+    return -model.elbo(data.y, obs_var_diag=data.X)
 
 
 # %%
 from gpjax.parameters import Parameter
 
-opt_model, history = gpx.fit(
-    model=new_model,
-    objective=objective,
-    train_data=D,
-    optim=ox.adam(1e-2),
-    num_iters=10_000,  # 584,
-    key=jax.random.PRNGKey(0),
-    batch_size=-1,
-    trainable=Parameter,
-)
+with time_this() as timer:
+    opt_model, history = gpx.fit(
+        model=new_model,
+        objective=objective,
+        train_data=D,
+        optim=ox.adam(1e-2),
+        num_iters=10_000,
+        key=jax.random.PRNGKey(0),
+        batch_size=-1,
+        trainable=Parameter,
+    )
+
+walltime = timer.walltime
+
 # %%
-plt.plot(history)
+plt.plot(-history)
+plt.title("ELBO over iterations")
+plt.show()
+
+print("Optimized ELBO: ", -history[-1])
+
+# %%
+noise_std = np.sqrt(opt_model.sigma2)
+
+print("Learned noise std:", noise_std)
+print("Average data std:", np.std(Y, axis=0).mean())
 
 # %%
 inverse_lengthscale = 1.0 / opt_model.kernel.lengthscale
@@ -216,20 +227,31 @@ fig.update_layout(
 
 fig.show()
 
+# %%
+
 
 # %%
 # UPNEXT
 
-# https://chatgpt.com/c/696f5b23-2bfc-832e-8b40-15f8d902b879
+# CHATS
+# Main chat for the BLR-GMM approximation:
+#   * https://chatgpt.com/c/696bd63f-2888-8330-854f-675fa7c2fc00
+#   * metachat checking formulas (all correct): https://chatgpt.com/c/69710776-b358-8332-b98f-75245446e8c9
+#
+# Main chat for the background-XDGMM:
+#   * https://chatgpt.com/c/6970bbb9-0040-8333-9aba-866530b02a36
 
 # TODO:
-# uninstall GPflow and tensorflow
-# update to latest python and check if this resolves problem with the param transform
-
 # done: refind good one
 # done: whiten!
 # done: jax
-# next: test ingesting data uncertainty
-# next: restarts etc
-# next: sampling to data
+# next: test ingesting data uncertainty => YES
+#  * observation noise sigma from 0.5 to 1.5
+#  * lengthscales identical
+#  * X_var in main directions inflated by factor ~5!
+#  * more outliers in latent space => solve by background Gaussian [https://chatgpt.com/s/t_6970f5efada881918d37b741a59e241f]
+# next: restarts etc => YES: needed
+# next: sampling to data => must embed this in SVI script
 #  * fit 32 GMMs in quantization manner; throw away points in clusters with very low responsibilities
+
+# %%
