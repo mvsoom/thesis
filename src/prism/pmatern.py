@@ -139,7 +139,7 @@ class gpxPeriodicMatern(gpx.kernels.AbstractKernel):
 
         k = PeriodicMatern(
             nu=self.nu,
-            scale=self.scale.value,
+            scale=self.scale,
             period=self.period,
             M=self.M,
         )

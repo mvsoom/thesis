@@ -145,8 +145,8 @@ class gpxPACK(gpx.kernels.AbstractKernel):
             normalized=self.normalized,
             J=self.J,
             period=self.period,
-            sigma_b=self.sigma_b.value,
-            sigma_c=self.sigma_c.value,
+            sigma_b=self.sigma_b,
+            sigma_c=self.sigma_c,
         )
 
         return k.evaluate(t1, t2)
@@ -277,8 +277,8 @@ class gpxPACKStable(gpx.kernels.AbstractKernel):
             t2,
             d=self.d,
             period=self.period,
-            sigma_b=self.sigma_b.value,
-            sigma_c=self.sigma_c.value,
+            sigma_b=self.sigma_b,
+            sigma_c=self.sigma_c,
             normalized=self.normalized,
         )
 
@@ -304,7 +304,8 @@ if __name__ == "__main__":
         rv = prior(t)
         y = rv.sample(key=vk(), sample_shape=(3,))
         ax.plot(t, y.T, alpha=0.7)
-        ax.set_title(k.name)
+        ax.set_title(f"PACK(d={k.d})")
+
 # %%
 if __name__ == "__main__":
     k = gpxPACK(d=2, J=J)
@@ -315,8 +316,6 @@ if __name__ == "__main__":
     k(x, y), ks(x, y)
 
 # %%
-# prism/gpx_pack_normalized.py
-
 from typing import Optional, Sequence
 
 import gpjax as gpx
@@ -398,8 +397,8 @@ class NormalizedPACK(gpx.kernels.AbstractKernel):
         w = 2.0 * jnp.pi / self.period
         delta = t1 - t2
 
-        sb2 = self.sigma_b.value**2
-        sc2 = self.sigma_c.value**2  # (J,)
+        sb2 = self.sigma_b**2
+        sc2 = self.sigma_c**2  # (J,)
 
         S = sb2 + jnp.sum(sc2)  # constant norm^2 of embedding
         dot = sb2 + jnp.sum(sc2 * jnp.cos(w * j * delta))
@@ -414,7 +413,7 @@ class NormalizedPACK(gpx.kernels.AbstractKernel):
         Jd = compute_Jd(self.d, c, s)
         kshape = Jd / self._Jd0
 
-        return (self.sigma_a.value**2) * kshape
+        return (self.sigma_a**2) * kshape
 
 
 if __name__ == "__main__":
