@@ -2,36 +2,93 @@
 set -e
 
 usage() {
-    cat <<EOF
+    cat <<'EOF'
+Readplotly — extract numeric data from Plotly figures inside Jupyter notebooks
+
 Usage:
-  plotly2gnuplot NOTEBOOK.ipynb
-      List all figures, traces, and available numeric fields.
+  readplotly --help
+  readplotly NOTEBOOK.ipynb
+  readplotly [--header] NOTEBOOK.ipynb PLOT
+  readplotly [--header] NOTEBOOK.ipynb PLOT TRACE
+  readplotly [--header] NOTEBOOK.ipynb PLOT TRACE FIELD [FIELD ...]
 
-  plotly2gnuplot NOTEBOOK.ipynb PLOT
-      List all numeric fields of all traces in figure PLOT.
+Inspection mode:
+  readplotly NOTEBOOK.ipynb
 
-  plotly2gnuplot NOTEBOOK.ipynb PLOT TRACE
-      List all numeric fields of TRACE in figure PLOT.
+    Lists all figures found in the notebook, with their traces and all
+    available numeric fields (x, y, marker.color, ...).
 
-  plotly2gnuplot NOTEBOOK.ipynb PLOT TRACE FIELD [FIELD ...]
-      Extract selected numeric fields from TRACE in figure PLOT.
+Selection modes:
+  readplotly NOTEBOOK.ipynb PLOT
 
-Notes:
-  Only figures rendered with fig.show() (default renderer) are supported.
-  Figures rendered with renderer="notebook" are stored as HTML and cannot be parsed.
+    Outputs all numeric fields of all traces in figure PLOT.
+    Columns are concatenated in trace order:
+        trace0.field1 trace0.field2 trace1.field1 trace1.field2 ...
 
-  Numeric fields are detected as Plotly arrays with keys {bdata, dtype}.
-  These appear only when data are passed as NumPy / pandas arrays.
+  readplotly NOTEBOOK.ipynb PLOT TRACE
 
-Examples:
-  plotly2gnuplot nb.ipynb
-  plotly2gnuplot nb.ipynb 0
-  plotly2gnuplot nb.ipynb 1 0
-  plotly2gnuplot nb.ipynb 1 0 x y marker.color
+    Outputs all numeric fields of TRACE in figure PLOT.
+
+  readplotly NOTEBOOK.ipynb PLOT TRACE FIELD ...
+
+    Outputs only the selected numeric fields of TRACE.
+
+Field addressing:
+  Fields are addressed by dotted paths, for example:
+      x
+      y
+      z
+      marker.color
+      marker.size
+
+Header row:
+  With --header, a commented header line is printed:
+
+      # trace0.x trace0.y trace1.x trace1.y
+
+  Useful for gnuplot with:
+      set key autotitle columnhead
+
+Gnuplot examples:
+
+  Simple line plot:
+      plot "< ./readplotly nb.ipynb 1 0 x y" w l
+
+  Scatter with color:
+      plot "< ./readplotly nb.ipynb 1 0 x y marker.color" \
+           using 1:2:3 w p pt 7 lc palette
+
+  Multiple traces:
+      plot "< ./readplotly nb.ipynb 0" using 1:2 w l, "" using 3:4 w l
+
+Important notes:
+
+  • Only figures rendered with fig.show() (default renderer) are supported.
+    Figures rendered with fig.show(renderer="notebook") are stored only as HTML
+    and cannot be parsed.
+
+  • Numeric fields are detected as Plotly binary arrays with keys {bdata, dtype}.
+    These usually appear only when data are passed as NumPy arrays or pandas Series.
+
+    Recommended:
+        fig = px.scatter(..., color=np.array(...))
+
+    Not recommended:
+        fig = px.scatter(..., color=[...])
+
+  • All extracted columns are printed as plain whitespace-separated numbers,
+    ready for gnuplot or further Unix processing.
+
 EOF
 }
 
-if [ "$1" = "--help" ] || [ "$#" -eq 0 ]; then
+header=0
+if [ "$1" = "--header" ]; then
+    header=1
+    shift
+fi
+
+if [ "$#" -eq 0 ] || [ "$1" = "--help" ]; then
     usage
     exit 0
 fi
@@ -61,6 +118,84 @@ figs_jq='
   | .data["application/vnd.plotly.v1+json"]?
 ]
 '
+
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+
+dtype_to_od() {
+    case "$1" in
+        f8) echo "f8 8" ;;
+        f4) echo "f4 4" ;;
+        i8) echo "d8 8" ;;
+        i4) echo "d4 4" ;;
+        u1) echo "u1 1" ;;
+        *)  echo "" ;;
+    esac
+}
+
+field_to_getpath_json() {
+    jq -cn --arg s "$1" '$s | split(".")'
+}
+
+extract_column() {
+    local trace_file="$1"
+    local field="$2"
+    local out="$3"
+
+    local pjson
+    pjson=$(field_to_getpath_json "$field")
+
+    local node_type
+    node_type=$(jq -r --argjson p "$pjson" 'getpath($p) | type' "$trace_file")
+
+    if [ "$node_type" = "null" ]; then
+        echo "Unknown field: $field" >&2
+        exit 1
+    fi
+
+    if [ "$node_type" = "object" ]; then
+        local has_bdata has_dtype
+        has_bdata=$(jq -r --argjson p "$pjson" 'getpath($p) | has("bdata")' "$trace_file")
+        has_dtype=$(jq -r --argjson p "$pjson" 'getpath($p) | has("dtype")' "$trace_file")
+
+        if [ "$has_bdata" != "true" ] || [ "$has_dtype" != "true" ]; then
+            echo "Field is not a numeric Plotly array (missing bdata/dtype): $field" >&2
+            exit 1
+        fi
+
+        local dtype spec od_t w
+        dtype=$(jq -r --argjson p "$pjson" 'getpath($p).dtype' "$trace_file")
+        spec=$(dtype_to_od "$dtype")
+        if [ -z "$spec" ]; then
+            echo "Unsupported dtype '$dtype' for field: $field" >&2
+            exit 1
+        fi
+        od_t=${spec% *}
+        w=${spec#* }
+
+        jq -r --argjson p "$pjson" 'getpath($p).bdata' "$trace_file" \
+        | base64 -d \
+        | od -v -An -t "$od_t" -w"$w" \
+        > "$out"
+        return 0
+    fi
+
+    if [ "$node_type" = "array" ]; then
+        jq -r --argjson p "$pjson" 'getpath($p)[]?' "$trace_file" > "$out"
+        return 0
+    fi
+
+    echo "Field is not array-like: $field (type=$node_type)" >&2
+    exit 1
+}
+
+list_fields_for_trace() {
+    local trace_file="$1"
+    jq -r "
+      $walk_jq
+      . | walkpaths([]) | .[]
+    " "$trace_file"
+}
 
 if [ "$#" -eq 0 ]; then
     jq -r "
@@ -93,29 +228,54 @@ if ! [[ "$plot" =~ ^[0-9]+$ ]]; then
     exit 1
 fi
 
-fig=$(jq -r --argjson k "$plot" "
+fig_json="$tmp/fig.json"
+jq -r --argjson k "$plot" "
   $figs_jq
-  | .[ \$k ]
-" "$nb")
+  | .[\$k]
+" "$nb" > "$fig_json"
 
-if [ "$fig" = "null" ]; then
+if [ ! -s "$fig_json" ] || [ "$(cat "$fig_json")" = "null" ]; then
     echo "Invalid plot index: $plot" >&2
     exit 1
 fi
 
+trace_count=$(jq -r '.data | length' "$fig_json")
+
 if [ "$#" -eq 0 ]; then
-    jq -r "
-      $walk_jq
-      .data
-      | to_entries[]
-      | \"trace \(.key):\"
-      , (
-          .value
-          | walkpaths([])
-          | map(\"    \" + .)
-          | .[]
-        )
-    " <<<"$fig"
+    col_files=()
+    col_names=()
+
+    i=0
+    while [ "$i" -lt "$trace_count" ]; do
+        trace_file="$tmp/trace_$i.json"
+        jq -r --argjson k "$i" '.data[$k]' "$fig_json" > "$trace_file"
+
+        fields=$(list_fields_for_trace "$trace_file")
+        while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            out="$tmp/col_${i}_${f}.txt"
+            extract_column "$trace_file" "$f" "$out"
+            col_files+=("$out")
+            col_names+=("trace${i}.${f}")
+        done <<<"$fields"
+
+        i=$((i+1))
+    done
+
+    if [ "${#col_files[@]}" -eq 0 ]; then
+        echo "No numeric fields found in plot $plot" >&2
+        exit 1
+    fi
+
+    if [ "$header" -eq 1 ]; then
+        printf "#"
+        for n in "${col_names[@]}"; do
+            printf " %s" "$n"
+        done
+        printf "\n"
+    fi
+
+    paste "${col_files[@]}"
     exit 0
 fi
 
@@ -127,24 +287,60 @@ if ! [[ "$trace" =~ ^[0-9]+$ ]]; then
     exit 1
 fi
 
-tr=$(jq -r --argjson k "$trace" '
-  .data[ $k ]
-' <<<"$fig")
-
-if [ "$tr" = "null" ]; then
+if [ "$trace" -ge "$trace_count" ]; then
     echo "Invalid trace index: $trace" >&2
     exit 1
 fi
 
+trace_file="$tmp/trace.json"
+jq -r --argjson k "$trace" '.data[$k]' "$fig_json" > "$trace_file"
+
 if [ "$#" -eq 0 ]; then
-    jq -r "
-      $walk_jq
-      walkpaths([])
-      | .[]
-    " <<<"$tr"
+    col_files=()
+    col_names=()
+
+    fields=$(list_fields_for_trace "$trace_file")
+    while IFS= read -r f; do
+        [ -z "$f" ] && continue
+        out="$tmp/col_$f.txt"
+        extract_column "$trace_file" "$f" "$out"
+        col_files+=("$out")
+        col_names+=("$f")
+    done <<<"$fields"
+
+    if [ "${#col_files[@]}" -eq 0 ]; then
+        echo "No numeric fields found in plot $plot trace $trace" >&2
+        exit 1
+    fi
+
+    if [ "$header" -eq 1 ]; then
+        printf "#"
+        for n in "${col_names[@]}"; do
+            printf " %s" "$n"
+        done
+        printf "\n"
+    fi
+
+    paste "${col_files[@]}"
     exit 0
 fi
 
-fields=("$@")
+col_files=()
+col_names=()
 
-echo "TODO: gnuplot emission here"
+for f in "$@"; do
+    out="$tmp/col_req_$f.txt"
+    extract_column "$trace_file" "$f" "$out"
+    col_files+=("$out")
+    col_names+=("$f")
+done
+
+if [ "$header" -eq 1 ]; then
+    printf "#"
+    for n in "${col_names[@]}"; do
+        printf " %s" "$n"
+    done
+    printf "\n"
+fi
+
+paste "${col_files[@]}"
