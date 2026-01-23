@@ -4,6 +4,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 from flax import struct
+from jax.experimental import checkify
 from jax.tree_util import DictKey, GetAttrKey, SequenceKey
 
 _KEY = jax.random.PRNGKey(int(time.time_ns()) % (2**32 - 1))
@@ -153,7 +154,7 @@ def kl_diag_gauss(mu, var, prior_mu, prior_var):
     return 0.5 * jnp.sum(t1 - 1.0 + t2)
 
 
-def pca_reduce(X: np.ndarray, latent_dim: int) -> np.ndarray:
+def pca_reduce(X: jnp.ndarray, latent_dim: int) -> jnp.ndarray:
     """
     Linearly reduce the dimensionality of the input points `X` to `latent_dim` dimensions.
 
@@ -162,11 +163,26 @@ def pca_reduce(X: np.ndarray, latent_dim: int) -> np.ndarray:
     """
     if latent_dim > X.shape[1]:
         raise ValueError("Cannot have more latent dimensions than observed")
-    X = np.asarray(X)
-    X_mean = np.mean(X, axis=0, keepdims=True)
+    X = jnp.asarray(X)
+    X_mean = jnp.mean(X, axis=0, keepdims=True)
     X_centered = X - X_mean
     # Divide by N (not N-1) to match the original covariance definition.
     X_cov = (X_centered.T @ X_centered) / X.shape[0]
-    _, evecs = np.linalg.eigh(X_cov)
+    _, evecs = jnp.linalg.eigh(X_cov)
     W = evecs[:, -latent_dim:]
     return X_centered @ W
+
+
+def nocheck(f):
+    checked = checkify.checkify(f, errors=checkify.user_checks)
+
+    def wrapped(*args, **kwargs):
+        err, out = checked(*args, **kwargs)
+        # DO NOT call err.throw()
+        return out
+
+    return wrapped
+
+
+def symmetrize(A):
+    return 0.5 * (A + jnp.swapaxes(A, -1, -2))

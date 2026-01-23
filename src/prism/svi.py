@@ -4,10 +4,12 @@ import jax
 import jax.numpy as jnp
 import jax.scipy as jsp
 import numpy as np
+from flax import nnx
 from tqdm import tqdm
 
 from prism.pack import NormalizedPACK
 from surrogate import source
+from utils.jax import safe_cholesky
 
 
 def warp_time(t_ms, period_ms):
@@ -18,11 +20,12 @@ def dewarp_time(tau, period_ms):
     return tau * period_ms
 
 
-def get_waveforms(lf_samples):
+def extract_data(lf_samples):
     for s in tqdm(lf_samples):
         tau = warp_time(s["t"], s["p"]["T0"])
         du = s["u"]
-        yield tau, du
+        oq = s["p"]["Oq"]
+        yield tau, du, oq
 
 
 def pad_waveforms(waveforms, width=None, dtype=jnp.float64):
@@ -47,10 +50,13 @@ def pad_waveforms(waveforms, width=None, dtype=jnp.float64):
 def get_data(n=None, width=None):
     lf_samples = source.get_lf_samples(10_000)[:n]
 
-    waveforms = list(get_waveforms(lf_samples))
+    triples = list(extract_data(lf_samples))
+
+    waveforms = [(tau, du) for tau, du, oq in triples]
+    oq = np.array([oq for _, _, oq in triples])
 
     X, y = pad_waveforms(waveforms, width=width)
-    return X, y
+    return X, y, oq
 
 
 def collapsed_elbo_masked(q, t, y, jitter=1e-6):
@@ -153,7 +159,7 @@ def batch_collapsed_elbo_masked(q, data, I_total):
 
 
 if __name__ == "__main__":
-    X, y = get_data(n=20)
+    X, y, oq = get_data(n=20)
     kernel = NormalizedPACK(d=1)
 
     NUM_INDUCING = 32
@@ -195,8 +201,15 @@ if __name__ == "__main__":
         print("  Our masked ELBO:", our_elbo)
 
 # %%
-import jax.numpy as jnp
+def pick_best(states, elbo_histories, q):
+    i = int(np.nanargmax(np.array([h[-1] for h in elbo_histories])))
 
+    graphdef, _ = nnx.split(q)
+
+    opt_posterior = nnx.merge(graphdef, jax.tree.map(lambda x: x[i], states))
+    history = elbo_histories[i]
+
+    return opt_posterior, history
 
 def infer_eps_posterior_single(q, t_row, y_row, jitter=1e-6):
     """
@@ -251,3 +264,130 @@ def infer_eps_posterior_single(q, t_row, y_row, jitter=1e-6):
 
     return mu_eps, Sigma_eps
 
+
+def do_prism(q, dataset, device=jax.devices("cpu")[0]):
+    """Calculate the amplitude posterior for all waveforms in dataset, thereby refracting the dataset like a prism into latent space"""
+    with jax.default_device(device):
+        mu_eps, Sigma_eps = jax.vmap(
+            infer_eps_posterior_single,
+            in_axes=(None, 0, 0),
+        )(q, dataset.X, dataset.y)
+    return mu_eps, Sigma_eps
+
+
+def gp_posterior_mean_from_eps(q, t_star, mu_eps, jitter=1e-6):
+    """
+    GP posterior mean at t_star for ONE waveform,
+    given inferred mu_eps.
+
+    t_star : [T] query points
+    mu_eps : [M]
+    """
+
+    kernel = q.posterior.prior.kernel
+    Z = q.inducing_inputs
+
+    # Kzz and its Cholesky
+    Kzz = kernel.gram(Z).to_dense()
+    Kzz = Kzz + jitter * jnp.eye(Z.shape[0])
+    Lzz = jnp.linalg.cholesky(Kzz)
+
+    # E[u | y]
+    u_mean = Lzz @ mu_eps  # [M]
+
+    # K_{t*Z}
+    t_star = t_star[:, None]
+    KtZ = kernel.cross_covariance(t_star, Z)  # [T,M]
+
+    # posterior mean
+    f_mean = KtZ @ jsp.linalg.solve(Kzz, u_mean)
+
+    return f_mean.squeeze()
+
+
+def svi_basis(q, t):
+    kernel = q.posterior.prior.kernel
+    Z = q.inducing_inputs.value
+
+    Kmm = kernel.gram(Z).to_dense()
+    Lzz = safe_cholesky(Kmm)  # Kmm = Lzz @ Lzz.T
+
+    x = jnp.asarray(t).reshape(1, -1)
+    Kxz = kernel.cross_covariance(x, Z)
+    return jax.scipy.linalg.solve_triangular(
+        Lzz, Kxz.T, lower=True
+    ).squeeze()  # psi = Lzz^{-1} Kzx
+
+
+# %%
+def whitening_from_cov(Sigma_bar, eps=1e-12):
+    w, V = jnp.linalg.eigh(Sigma_bar)
+    w = jnp.clip(w, eps, None)
+    W = V @ jnp.diag(1.0 / jnp.sqrt(w)) @ V.T
+    Wi = V @ jnp.diag(jnp.sqrt(w)) @ V.T
+    return W, Wi
+
+
+def make_whitener(mu_eps, Sigma_eps):
+    """
+    Build whitening / unwhitening closures from a dataset of (mu_eps, Sigma_eps).
+
+    Returns:
+        whiten(eps, Sigma)   -> (eps_w, Sigma_w)
+        unwhiten(eps_w, Sigma_w) -> (eps, Sigma)
+        offdiag_energy (diagnostic)
+    """
+    mu0 = mu_eps.mean(axis=0)
+    Sigma_bar = Sigma_eps.mean(axis=0)
+
+    W, Wi = whitening_from_cov(Sigma_bar)
+
+    def whiten_fn(mu, Sigma):
+        mu_w = (mu - mu0) @ W.T
+        Sigma_w = jnp.einsum("ij,njk,kl->nil", W, Sigma, W.T)
+        return mu_w, Sigma_w
+
+    def unwhiten_fn(mu_w, Sigma_w):
+        mu = mu_w @ Wi.T + mu0
+        Sigma = jnp.einsum("ij,njk,kl->nil", Wi, Sigma_w, Wi.T)
+        return mu, Sigma
+
+    return whiten_fn, unwhiten_fn
+
+
+def offdiag_energy_fraction(C):
+    diag = jnp.diagonal(C, axis1=1, axis2=2)
+    diag_energy = jnp.sum(diag * diag)
+    total_energy = jnp.sum(C * C)
+    return 1.0 - diag_energy / total_energy
+
+
+# %%
+def latent_pair_density(Xmu, Xvar, pair, nx=200, ny=200, pad=0.5):
+    i, j = pair
+    mu = Xmu[:, [i, j]]  # (N,2)
+    var = Xvar[:, [i, j]]  # (N,2)
+
+    xmin, xmax = mu[:, 0].min() - pad, mu[:, 0].max() + pad
+    ymin, ymax = mu[:, 1].min() - pad, mu[:, 1].max() + pad
+
+    xs = np.linspace(xmin, xmax, nx)
+    ys = np.linspace(ymin, ymax, ny)
+    XX, YY = np.meshgrid(xs, ys)
+    grid = np.stack([XX.ravel(), YY.ravel()], axis=1)
+
+    logp = np.full(grid.shape[0], -np.inf)
+
+    for n in range(mu.shape[0]):
+        diff = grid - mu[n]
+        invvar = 1.0 / var[n]
+        quad = diff[:, 0] ** 2 * invvar[0] + diff[:, 1] ** 2 * invvar[1]
+        logdet = np.log(var[n]).sum()
+        lp = -0.5 * (quad + logdet + 2 * np.log(2 * np.pi))
+        logp = np.logaddexp(logp, lp)
+
+    logp -= np.log(mu.shape[0])
+    dens = np.exp(logp).reshape(ny, nx)
+
+    extent = [xmin, xmax, ymin, ymax]
+    return dens, extent

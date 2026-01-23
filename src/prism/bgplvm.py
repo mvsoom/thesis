@@ -203,9 +203,7 @@ class BayesianGPLVM(nnx.Module):
 
         psi0, psi1, psi2 = psi_stats_rbf_ard(X_mu, X_var, Z, self.kernel)
 
-        Kuu = self.kernel.gram(Z)
-        if hasattr(Kuu, "to_dense"):
-            Kuu = Kuu.to_dense()
+        Kuu = self.kernel.gram(Z).to_dense()
         Kuu = add_jitter(Kuu, self.jitter)
 
         L = safe_cholesky(Kuu, self.jitter)
