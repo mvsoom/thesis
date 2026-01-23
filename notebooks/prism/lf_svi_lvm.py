@@ -21,7 +21,7 @@ from utils.jax import vk
 # %%
 num_train_samples = 5000
 
-X, y = get_data(n=num_train_samples)
+X, y, oq = get_data(n=num_train_samples)
 N, WIDTH = X.shape  # Number of waveforms in dataset, max waveform length
 
 dataset = Dataset(X=X, y=y)
@@ -42,28 +42,37 @@ NUM_INDUCING = 16
 meanf = gpx.mean_functions.Zero()
 likelihood = gpx.likelihoods.Gaussian(num_datapoints=WIDTH)
 prior = gpx.gps.Prior(mean_function=meanf, kernel=kernel)
-p = prior * likelihood
+posterior = prior * likelihood
 
-batch_size = 32
-num_iters = 2000
-num_restarts = 10
 
-lr = 0.001
+def get_variational_model(z=None):
+    if z is None:
+        z = jnp.zeros((num_inducing_svi, 1))
 
-key = vk()
-keys = jax.random.split(key, num_restarts)
+    q = gpx.variational_families.CollapsedVariationalGaussian(
+        posterior=posterior, inducing_inputs=z
+    )
+    return q
+
+
+batch_size = 256
+num_iters = 5000
+num_restarts = 1
+
+lr = 1e-3
+
+master_key, subkey = jax.random.split(master_key)
+keys = jax.random.split(subkey, num_restarts)
 
 
 def optimize(key):
     key, subkey = jax.random.split(key)
 
     z = jax.random.uniform(
-        subkey, shape=(NUM_INDUCING, 1), minval=0.0, maxval=1.0
+        subkey, shape=(num_inducing_svi, 1), minval=0.0, maxval=1.0
     )
 
-    q = gpx.variational_families.CollapsedVariationalGaussian(
-        posterior=p, inducing_inputs=z
-    )
+    q = get_variational_model(z)
 
     opt_posterior, history = gpx.fit(
         model=q,
@@ -79,42 +88,31 @@ def optimize(key):
     return nnx.state(opt_posterior), history
 
 
-states, histories = jax.vmap(optimize)(keys)
+with time_this() as timer:
+    states, histories = jax.vmap(optimize)(keys)
 
-# %%
-plt.plot(histories.T)
+plt.plot(-histories.T)
 plt.title("ELBO runs during training")
 plt.show()
 
 # %%
-# pick one posterior (e.g. best idx) and rebuild
+# pick best run
+opt_posterior, history = pick_best(states, histories, get_variational_model())
 
-i = int(jnp.nanargmin(jnp.array([h[-1] for h in histories])))  # best elbo
-
-graphdef, _ = nnx.split(
-    gpx.variational_families.CollapsedVariationalGaussian(
-        posterior=p,
-        inducing_inputs=jnp.zeros((NUM_INDUCING, 1)),
-    )
-)
-
-opt_posterior = nnx.merge(graphdef, jax.tree.map(lambda x: x[i], states))
-history = histories[i]
-
-plt.plot(history)
+plt.plot(-history)
 plt.title("ELBO during training (best run)")
 plt.show()
 
 # %%
 print(
     "Observation sigma_noise:",
-    opt_posterior.posterior.likelihood.obs_stddev.value,
+    opt_posterior.posterior.likelihood.obs_stddev[...],
 )
 
 # %%
 from utils.jax import safe_cholesky
 
-Z = opt_posterior.inducing_inputs.value
+Z = opt_posterior.inducing_inputs
 Kmm = opt_posterior.posterior.prior.kernel.gram(Z).to_dense()
 Lzz = safe_cholesky(Kmm)  # Kmm = Lzz @ Lzz.T
 
@@ -135,6 +133,7 @@ y = Psi @ eps
 plt.plot(t, y)
 plt.title("Samples of learned latent function distribution")
 plt.xlabel("tau")
+plt.show()
 # This is a prior draw from the learned RKHS subspace, not data-like yet.
 # It answers: What does a typical GP draw look like under the learned kernel?
 # expected to look generic and smooth
@@ -198,17 +197,13 @@ plt.plot(t, f_mean, label="Posterior mean")
 plt.show()
 
 # %%
-mu_eps, Sigma_eps = jax.vmap(
-    infer_eps_posterior_single,
-    in_axes=(None, 0, 0),
-)(opt_posterior, dataset.X, dataset.y)
+# Save GPU memory
+with jax.default_device(jax.devices("cpu")[0]):
+    mu_eps, Sigma_eps = jax.vmap(
+        infer_eps_posterior_single,
+        in_axes=(None, 0, 0),
+    )(opt_posterior, dataset.X, dataset.y)
 
-# %%
-from surrogate import source
-
-lf_samples = source.get_lf_samples(10_000)[:num_train_samples]
-
-oq = np.array([s["p"]["Oq"] for s in lf_samples])
 
 # %%
 X_latent = StandardScaler().fit_transform(mu_eps)
@@ -237,16 +232,15 @@ plt.title("Histogram of trace of posterior covariance Sigma_eps")
 # %%
 # Let us first get a scree plot of data resampled to same grid to get an idea of underlying linear dimension
 # resample all samples to a common tau grid
-import numpy as np
 from tqdm import tqdm
 
-from prism.svi import get_waveforms
+from prism.svi import extract_data
 
 N_tau = WIDTH
 tau_grid = np.linspace(0.0, 1.0, N_tau)
 
 du_tau = []
-for s_tau, s_du in tqdm(list(get_waveforms(lf_samples))):
+for s_tau, s_du in tqdm(list(extract_data(lf_samples))):
     du_tau.append(np.interp(tau_grid, s_tau, s_du))
 
 # %%

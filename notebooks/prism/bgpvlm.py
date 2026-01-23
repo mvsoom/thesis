@@ -233,21 +233,13 @@ fig.show()
 # %%
 # UPNEXT
 
-# CHATS
-# Main chat for the BLR-GMM approximation:
-#   * https://chatgpt.com/c/696bd63f-2888-8330-854f-675fa7c2fc00
-#   * metachat checking formulas (all correct): https://chatgpt.com/c/69710776-b358-8332-b98f-75245446e8c9
-#
-# Main chat for the background-XDGMM:
-#   * https://chatgpt.com/c/6970bbb9-0040-8333-9aba-866530b02a36
-
 # TODO:
 # done: refind good one
 # done: whiten!
 # done: jax
 # next: test ingesting data uncertainty => YES
 #  * observation noise sigma from 0.5 to 1.5
-#  * lengthscales identical
+#  * lengthscales identicalS
 #  * X_var in main directions inflated by factor ~5!
 #  * more outliers in latent space => solve by background Gaussian [https://chatgpt.com/s/t_6970f5efada881918d37b741a59e241f]
 # next: restarts etc => YES: needed
