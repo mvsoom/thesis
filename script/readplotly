@@ -1,0 +1,150 @@
+#!/usr/bin/env bash
+set -e
+
+usage() {
+    cat <<EOF
+Usage:
+  plotly2gnuplot NOTEBOOK.ipynb
+      List all figures, traces, and available numeric fields.
+
+  plotly2gnuplot NOTEBOOK.ipynb PLOT
+      List all numeric fields of all traces in figure PLOT.
+
+  plotly2gnuplot NOTEBOOK.ipynb PLOT TRACE
+      List all numeric fields of TRACE in figure PLOT.
+
+  plotly2gnuplot NOTEBOOK.ipynb PLOT TRACE FIELD [FIELD ...]
+      Extract selected numeric fields from TRACE in figure PLOT.
+
+Notes:
+  Only figures rendered with fig.show() (default renderer) are supported.
+  Figures rendered with renderer="notebook" are stored as HTML and cannot be parsed.
+
+  Numeric fields are detected as Plotly arrays with keys {bdata, dtype}.
+  These appear only when data are passed as NumPy / pandas arrays.
+
+Examples:
+  plotly2gnuplot nb.ipynb
+  plotly2gnuplot nb.ipynb 0
+  plotly2gnuplot nb.ipynb 1 0
+  plotly2gnuplot nb.ipynb 1 0 x y marker.color
+EOF
+}
+
+if [ "$1" = "--help" ] || [ "$#" -eq 0 ]; then
+    usage
+    exit 0
+fi
+
+nb="$1"
+shift
+
+if [ ! -f "$nb" ]; then
+    echo "File not found: $nb" >&2
+    exit 1
+fi
+
+walk_jq='
+def walkpaths($p):
+  if type == "object" then
+    if has("bdata") and has("dtype") then
+      [$p | join(".")]
+    else
+      [ keys[] as $k | .[$k] | walkpaths($p + [$k]) ] | add
+    end
+  else empty end;
+'
+
+figs_jq='
+[
+  .cells[].outputs[]?
+  | .data["application/vnd.plotly.v1+json"]?
+]
+'
+
+if [ "$#" -eq 0 ]; then
+    jq -r "
+      $walk_jq
+      $figs_jq
+      | to_entries[]
+      | . as \$fig
+      | \"figure \(\$fig.key): \\\"\(\$fig.value.layout.title.text // \"\")\\\" (\(\$fig.value.data | length) traces)\"
+      , (
+          \$fig.value.data
+          | to_entries[]
+          | . as \$tr
+          | \"    trace \(\$tr.key): \(\$tr.value.name // \"\")\"
+          , (
+              \$tr.value
+              | walkpaths([])
+              | map(\"        field: \" + .)
+              | .[]
+            )
+        )
+    " "$nb"
+    exit 0
+fi
+
+plot="$1"
+shift
+
+if ! [[ "$plot" =~ ^[0-9]+$ ]]; then
+    echo "Plot index must be an integer" >&2
+    exit 1
+fi
+
+fig=$(jq -r --argjson k "$plot" "
+  $figs_jq
+  | .[ \$k ]
+" "$nb")
+
+if [ "$fig" = "null" ]; then
+    echo "Invalid plot index: $plot" >&2
+    exit 1
+fi
+
+if [ "$#" -eq 0 ]; then
+    jq -r "
+      $walk_jq
+      .data
+      | to_entries[]
+      | \"trace \(.key):\"
+      , (
+          .value
+          | walkpaths([])
+          | map(\"    \" + .)
+          | .[]
+        )
+    " <<<"$fig"
+    exit 0
+fi
+
+trace="$1"
+shift
+
+if ! [[ "$trace" =~ ^[0-9]+$ ]]; then
+    echo "Trace index must be an integer" >&2
+    exit 1
+fi
+
+tr=$(jq -r --argjson k "$trace" '
+  .data[ $k ]
+' <<<"$fig")
+
+if [ "$tr" = "null" ]; then
+    echo "Invalid trace index: $trace" >&2
+    exit 1
+fi
+
+if [ "$#" -eq 0 ]; then
+    jq -r "
+      $walk_jq
+      walkpaths([])
+      | .[]
+    " <<<"$tr"
+    exit 0
+fi
+
+fields=("$@")
+
+echo "TODO: gnuplot emission here"
