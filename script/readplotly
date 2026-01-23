@@ -130,10 +130,15 @@ dtype_to_od() {
         f4) echo "f4 4" ;;
         i8) echo "d8 8" ;;
         i4) echo "d4 4" ;;
+        i2) echo "d2 2" ;;
+        i1) echo "d1 1" ;;
+        u4) echo "u4 4" ;;
+        u2) echo "u2 2" ;;
         u1) echo "u1 1" ;;
         *)  echo "" ;;
     esac
 }
+
 
 field_to_getpath_json() {
     jq -cn --arg s "$1" '$s | split(".")'
