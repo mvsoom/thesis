@@ -12,6 +12,8 @@ data/*
 
 **.dat
 
+**.chats
+
 experiments/**/.jupyter_cache/
 experiments/**/runs/
 experiments/**/runs.csv
