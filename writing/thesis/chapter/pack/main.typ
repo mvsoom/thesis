@@ -30,6 +30,20 @@ Not a priori better I think cos DGF has non-horizontal asymptotes usually for ha
 
 */
 
+/*
+
+Writeup
+
+- Why PRISM
+- Scaling and batching aspect
+- Comparison to kernel PCA
+- MoPPCA
+- Objective to be optimized
+
+- What kind of distance between waveforms is induced?
+
+*/
+
 = The periodic arc cosine kernel
 <chapter:pack>
 
