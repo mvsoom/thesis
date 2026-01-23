@@ -116,8 +116,10 @@ figs_jq='
 [
   .cells[].outputs[]?
   | .data["application/vnd.plotly.v1+json"]?
+  | select(.data | length > 0)
 ]
 '
+
 
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
