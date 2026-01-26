@@ -20,12 +20,20 @@ def dewarp_time(tau, period_ms):
     return tau * period_ms
 
 
-def extract_data(lf_samples):
+def extract_train_data(lf_samples):
     for s in tqdm(lf_samples):
         tau = warp_time(s["t"], s["p"]["T0"])
         du = s["u"]
         oq = s["p"]["Oq"]
         yield tau, du, oq
+
+def extract_test_data(lf_samples):
+    for s in tqdm(lf_samples):
+        tau = warp_time(s["t"], s["p"]["T0"])
+        du = s["u"]
+        log_prob_u = s["log_prob_u"]
+        if np.isfinite(log_prob_u):
+            yield tau, du, log_prob_u
 
 
 def pad_waveforms(waveforms, width=None, dtype=jnp.float64):
@@ -47,16 +55,29 @@ def pad_waveforms(waveforms, width=None, dtype=jnp.float64):
     return jnp.array(X, dtype=dtype), jnp.array(y, dtype=dtype)
 
 
-def get_data(n=None, width=None):
-    lf_samples = source.get_lf_samples(10_000)[:n]
+def get_train_data(n=None, width=None, offset=0):
+    lf_samples = source.get_lf_samples(10_000)[offset : offset + n]
 
-    triples = list(extract_data(lf_samples))
+    triples = list(extract_train_data(lf_samples))
 
     waveforms = [(tau, du) for tau, du, oq in triples]
     oq = np.array([oq for _, _, oq in triples])
 
     X, y = pad_waveforms(waveforms, width=width)
+
     return X, y, oq
+
+def get_test_data(n=None, width=None, offset=0):
+    lf_samples = source.get_lf_samples(10_000)[offset : offset + n]
+
+    triples = list(extract_test_data(lf_samples))
+
+    waveforms = [(tau, du) for tau, du, _ in triples]
+    log_prob_u = np.array([oq for _, _, oq in triples])
+
+    X, y = pad_waveforms(waveforms, width=width)
+
+    return np.array(X), np.array(y), log_prob_u
 
 
 def collapsed_elbo_masked(q, t, y, jitter=1e-6):
@@ -159,7 +180,7 @@ def batch_collapsed_elbo_masked(q, data, I_total):
 
 
 if __name__ == "__main__":
-    X, y, oq = get_data(n=20)
+    X, y, oq = get_train_data(n=20)
     kernel = NormalizedPACK(d=1)
 
     NUM_INDUCING = 32

@@ -12,7 +12,7 @@ data/*
 
 **.dat
 
-**.chats
+**.chat
 
 experiments/**/.jupyter_cache/
 experiments/**/runs/

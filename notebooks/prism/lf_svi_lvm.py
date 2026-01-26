@@ -15,13 +15,13 @@ from sklearn.manifold import TSNE
 from sklearn.preprocessing import StandardScaler
 
 from prism.pack import NormalizedPACK
-from prism.svi import batch_collapsed_elbo_masked, get_data
+from prism.svi import batch_collapsed_elbo_masked, get_train_data
 from utils.jax import vk
 
 # %%
 num_train_samples = 5000
 
-X, y, oq = get_data(n=num_train_samples)
+X, y, oq = get_train_data(n=num_train_samples)
 N, WIDTH = X.shape  # Number of waveforms in dataset, max waveform length
 
 dataset = Dataset(X=X, y=y)
@@ -234,13 +234,13 @@ plt.title("Histogram of trace of posterior covariance Sigma_eps")
 # resample all samples to a common tau grid
 from tqdm import tqdm
 
-from prism.svi import extract_data
+from prism.svi import extract_train_data
 
 N_tau = WIDTH
 tau_grid = np.linspace(0.0, 1.0, N_tau)
 
 du_tau = []
-for s_tau, s_du in tqdm(list(extract_data(lf_samples))):
+for s_tau, s_du in tqdm(list(extract_train_data(lf_samples))):
     du_tau.append(np.interp(tau_grid, s_tau, s_du))
 
 # %%
