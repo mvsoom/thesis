@@ -103,16 +103,20 @@ def e_step(m, S, params, mu0, cov0, jitter):
         log_terms.append(lp + jnp.log(pi[k + 1] + 1e-32))
 
         # XD posterior moments
-        # W = Sigk @ inv(C)
-        Ci = jax.vmap(jnp.linalg.inv)(C)
-        W = jnp.einsum("ij,njk->nik", Sigk, Ci)
+
+        # Solve C_i X_i = Sigk.T   for each i
+        X = jax.vmap(lambda Li: jax.scipy.linalg.cho_solve((Li, True), Sigk.T))(
+            L
+        )  # (N, d, d)
+
+        W = jnp.transpose(X, (0, 2, 1))  # (N, d, d) = Sigk C_i^{-1}
 
         mnk = muk + jnp.einsum("nij,nj->ni", W, m - muk)
         Vnk = Sigk - jnp.einsum("nij,jk->nik", W, Sigk)
         Vnk = symmetrize(Vnk)
 
         m_post.append(mnk)
-        V_post.append(symmetrize(Vnk))
+        V_post.append(Vnk)
 
     log_terms = jnp.stack(log_terms, axis=1)  # (N, K+1)
 
