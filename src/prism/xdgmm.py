@@ -5,9 +5,11 @@ Supports a fixed background component at k=0 (mu0, Sigma0 fixed), only pi learne
 import jax
 import jax.numpy as jnp
 import jax.scipy as jsp
+import numpy as np
 import scipy.stats
 from flax import struct
 from gpjax.scan import vscan
+from tqdm import tqdm
 
 from utils.jax import safe_cholesky, symmetrize
 
@@ -106,7 +108,8 @@ def e_step(m, S, params, mu0, cov0, jitter):
         W = jnp.einsum("ij,njk->nik", Sigk, Ci)
 
         mnk = muk + jnp.einsum("nij,nj->ni", W, m - muk)
-        Vnk = Sigk - jnp.einsum("nij,jk,nkl->nil", W, Sigk, W.swapaxes(-1, -2))
+        Vnk = Sigk - jnp.einsum("nij,jk->nik", W, Sigk)
+        Vnk = symmetrize(Vnk)
 
         m_post.append(mnk)
         V_post.append(symmetrize(Vnk))
@@ -221,3 +224,79 @@ def fit_xdgmm(
     (params, *_), history = scan(em_step, carry, None, length=n_iter)
 
     return params, history, (mu0, cov0)
+
+
+def logsumexp(a):
+    m = np.max(a)
+    return m + np.log(np.sum(np.exp(a - m)))
+
+
+def chol_logdet(L):
+    return 2.0 * np.sum(np.log(np.diag(L)))
+
+
+def gmm_data_loglikelihoods(
+    f_list,  # list of (T,) arrays, length Ntest
+    Psi_list,  # list of (T,D) arrays, same length
+    pi,  # (K,)
+    mu_k,  # (K,D)
+    Sigma_k,  # (K,D,D)
+    obs_std,  # scalar
+    noise_floor=1e-3,
+):
+    sigma = max(float(obs_std), float(noise_floor))
+    sigma2 = sigma * sigma
+    inv_sigma2 = 1.0 / sigma2
+    inv_sigma4 = inv_sigma2 * inv_sigma2
+
+    K, D = mu_k.shape
+    Ntest = len(f_list)
+
+    # precompute per k
+    Sig_inv = np.empty_like(Sigma_k)
+    logdet_Sig = np.empty((K,), dtype=float)
+    for k in range(K):
+        L = np.linalg.cholesky(Sigma_k[k])
+        logdet_Sig[k] = chol_logdet(L)
+        Sig_inv[k] = np.linalg.solve(L.T, np.linalg.solve(L, np.eye(D)))
+
+    # precompute per i
+    G = []
+    t = []
+    s = []
+    T_list = []
+    for f, Psi in zip(f_list, Psi_list):
+        G.append(Psi.T @ Psi)
+        t.append(Psi.T @ f)
+        s.append(float(f @ f))
+        T_list.append(f.shape[0])
+
+    lls = []
+    for i in tqdm(range(Ntest)):
+        Gi = G[i]
+        ti = t[i]
+        si = s[i]
+        Ti = T_list[i]
+
+        lps = np.empty((K,), dtype=float)
+        for k in range(K):
+            muk = mu_k[k]
+            bik = ti - Gi @ muk
+            r2 = si - 2.0 * (muk @ ti) + (muk @ (Gi @ muk))
+
+            Mik = Sig_inv[k] + inv_sigma2 * Gi
+            LM = np.linalg.cholesky(Mik)
+            logdet_M = chol_logdet(LM)
+
+            x = np.linalg.solve(LM, bik)
+            quad = inv_sigma2 * r2 - inv_sigma4 * (x @ x)
+
+            logdet_C = Ti * np.log(sigma2) + logdet_Sig[k] + logdet_M
+            lps[k] = np.log(pi[k]) - 0.5 * (
+                Ti * np.log(2.0 * np.pi) + logdet_C + quad
+            )
+
+        ll = logsumexp(lps)
+        lls.append(ll)
+
+    return np.array(lls)
