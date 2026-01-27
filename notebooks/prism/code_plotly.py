@@ -2,10 +2,11 @@
 # parameters, export
 d = 1
 J = 8
-num_inducing_svi = 16
-latent_dim_bgplvm = 3
+num_inducing_svi = 32
+latent_dim_bgplvm = 3  # Q
+num_clusters = 8  # K
 iteration = 1
-seed = 997562
+seed = 997512
 
 
 # %%
@@ -21,7 +22,8 @@ from flax import nnx
 from gpjax.dataset import Dataset
 from gpjax.parameters import Parameter
 
-from prism.bgplvm import BayesianGPLVM
+from lvm.bgplvm import BayesianGPLVM
+from lvm.xdgmm import gmm_data_loglikelihoods
 from prism.pack import NormalizedPACK
 from prism.svi import (
     batch_collapsed_elbo_masked,
@@ -34,7 +36,6 @@ from prism.svi import (
     pick_best,
     svi_basis,
 )
-from prism.xdgmm import gmm_data_loglikelihoods
 from utils import nats_to_ban, time_this
 from utils.constants import NOISE_FLOOR_POWER
 from utils.jax import pca_reduce, vk
@@ -306,7 +307,9 @@ def optimize_bgplvm(key):
 
 
 # Can get trapped early so restarts are needed here (no batching so no noise; restarts just init positions of inducing inputs)
-num_restarts = 1  # FIXME: set to 5
+
+
+num_restarts = 5  # FIXME: set to 5
 
 master_key, subkey = jax.random.split(master_key)
 subkeys = jax.random.split(subkey, num_restarts)
@@ -315,7 +318,7 @@ subkeys = jax.random.split(subkey, num_restarts)
 with time_this() as timer:
     # FIXME: do this in experimentation -- prevents OOM but no error bar => change num_restarts too
     states, histories = jax.vmap(optimize_bgplvm)(subkeys)
-    # states, histories = jax.lax.map(optimize_bgplvm, subkeys)
+    # states, histories = jax.lax.map(nocheck(optimize_bgplvm), subkeys)
 
 walltime = timer.walltime
 
@@ -478,7 +481,7 @@ fig.show()
 # Secret sauce: XD-GMM handles input uncertainties
 # Secret sauce #2: background component handles outliers
 #########################################################
-from prism.xdgmm import e_step, fit_xdgmm
+from lvm.xdgmm import e_step, fit_xdgmm
 
 m = qlvm.X_mu
 S = jax.vmap(jnp.diag)(qlvm.X_var)
@@ -702,7 +705,17 @@ fig.show()
 # defines a low-rank GP learned from data
 #########################################################
 
-y_pi, y_mu, y_cov = plvm.forward_x_gmm(pi_free, params.mu, params.cov)
+if False:
+    # prepend background components mu0 and cov0
+    all_pi = np.exp(params.logits)
+    all_pi /= all_pi.sum()
+
+    all_mu = jnp.vstack([mu0[None, :], params.mu])
+    all_cov = jnp.vstack([cov0[None, :, :], params.cov])
+
+    y_pi, y_mu, y_cov = plvm.forward_x_gmm(all_pi, all_mu, all_cov)
+else:
+    y_pi, y_mu, y_cov = plvm.forward_x_gmm(pi_free, params.mu, params.cov)
 
 
 eps_mu, eps_cov = unwhiten(y_mu, y_cov)

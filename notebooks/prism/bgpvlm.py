@@ -9,7 +9,7 @@ import optax as ox
 from gpjax.dataset import Dataset
 from matplotlib import pyplot as plt
 
-from prism.bgplvm import BayesianGPLVM
+from lvm.bgplvm import BayesianGPLVM
 from utils import time_this
 from utils.jax import pca_reduce
 
