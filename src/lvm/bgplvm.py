@@ -4,9 +4,11 @@ Plus analytic psi-statistics for full rank Gaussians, which can be used to lift 
 """
 # %%
 
+import gpjax as gpx
 import jax
 import jax.numpy as jnp
 import jax.scipy as jsp
+import optax as ox
 from flax import nnx
 from gpjax.linalg.utils import add_jitter
 from gpjax.parameters import PositiveReal, Real
@@ -121,6 +123,7 @@ def psi_stats_rbf_ard_full(mu, Sigma, Z, kernel, jitter=1e-6):
 
     return psi0, psi1, psi2
 
+
 if __name__ == "__main__":
     import gpjax as gpx
 
@@ -143,8 +146,9 @@ if __name__ == "__main__":
     print("psi0 difference:", jnp.abs(psi0_d - psi0_f))
     print("psi1 difference:", jnp.linalg.norm(psi1_d - psi1_f))
     print("psi2 difference:", jnp.linalg.norm(psi2_d - psi2_f))
-                                              
+
 # %%
+
 
 def psi_stats_rbf_ard_diagonal_batch(mu, var, Z, kernel):
     """
@@ -302,6 +306,7 @@ class BayesianGPLVM(nnx.Module):
 
 class BGPLVMPosterior:
     """Cached posterior with predictive equations"""
+
     def __init__(self, kernel, Z, sigma2, L, LB, c, jitter):
         self.kernel = kernel
         self.Z = Z
@@ -312,7 +317,6 @@ class BGPLVMPosterior:
         self.c = c
 
         self.jitter = jitter
-
 
     def predict_f_meanvar_batch(self, x_star_mu, x_star_var):
         """Compute y* = f(x*) ~ N(y_mean, diag(y_var)) for a batch of inputs x* ~ N(x_star_mu, diag(x_star_var))"""
@@ -354,7 +358,7 @@ class BGPLVMPosterior:
         y_vars = y_vars[:, None] * jnp.ones((1, D), dtype=y_means.dtype)
 
         return y_means, y_vars
-    
+
     def _Wmat(self):
         tmp = jsp.linalg.solve_triangular(self.LB.T, self.c, lower=False)
         W = jsp.linalg.solve_triangular(self.L.T, tmp, lower=False)
@@ -362,7 +366,7 @@ class BGPLVMPosterior:
 
     def forward_x(self, x_mu, x_Sigma, jitter=1e-6):
         """Propagate a point X ~ N(x_mu, x_Sigma) through a moment-matched BGPLVM nonlinearity to get Y ~ N(y_mu, y_Sigma) in data space
-        
+
         NOTE: this already takes into learned BGPLVM observation noise! (self.sigma2 below)
         """
         psi0, ek, Ekk = psi_stats_rbf_ard_full(
@@ -403,3 +407,23 @@ class BGPLVMPosterior:
         y_mus, y_Sigmas = jax.vmap(one)(x_mus, x_Sigmas)
         return pis, y_mus, y_Sigmas
 
+
+# %%
+def optimize(key, model, dataset, lr, num_iters, **fit_kwargs):
+    model = model(key)
+    optim = ox.adam(learning_rate=lr)
+
+    def cost(q, d):
+        return -q.elbo(d.y, obs_var_diag=d.X)
+
+    fitted, cost_history = gpx.fit(
+        model=model,
+        objective=cost,
+        train_data=dataset,
+        optim=optim,
+        num_iters=num_iters,
+        **fit_kwargs,
+    )
+
+    elbo_history = -cost_history
+    return fitted, elbo_history
