@@ -19,6 +19,8 @@ TODO:
   - multiple command specification: python -m experiments.run generate+execute ...
   - `progress` command: print how many good/failed/todo with a crude ETA, and if all done print total walltime elapsed
   - commands to only update failed notebooks if many of them have succeeded
+  - allow a config.csv to specify hyperparameter grid instead of config.py
+  - allow percent sign scripts
 """
 
 import argparse

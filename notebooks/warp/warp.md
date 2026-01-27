@@ -240,10 +240,7 @@ $$
 with
 
 $$
-p(\hat t \mid g, c)
-===================
-
-\mathcal N\bigl(c\mathbf 1 + A\exp(g),; \Sigma_\varepsilon\bigr)
+p(\hat t \mid g, c) \sim \mathcal N\bigl(c\mathbf 1 + A\exp(g),; \Sigma_\varepsilon\bigr)
 $$
 
 where $A$ is a discretized integration operator.
