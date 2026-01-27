@@ -21,12 +21,12 @@ from gpjax.dataset import Dataset
 from gpjax.parameters import Parameter
 from matplotlib import pyplot as plt
 
-from prism.bgplvm import BayesianGPLVM
+from lvm.bgplvm import BayesianGPLVM
 from prism.pack import NormalizedPACK
 from prism.svi import (
     batch_collapsed_elbo_masked,
     do_prism,
-    get_data,
+    get_train_data,
     gp_posterior_mean_from_eps,
     latent_pair_density,
     offdiag_energy_fraction,
@@ -45,7 +45,7 @@ master_key = jax.random.key(seed)
 N_TRAIN = 5000
 N_TEST = 1000
 
-X, y, oq = get_data(n=N_TRAIN)
+X, y, oq = get_train_data(n=N_TRAIN)
 N_TRAIN, WIDTH = X.shape  # Number of waveforms in dataset, max waveform length
 
 dataset = Dataset(X=X, y=y)
@@ -363,7 +363,7 @@ fig.update_layout(
 fig.show()
 
 # %%
-from prism.xdgmm import e_step, fit_xdgmm
+from lvm.xdgmm import e_step, fit_xdgmm
 
 m = qlvm.X_mu
 S = jax.vmap(jnp.diag)(qlvm.X_var)
@@ -545,7 +545,7 @@ cov_k = np.array(params.cov)[k]
 
 z = np.random.multivariate_normal(mu_k, cov_k)
 
-mu_y, diag_y = plvm.predict_f_meanvar(z, z * 0)
+mu_y, diag_y = plvm.predict_f_meanvar_batch(z, z * 0)
 Sigma_y = jax.vmap(jnp.diag)(diag_y[0])
 
 mu_eps_sample, mu_Sigma_sample = unwhiten(mu_y, Sigma_y)
