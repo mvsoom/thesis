@@ -76,6 +76,7 @@ def jcache_cli(
     cache_path=None,
     suppress_stdout=False,
     suppress_stderr=False,
+    extra_env=None,
 ):
     import atexit
     import signal
@@ -87,6 +88,8 @@ def jcache_cli(
     env = os.environ.copy()
     if cache_path is not None:
         env["JUPYTERCACHE"] = str(cache_path)
+    if extra_env:
+        env.update(extra_env)
 
     stdout = subprocess.DEVNULL if suppress_stdout else None
     stderr = subprocess.DEVNULL if suppress_stderr else None
@@ -252,7 +255,7 @@ def cmd_generate(exp_dir):
     print("done.")
 
 
-def cmd_execute(exp_dir, passthrough):
+def cmd_execute(exp_dir, passthrough, allow_tqdm=False):
     exp, runs, cache_dir = exp_paths(exp_dir)
     if not cache_dir.exists():
         print("no cache at %s, run generate first" % cache_dir, file=sys.stderr)
@@ -265,9 +268,18 @@ def cmd_execute(exp_dir, passthrough):
     ):
         passthrough = ["--timeout", "0"] + passthrough
 
+    extra_env = None
+    if not allow_tqdm:
+        extra_env = {"TQDM_DISABLE": "1"}
+
     print("execute: jcache project execute", " ".join(passthrough))
     rc = jcache_cli(
-        "project", "execute", *passthrough, cwd=exp, cache_path=cache_dir
+        "project",
+        "execute",
+        *passthrough,
+        cwd=exp,
+        cache_path=cache_dir,
+        extra_env=extra_env,
     )
     if rc != 0:
         sys.exit(rc)
@@ -462,6 +474,11 @@ def main(argv=None):
     )
     p_exec.add_argument("experiment_folder", type=Path)
     p_exec.add_argument(
+        "--allow-tqdm",
+        action="store_true",
+        help="do not set TQDM_DISABLE=1 for the execute subprocess",
+    )
+    p_exec.add_argument(
         "--",
         dest="passthrough",
         nargs=argparse.REMAINDER,
@@ -495,10 +512,14 @@ def main(argv=None):
     if args.cmd == "generate":
         cmd_generate(args.experiment_folder)
     elif args.cmd == "execute":
+        allow_tqdm = bool(getattr(args, "allow_tqdm", False))
         passthrough = args.passthrough or []
         if passthrough and passthrough[0] == "--":
             passthrough = passthrough[1:]
-        cmd_execute(args.experiment_folder, passthrough)
+        if "--allow-tqdm" in passthrough:
+            allow_tqdm = True
+            passthrough = [a for a in passthrough if a != "--allow-tqdm"]
+        cmd_execute(args.experiment_folder, passthrough, allow_tqdm=allow_tqdm)
     elif args.cmd == "merge":
         cmd_merge(args.experiment_folder)
     elif args.cmd == "collect":
