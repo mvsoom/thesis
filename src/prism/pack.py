@@ -308,6 +308,8 @@ if __name__ == "__main__":
 
 # %%
 if __name__ == "__main__":
+    J = 2
+
     k = gpxPACK(d=2, J=J)
     ks = gpxPACKStable(d=2, J=J)
 
@@ -417,6 +419,8 @@ class NormalizedPACK(gpx.kernels.AbstractKernel):
 
 
 if __name__ == "__main__":
+    J = 2
+
     k = gpxPACK(d=2, J=J)
     ks = NormalizedPACK(d=2, J=J)
 

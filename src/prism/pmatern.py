@@ -80,8 +80,6 @@ if __name__ == "__main__":
     plt.show()
 
 # %%
-# pmatern_gpjax.py
-
 from typing import Optional, Sequence
 
 import gpjax as gpx
