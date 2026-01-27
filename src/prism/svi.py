@@ -4,36 +4,14 @@ import jax
 import jax.numpy as jnp
 import jax.scipy as jsp
 import numpy as np
+import optax as ox
+import plotly.express as px
 from flax import nnx
+from gpjax.parameters import Parameter
 from tqdm import tqdm
 
 from prism.pack import NormalizedPACK
-from surrogate import source
-from utils.jax import safe_cholesky
-
-
-def warp_time(t_ms, period_ms):
-    return t_ms / period_ms
-
-
-def dewarp_time(tau, period_ms):
-    return tau * period_ms
-
-
-def extract_train_data(lf_samples):
-    for s in tqdm(lf_samples):
-        tau = warp_time(s["t"], s["p"]["T0"])
-        du = s["u"]
-        oq = s["p"]["Oq"]
-        yield tau, du, oq
-
-def extract_test_data(lf_samples):
-    for s in tqdm(lf_samples):
-        tau = warp_time(s["t"], s["p"]["T0"])
-        du = s["u"]
-        log_prob_u = s["log_prob_u"]
-        if np.isfinite(log_prob_u):
-            yield tau, du, log_prob_u
+from utils.jax import nocheck, safe_cholesky
 
 
 def pad_waveforms(waveforms, width=None, dtype=jnp.float64):
@@ -53,31 +31,6 @@ def pad_waveforms(waveforms, width=None, dtype=jnp.float64):
         i += 1
 
     return jnp.array(X, dtype=dtype), jnp.array(y, dtype=dtype)
-
-
-def get_train_data(n=None, width=None, offset=0):
-    lf_samples = source.get_lf_samples(10_000)[offset : offset + n]
-
-    triples = list(extract_train_data(lf_samples))
-
-    waveforms = [(tau, du) for tau, du, oq in triples]
-    oq = np.array([oq for _, _, oq in triples])
-
-    X, y = pad_waveforms(waveforms, width=width)
-
-    return X, y, oq
-
-def get_test_data(n=None, width=None, offset=0):
-    lf_samples = source.get_lf_samples(10_000)[offset : offset + n]
-
-    triples = list(extract_test_data(lf_samples))
-
-    waveforms = [(tau, du) for tau, du, _ in triples]
-    log_prob_u = np.array([oq for _, _, oq in triples])
-
-    X, y = pad_waveforms(waveforms, width=width)
-
-    return np.array(X), np.array(y), log_prob_u
 
 
 def collapsed_elbo_masked(q, t, y, jitter=1e-6):
@@ -221,17 +174,68 @@ if __name__ == "__main__":
         our_elbo = collapsed_elbo_masked(q, tau.squeeze(), du)
         print("  Our masked ELBO:", our_elbo)
 
+
 # %%
+def optimize(key, model, dataset, lr, batch_size, num_iters, **fit_kwargs):
+    key, subkey = jax.random.split(key)
+
+    N = dataset.X.shape[0]
+    model = model(subkey)
+    optim = ox.adam(learning_rate=lr)
+
+    def cost(q, d):
+        return -batch_collapsed_elbo_masked(q, d, N)
+
+    fitted, cost_history = gpx.fit(
+        model=model,
+        objective=cost,
+        train_data=dataset,
+        optim=optim,
+        num_iters=num_iters,
+        key=key,
+        batch_size=batch_size,
+        trainable=Parameter,
+        **fit_kwargs,
+    )
+
+    elbo_history = -cost_history
+    return fitted, elbo_history
+
+
+def optimize_restarts(optimize, num_restarts, key):
+    subkeys = jax.random.split(key, num_restarts)
+
+    def optimize_state(subkey):
+        fitted, elbo_history = optimize(subkey)
+        return nnx.state(fitted), elbo_history
+
+    states, elbo_histories = jax.vmap(optimize_state)(subkeys)
+    return states, elbo_histories
+
+
+def optimize_restarts_scan(optimize, num_restarts, key):
+    """Restarts with sequential scan to prevent OOM"""
+    subkeys = jax.random.split(key, num_restarts)
+
+    def optimize_state(subkey):
+        fitted, elbo_history = nocheck(optimize)(subkey)
+        return nnx.state(fitted), elbo_history
+
+    states, elbo_histories = jax.lax.map(optimize_state, subkeys)
+    return states, elbo_histories
+
+
 def pick_best(states, elbo_histories, q):
     i = int(np.nanargmax(np.array([h[-1] for h in elbo_histories])))
 
     graphdef, _ = nnx.split(q)
 
-    opt_posterior = nnx.merge(graphdef, jax.tree.map(lambda x: x[i], states))
-    history = elbo_histories[i]
+    best_fitted = nnx.merge(graphdef, jax.tree.map(lambda x: x[i], states))
+    best_elbo_history = elbo_histories[i]
 
-    return opt_posterior, history
+    return best_fitted, best_elbo_history
 
+# %%
 def infer_eps_posterior_single(q, t_row, y_row, jitter=1e-6):
     """
     Infer posterior over whitened amplitudes eps for ONE waveform.
@@ -339,6 +343,57 @@ def svi_basis(q, t):
         Lzz, Kxz.T, lower=True
     ).squeeze()  # psi = Lzz^{-1} Kzx
 
+# %%
+def reconstruct_waveforms(mu_eps, qsvi, train_data, test_indices, tau_test):
+    """Is the learned RKHS rich enough to reconstruct some test waveforms?"""
+    f_means = jax.vmap(
+        lambda eps: gp_posterior_mean_from_eps(qsvi, tau_test, eps)
+    )(mu_eps[test_indices])
+
+    plot_rows = []
+    panel_order = []
+    for idx, f_mean in zip(test_indices, f_means):
+        idx_int = int(idx)
+        panel_label = f"test_index={idx_int}"
+        panel_order.append(panel_label)
+
+        x_data = np.array(train_data.X[idx_int])
+        y_data = np.array(train_data.y[idx_int])
+        for x_val, y_val in zip(x_data, y_data):
+            plot_rows.append(
+                {
+                    "tau": x_val,
+                    "value": y_val,
+                    "series": "Data",
+                    "panel": panel_label,
+                }
+            )
+
+        x_pred = np.array(tau_test)
+        y_pred = np.array(f_mean)
+        for x_val, y_val in zip(x_pred, y_pred):
+            plot_rows.append(
+                {
+                    "tau": x_val,
+                    "value": y_val,
+                    "series": "Posterior mean",
+                    "panel": panel_label,
+                }
+            )
+
+    fig = px.line(
+        plot_rows,
+        x="tau",
+        y="value",
+        color="series",
+        facet_col="panel",
+        facet_col_wrap=2,
+        category_orders={"panel": panel_order},
+        title="Posterior mean vs data (selected test indices)",
+        labels={"tau": "tau", "value": "u'(t)", "series": ""},
+    )
+
+    return fig
 
 # %%
 def whitening_from_cov(Sigma_bar, eps=1e-12):
