@@ -6,6 +6,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 import pandas as pd
+import plotly.colors as pc
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -340,22 +341,84 @@ def sample_latent_gmm_pointwise(gmm, plvm, psi, tau_test, unwhiten, nsamples=6):
     return fig
 
 
-def plot_cluster_means_in_data_space(gqp, tau_test):
-    K = gqp.gmm.K
+def plot_cluster_means_in_data_space(qgp, tau_test):
+    K = qgp.gmm.K
 
-    Psi = jax.vmap(gqp.psi)(tau_test)  # test indices
-    means = Psi @ gqp.mu.T
+    Psi = jax.vmap(qgp.psi)(tau_test)  # [T, M]
 
-    return (
-        px.line(means)
-        .update_traces(x=tau_test)
-        .update_layout(
-            xaxis_title="tau",
-            yaxis_title="u'(tau)",
-            title=f"[K={K}] Learned means of GMM components in data space",
+    # sort components by mixture weight
+    order = jnp.argsort(-qgp.pi)
+    pis = qgp.pi[order]
+    mus = qgp.mu[order]
+    covs = qgp.cov[order]
+
+    colors = pc.qualitative.Set2
+    fig = go.Figure()
+
+    for i, (pi_k, mu_k, Sigma_k) in enumerate(zip(pis, mus, covs)):
+        color = colors[i % len(colors)]
+        group = f"comp{i}"
+
+        mean = Psi @ mu_k
+        var = jnp.einsum("tm,mn,tn->t", Psi, Sigma_k, Psi)
+        std = jnp.sqrt(jnp.maximum(var, 0.0))
+
+        upper = mean + 2 * std
+        lower = mean - 2 * std
+
+        label = f"k={i}, π={pi_k:.2f}"
+
+        # upper envelope (anchor for fill)
+        fig.add_trace(
+            go.Scatter(
+                x=tau_test,
+                y=upper,
+                mode="lines",
+                line=dict(width=0),
+                showlegend=False,
+                legendgroup=group,
+                hoverinfo="skip",
+            )
         )
+
+        # lower envelope + fill
+        fig.add_trace(
+            go.Scatter(
+                x=tau_test,
+                y=lower,
+                mode="lines",
+                fill="tonexty",
+                fillcolor=color.replace("rgb", "rgba").replace(")", ",0.25)"),
+                line=dict(width=0),
+                showlegend=False,
+                legendgroup=group,
+                hoverinfo="skip",
+            )
+        )
+
+        # mean line (only legend entry)
+        fig.add_trace(
+            go.Scatter(
+                x=tau_test,
+                y=mean,
+                mode="lines",
+                line=dict(color=color, width=3),
+                name=label,
+                legendgroup=group,
+            )
+        )
+
+    fig.update_layout(
+        xaxis_title="tau",
+        yaxis_title="u'(tau)",
+        title=f"[K={K}] Learned means ± 2σ of qGPLVM components in data space",
+        legend_title="Components (sorted by π)",
+        legend=dict(
+            groupclick="togglegroup"  # THIS is the crucial line
+        ),
     )
 
+    return fig
 
 def plot_cluster_samples_in_data_space(key, gqp, tau_test, nsamples=6):
     K = gqp.gmm.K
