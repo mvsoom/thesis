@@ -33,7 +33,24 @@ def pad_waveforms(waveforms, width=None, dtype=jnp.float64):
     return jnp.array(X, dtype=dtype), jnp.array(y, dtype=dtype)
 
 
-def collapsed_elbo_masked(q, t, y, jitter=1e-6):
+def init_Z_grid(key, M):
+    """Initialize inducing inputs Z on a jittered uniform grid in [0,1]
+
+    This is needed because uniform random init has (closest point distance) scale like 1/M^2, leading to ill-conditioned Kzz for large M.
+    """
+    key, subkey = jax.random.split(key)
+
+    z = (jnp.arange(M) + 0.5) / M
+    z = z[:, None]
+
+    z = z + 1e-3 / M * jax.random.normal(key, z.shape)  # break symmetry
+    shift = jax.random.uniform(subkey, ())  # random phase
+
+    z = jnp.mod(z + shift, 1.0)
+    return z
+
+
+def collapsed_elbo_masked(q, t, y):
     """
     Collapsed Titsias (2009) ELBO for a single waveform (t, y) with NaN-masked padding.
 
@@ -48,6 +65,7 @@ def collapsed_elbo_masked(q, t, y, jitter=1e-6):
     -------
     elbo : scalar
     """
+    jitter = q.jitter
 
     mask_w = ~jnp.isnan(y)  # [W] boolean
     mask = mask_w[:, None]  # [W,1]
@@ -71,7 +89,6 @@ def collapsed_elbo_masked(q, t, y, jitter=1e-6):
 
     # Kernel matrices
     Kzz = kernel.gram(Z).to_dense()
-    Kzz = Kzz + jitter * jnp.eye(M)
 
     Kzx = kernel.cross_covariance(Z, t)  # [M,W]
     Kxx_diag = jax.vmap(kernel, in_axes=(0, 0))(t, t)  # [W]
@@ -81,7 +98,7 @@ def collapsed_elbo_masked(q, t, y, jitter=1e-6):
     Kxx_diag = Kxx_diag * mask_w
 
     # Calculate the ELBO
-    Lz = jnp.linalg.cholesky(Kzz)
+    Lz = safe_cholesky(Kzz, jitter=jitter)
 
     A = jsp.linalg.solve_triangular(Lz, Kzx, lower=True) / jnp.sqrt(
         sigma2
@@ -89,7 +106,7 @@ def collapsed_elbo_masked(q, t, y, jitter=1e-6):
 
     AAT = A @ A.T
     B = jnp.eye(M) + AAT
-    L = jnp.linalg.cholesky(B)
+    L = safe_cholesky(B, jitter=jitter)
 
     log_det_B = 2.0 * jnp.sum(jnp.log(jnp.diagonal(L)))
 
@@ -133,6 +150,8 @@ def batch_collapsed_elbo_masked(q, data, I_total):
 
 
 if __name__ == "__main__":
+    from surrogate.prism import get_train_data
+
     X, y, oq = get_train_data(n=20)
     kernel = NormalizedPACK(d=1)
 
@@ -236,7 +255,7 @@ def pick_best(states, elbo_histories, q):
     return best_fitted, best_elbo_history
 
 # %%
-def infer_eps_posterior_single(q, t_row, y_row, jitter=1e-6):
+def infer_eps_posterior_single(q, t_row, y_row):
     """
     Infer posterior over whitened amplitudes eps for ONE waveform.
 
@@ -251,6 +270,7 @@ def infer_eps_posterior_single(q, t_row, y_row, jitter=1e-6):
     mu_eps : [M]
     Sigma_eps : [M, M]
     """
+    jitter = q.jitter
 
     mask_w = ~jnp.isnan(y_row)  # [W]
     t = t_row[:, None]  # [W,1]
@@ -269,7 +289,7 @@ def infer_eps_posterior_single(q, t_row, y_row, jitter=1e-6):
     # Psi(t)
     Kzz = kernel.gram(Z).to_dense()
     Kzz = Kzz + jitter * jnp.eye(M)
-    Lzz = jnp.linalg.cholesky(Kzz)
+    Lzz = safe_cholesky(Kzz, jitter=jitter)
 
     Kzx = kernel.cross_covariance(Z, t)  # [M,W]
     Kzx = Kzx * mask_w[None, :]  # drop padded points
@@ -282,7 +302,7 @@ def infer_eps_posterior_single(q, t_row, y_row, jitter=1e-6):
 
     # precision = I + A^T A
     precision = jnp.eye(M) + A.T @ A
-    Lp = jnp.linalg.cholesky(precision)
+    Lp = safe_cholesky(precision, jitter=jitter)
     Sigma_eps = jsp.linalg.cho_solve((Lp, True), jnp.eye(M))
 
     mu_eps = (Sigma_eps @ (Psi.T @ y) / sigma2).squeeze()  # [M]
@@ -300,7 +320,7 @@ def do_prism(q, dataset, device=jax.devices("cpu")[0]):
     return mu_eps, Sigma_eps
 
 
-def gp_posterior_mean_from_eps(q, t_star, mu_eps, jitter=1e-6):
+def gp_posterior_mean_from_eps(q, t_star, mu_eps):
     """
     GP posterior mean at t_star for ONE waveform,
     given inferred mu_eps.
@@ -308,14 +328,13 @@ def gp_posterior_mean_from_eps(q, t_star, mu_eps, jitter=1e-6):
     t_star : [T] query points
     mu_eps : [M]
     """
-
+    jitter = q.jitter
     kernel = q.posterior.prior.kernel
     Z = q.inducing_inputs
 
     # Kzz and its Cholesky
     Kzz = kernel.gram(Z).to_dense()
-    Kzz = Kzz + jitter * jnp.eye(Z.shape[0])
-    Lzz = jnp.linalg.cholesky(Kzz)
+    Lzz = safe_cholesky(Kzz, jitter=jitter)
 
     # E[u | y]
     u_mean = Lzz @ mu_eps  # [M]
