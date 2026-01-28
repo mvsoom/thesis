@@ -79,6 +79,10 @@ def logsumexp(a):
 def chol_logdet(L):
     return 2.0 * np.sum(np.log(np.diag(L)))
 
+def np_safe_cholesky(A, jitter=1e-6):
+    """Cholesky decomposition with scaled jitter"""
+    nuggets = np.mean(np.diag(A)) * jitter
+    return np.linalg.cholesky(A + nuggets * np.eye(A.shape[-1]))
 
 def loglikelihood_on_test(
     qgp: QGPVLM,
@@ -86,11 +90,11 @@ def loglikelihood_on_test(
     Psi_list,
     obs_std,
     noise_floor=1e-3,
+    jitter=1e-4,
 ):
     sigma = max(float(obs_std), float(noise_floor))
-    sigma2 = sigma * sigma
+    sigma2 = sigma**2
     inv_sigma2 = 1.0 / sigma2
-    inv_sigma4 = inv_sigma2 * inv_sigma2
 
     K, D = qgp.mu.shape
     Ntest = len(f_list)
@@ -98,7 +102,7 @@ def loglikelihood_on_test(
     Sig_inv = np.empty_like(qgp.cov)
     logdet_Sig = np.empty(K)
     for k in range(K):
-        L = np.linalg.cholesky(qgp.cov[k])
+        L = np_safe_cholesky(qgp.cov[k], jitter=jitter)
         logdet_Sig[k] = 2.0 * np.sum(np.log(np.diag(L)))
         Sig_inv[k] = np.linalg.solve(L.T, np.linalg.solve(L, np.eye(D)))
 
@@ -118,10 +122,10 @@ def loglikelihood_on_test(
             r2 = si - 2.0 * (muk @ ti) + muk @ (Gi @ muk)
 
             Mik = Sig_inv[k] + inv_sigma2 * Gi
-            LM = np.linalg.cholesky(Mik)
+            LM = np_safe_cholesky(Mik, jitter=jitter)
 
             x = np.linalg.solve(LM, bik)
-            quad = inv_sigma2 * r2 - inv_sigma4 * (x @ x)
+            quad = inv_sigma2 * (r2 - inv_sigma2 * (x @ x))
 
             logdet_M = 2.0 * np.sum(np.log(np.diag(LM)))
             logdet_C = Ti * np.log(sigma2) + logdet_Sig[k] + logdet_M
