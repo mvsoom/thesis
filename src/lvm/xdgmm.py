@@ -43,7 +43,7 @@ def fit_background_blob(m, S, alpha_quantile=0.99):
 
     # Quantile envelope inflation
     # Mahalanobis distances under base Sigma0
-    L0 = jnp.linalg.cholesky(Sigma0)
+    L0 = safe_cholesky(Sigma0)
     y = jsp.linalg.solve_triangular(L0, centered.T, lower=True).T
     d2 = jnp.sum(y * y, axis=1)
 
