@@ -1,106 +1,136 @@
 #!/usr/bin/env python3
 
 import argparse
+import math
 from pathlib import Path
 
+import numpy as np
 from jupyter_cache import get_cache
+from rich.console import Console
+from rich.table import Table
+from rich.text import Text
 
 CACHE_DIRNAME = ".jupyter_cache"
 RUNS_DIRNAME = "runs"
 
 
-def list_cache_only(cache):
-    recs = cache.list_cache_records()
+def ascii_hist_log10(x, bins=10, width=30):
+    counts, edges = np.histogram(x, bins=bins)
+    m = counts.max() if counts.size else 1
 
-    if not recs:
-        print("cache: empty")
-        return 0
-
-    print("cache records:\n")
-    for r in sorted(recs, key=lambda x: x.pk):
-        secs = None
-        if r.data:
-            secs = r.data.get("execution_seconds")
-        uri = str(Path(r.uri))
-        if secs is None:
-            print(f"[{r.pk:4d}] {uri}")
-        else:
-            print(f"[{r.pk:4d}] {secs:10.3f} s  {uri}")
-    print(f"\ncache total: {len(recs)}")
-    return 0
+    lines = []
+    for c, lo, hi in zip(counts, edges[:-1], edges[1:]):
+        bar = "█" * int(width * c / m) if m > 0 else ""
+        lines.append(f"{lo:5.2f}–{hi:5.2f} | {bar}")
+    return lines
 
 
-def project_status(cache, exp):
+def main(exp_dir):
+    exp = Path(exp_dir).resolve()
     runs = exp / RUNS_DIRNAME
-    nbs = sorted(runs.glob("*.ipynb"))
-
-    if not nbs:
-        print(f"no notebooks in {runs}")
-        return 0
-
-    done = 0
-    todo = 0
-    failed = 0
-
-    print("project notebook status (hash match):\n")
-
-    for nb in nbs:
-        nb = nb.resolve()
-        pr = None
-        try:
-            pr = cache.get_project_record(str(nb))
-        except Exception:
-            pr = None
-
-        tb = getattr(pr, "traceback", None) if pr is not None else None
-        if tb:
-            failed += 1
-
-        cr = cache.get_cached_project_nb(str(nb))
-        if cr is None:
-            print(f"{nb.name:40s}   --")
-            todo += 1
-            continue
-
-        secs = None
-        if cr.data:
-            secs = cr.data.get("execution_seconds")
-        if secs is None:
-            print(f"{nb.name:40s}   ??  (cached pk={cr.pk})")
-        else:
-            print(f"{nb.name:40s} {secs:8.2f} s  (cached pk={cr.pk})")
-
-        done += 1
-
-    print("\nsummary:")
-    print(f"  executed (hash match): {done}")
-    print(f"  todo                : {todo}")
-    print(f"  failed (traceback)  : {failed}")
-    print(f"  total              : {len(nbs)}")
-    return 0
-
-
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("experiment_folder", type=Path)
-    ap.add_argument(
-        "--cache",
-        action="store_true",
-        help="list cache DB records only (fast, no notebook hashing)",
-    )
-    args = ap.parse_args()
-
-    exp = args.experiment_folder.resolve()
     cache_dir = exp / CACHE_DIRNAME
+
     if not cache_dir.exists():
-        raise SystemExit("no .jupyter_cache found (run generate first?)")
+        raise SystemExit("no .jupyter_cache found")
 
     cache = get_cache(cache_dir)
+    console = Console()
 
-    if args.cache:
-        raise SystemExit(list_cache_only(cache))
-    raise SystemExit(project_status(cache, exp))
+    notebooks = sorted(runs.glob("*.ipynb"))
+    proj_records = {
+        Path(r.uri).resolve(): r for r in cache.list_project_records()
+    }
+
+    table = Table(title="Notebook execution status", show_lines=False)
+    table.add_column("ID", justify="right", style="cyan", no_wrap=True)
+    table.add_column("Notebook", overflow="fold")
+    table.add_column("Status", justify="center")
+    table.add_column("Time (s)", justify="right")
+
+    times = []
+    n_done = n_todo = n_fail = 0
+
+    for nb in notebooks:
+        nb = nb.resolve()
+        pr = proj_records.get(nb)
+
+        nb_link = Text.from_markup(f"[link=file://{nb}]{nb.name}[/link]")
+
+        if pr is None:
+            table.add_row("-", nb_link, "-", "")
+            n_todo += 1
+            continue
+
+        if pr.traceback:
+            table.add_row(
+                str(pr.pk),
+                nb_link,
+                "[red]✗[/red]",
+                "",
+            )
+            n_fail += 1
+            continue
+
+        cr = cache.get_cached_project_nb(str(nb))
+        if cr is None or not cr.data or "execution_seconds" not in cr.data:
+            table.add_row(
+                str(pr.pk),
+                nb_link,
+                "[yellow]-[/yellow]",
+                "",
+            )
+            n_todo += 1
+            continue
+
+        secs = cr.data["execution_seconds"]
+        times.append(secs)
+        table.add_row(
+            str(pr.pk),
+            nb_link,
+            f"[green]✓[/green] [{cr.pk}]",
+            f"{secs:,.2f}",
+        )
+        n_done += 1
+
+    console.print(table)
+
+    total = len(notebooks)
+    console.print()
+    console.print(
+        f"[bold]Summary[/bold]: "
+        f"executed={n_done}, todo={n_todo}, failed={n_fail}, total={total}"
+    )
+    console.print("Legend: ✓ cached (hash match), - todo, ✗ failed\n")
+
+    if not times:
+        return
+
+    t = np.asarray(times)
+    logt = np.log10(t)
+
+    med = np.median(logt)
+    lo, hi = np.percentile(logt, [10, 90])
+
+    eta = None
+    if n_todo > 0:
+        eta = 10 ** (med + math.log10(n_todo))
+
+    console.print("[bold]Timing statistics (log10 domain)[/bold]")
+    console.print(f"  median time     : {10**med:,.2f} s")
+    console.print(f"  10–90% interval : [{10**lo:,.2f}, {10**hi:,.2f}] s")
+
+    if eta is not None:
+        console.print(
+            f"  ETA ({n_todo} remaining) : {eta:,.2f} s (~{eta / 60:,.1f} min)"
+        )
+
+    console.print("\n[bold]log10 execution time histogram[/bold]")
+    for line in ascii_hist_log10(logt):
+        console.print(line)
 
 
 if __name__ == "__main__":
-    main()
+    ap = argparse.ArgumentParser()
+    ap.add_argument("experiment_folder", type=Path)
+    args = ap.parse_args()
+    main(args.experiment_folder)
