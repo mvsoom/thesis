@@ -71,11 +71,15 @@ def psi_stats_rbf_ard_diagonal(mu, var, Z, kernel):
     return psi0, psi1, psi2
 
 
-def psi_stats_rbf_ard_full(mu, Sigma, Z, kernel, jitter=1e-6):
-    mu = jnp.asarray(mu)
-    Sigma = jnp.asarray(Sigma)
-    Z = jnp.asarray(Z)
+def quad_u_midpoints(Z, mu, LC):
+    Zc = Z - mu[None, :]  # (M, Q)
+    Yc = jsp.linalg.solve_triangular(LC, Zc.T, lower=True).T
+    Qi = jnp.sum(Yc * Yc, axis=1)  # (M,)
+    cross = Yc @ Yc.T  # (M, M)
+    return 0.25 * (Qi[:, None] + Qi[None, :]) + 0.5 * cross
 
+
+def psi_stats_rbf_ard_full(mu, Sigma, Z, kernel, jitter=1e-6):
     M, Q = Z.shape
 
     sigma2_f = kernel.variance
@@ -84,9 +88,15 @@ def psi_stats_rbf_ard_full(mu, Sigma, Z, kernel, jitter=1e-6):
     Lam = jnp.diag(ell * ell)
     inv_l2 = 1.0 / (ell * ell)
 
+    log_sigma2_f = jnp.log(sigma2_f)
+
+    # psi0
     psi0 = jnp.asarray(sigma2_f).reshape(())
 
-    B1 = jnp.eye(Q, dtype=Sigma.dtype) + Sigma * inv_l2[None, :]
+    # ---- first-order stats (psi1) ----
+
+    Sigma_scaled = inv_l2[:, None] * Sigma * inv_l2[None, :]
+    B1 = jnp.eye(Q, dtype=Sigma.dtype) + Sigma_scaled
     LB1 = safe_cholesky(B1, jitter)
     logdetB1 = 2.0 * jnp.sum(jnp.log(jnp.diag(LB1)))
 
@@ -97,29 +107,32 @@ def psi_stats_rbf_ard_full(mu, Sigma, Z, kernel, jitter=1e-6):
     Y = jsp.linalg.solve_triangular(LA1, Dm.T, lower=True)
     quad1 = jnp.sum(Y * Y, axis=0)
 
-    psi1 = sigma2_f * jnp.exp(-0.5 * logdetB1 - 0.5 * quad1)
+    log_psi1 = log_sigma2_f - 0.5 * logdetB1 - 0.5 * quad1
+    psi1 = jnp.exp(log_psi1)
 
-    B2 = jnp.eye(Q, dtype=Sigma.dtype) + 2.0 * (Sigma * inv_l2[None, :])
+    # ---- second-order stats (psi2) ----
+
+    B2 = jnp.eye(Q, dtype=Sigma.dtype) + 2.0 * Sigma_scaled
     LB2 = safe_cholesky(B2, jitter)
     logdetB2 = 2.0 * jnp.sum(jnp.log(jnp.diag(LB2)))
 
     C = Sigma + 0.5 * Lam
     LC = safe_cholesky(C, jitter)
 
+    # term_a
     Zm = Z[:, None, :]
     Zmp = Z[None, :, :]
     d = Zm - Zmp
     quad_d = jnp.sum((d * d) * inv_l2[None, None, :], axis=-1)
-    term_a = jnp.exp(-0.25 * quad_d)
+    log_term_a = -0.25 * quad_d
 
-    zbar = 0.5 * (Zm + Zmp)
-    U = (zbar - mu[None, None, :]).reshape(M * M, Q)
+    # term_b: midpoint Mahalanobis
+    quad_u = quad_u_midpoints(Z, mu, LC)
+    log_term_b = -0.5 * quad_u
 
-    Y = jsp.linalg.solve_triangular(LC, U.T, lower=True)
-    quad_u = jnp.sum(Y * Y, axis=0).reshape(M, M)
-    term_b = jnp.exp(-0.5 * quad_u)
+    log_psi2 = 2.0 * log_sigma2_f - 0.5 * logdetB2 + log_term_a + log_term_b
 
-    psi2 = (sigma2_f * sigma2_f) * jnp.exp(-0.5 * logdetB2) * (term_a * term_b)
+    psi2 = jnp.exp(log_psi2)
 
     return psi0, psi1, psi2
 
@@ -364,13 +377,13 @@ class BGPLVMPosterior:
         W = jsp.linalg.solve_triangular(self.L.T, tmp, lower=False)
         return W
 
-    def forward_x(self, x_mu, x_Sigma, jitter=1e-6):
+    def forward_x(self, x_mu, x_Sigma):
         """Propagate a point X ~ N(x_mu, x_Sigma) through a moment-matched BGPLVM nonlinearity to get Y ~ N(y_mu, y_Sigma) in data space
 
         NOTE: this already takes into learned BGPLVM observation noise! (self.sigma2 below)
         """
         psi0, ek, Ekk = psi_stats_rbf_ard_full(
-            x_mu, x_Sigma, self.Z, self.kernel, jitter=jitter
+            x_mu, x_Sigma, self.Z, self.kernel, jitter=self.jitter
         )
 
         W = self._Wmat()
@@ -400,11 +413,7 @@ class BGPLVMPosterior:
 
     def forward_x_gmm(self, pis, x_mus, x_Sigmas, jitter=1e-6):
         """Propagate a GMM in X through the BGPLVM nonlinearity to get a GMM in Y"""
-
-        def one(m, S):
-            return self.forward_x(m, S, jitter=jitter)
-
-        y_mus, y_Sigmas = jax.vmap(one)(x_mus, x_Sigmas)
+        y_mus, y_Sigmas = jax.vmap(self.forward_x)(x_mus, x_Sigmas)
         return pis, y_mus, y_Sigmas
 
 
