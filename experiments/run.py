@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# pip install numpy pandas papermill scrapbook jupyter-cache tqdm nbformat
+# pip install numpy pandas papermill scrapbook jupyter-cache tqdm nbformat rich
 """
 Usage:
   python -m experiments.run generate  <experiment-folder>
@@ -13,7 +13,7 @@ TODO:
   - On `generate`: remove all non-code cells for copies
   - "%(variable_name)s" in config() call to generate names
   - Can't move experiment locations because runs/ notebooks have absolute paths to cache
-  - jupyter-cache always uses os.cpu_count() workers in parallel execution -- fork project?
+  - jupyter-cache always uses os.cpu_count() workers in parallel execution -- we need to fork project properly
     * still need raw jcache interface to inspect eg notebooks that errored (jcache notebook info [id])
     * [-- ...jcache-args] doesn't seem to work
   - multiple command specification: python -m experiments.run generate+execute ...

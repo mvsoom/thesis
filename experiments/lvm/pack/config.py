@@ -11,7 +11,7 @@ def configurations():
         iteration,
     ) in product(
         [8, 16, 32, 64, 128],
-        [1, 3, 6, 9],
+        [1, 3, 6, 9, 12],
         [1],
     ):
         if M < Q:  # require dimensionality reduction
