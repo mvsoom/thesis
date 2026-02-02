@@ -118,12 +118,14 @@ def main(exp_dir):
         return
 
     t = np.asarray(times)
+    sumt = t.sum()
     logt = np.log10(t)
 
     med = np.median(logt)
     lo, hi = np.percentile(logt, [10, 90])
 
     console.print("[bold]Timing statistics[/bold]")
+    console.print(f"  total time      : {sumt:,.2f} s (~{sumt / 60:,.1f} min)")
     console.print(f"  median time     : {10**med:,.2f} s")
     console.print(f"  10–90% interval : [{10**lo:,.2f}, {10**hi:,.2f}] s")
 
