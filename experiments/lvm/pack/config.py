@@ -1,7 +1,7 @@
 from itertools import product
 from random import Random
 
-rng = Random(114593)
+rng = Random(1145930)
 
 
 def configurations():

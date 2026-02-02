@@ -61,16 +61,21 @@ View(quick)
 
 
 ## Increasing Q is a "free" knob
+# Once M >= 64, Q = 3 is preferred
+best <- quick[results.D_KL_bans_per_sample < 3]
+
 (
+# styler: off
     ggplot(
-        quick,
+        best,
         aes(
             M * results.K,
             results.D_KL_bans_per_sample,
-            text = paste0("M = ", M, "<br>K = ", results.K)
+            text <- paste0("M = ", M, "<br>K = ", results.K, "<br>D_KL = ", results.D_KL_bans_per_sample)
         )
     ) +
         geom_point(aes(color = as.factor(Q))) +
+        geom_text(aes(label = Q), vjust = -1) +
         geom_line(aes(group = interaction(results.K, M)), alpha = 0.3) +
         scale_x_log10() +
         xlab("compute (M x K)") +
@@ -78,4 +83,5 @@ View(quick)
         ggtitle(
             "Performance on test set vs compute (M x K)"
         )
+    # styler: on
 ) |> ggplotly(tooltip = "text")
