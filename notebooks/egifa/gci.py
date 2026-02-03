@@ -47,7 +47,12 @@ def _load_egifa(stem: Path):
 WINDOW_MS = 32.0
 HOP_MS = 16.0
 
-subset, stem = _list_egifa_stems()[np.random.randint(len(_list_egifa_stems()))]
+stems = _list_egifa_stems()
+# for a subset:
+# stems = [s for s in stems if s[0] == "vowel"]
+stems = [s for s in stems if s[0] == "speech"]
+
+subset, stem = stems[np.random.randint(len(stems))]
 fs, s, gf, upper, lower = _load_egifa(stem)
 
 frame_len = int(round(WINDOW_MS * fs / 1000.0))
@@ -89,11 +94,33 @@ fig.add_trace(
 )
 
 u_seg = gf[start:end]
+
+u_seg -= np.min(u_seg)  # Simple breathy DC offset canceler
+u_max = np.max(u_seg)
+tol_value = 0.05 * u_max
+
 du_dt = np.gradient(u_seg, 1 / fs)
 
-u_min = np.min(u_seg)
-u_max = np.max(u_seg)
-tol_value = u_min + 0.02 * (u_max - u_min)
+
+# Criterion for selecting:
+#
+# Find the smallest regions who are the locus of
+# - u(t) being near its minimum (below tol_value)
+# - endpoints having maximal product of derivatives (one going up, one going down) to capture strong energy change
+#
+# This heuristic works amazingly well in practice on the vowels
+# and tol_value can be set in function of maximum OQ attainable
+# (so compare with physical measurements) on a cleaned test set
+# Main failure mode is incomplete offsets (which we discard anyway)
+# and very breathy sounds, where tol_value is too low for some regions
+# (we can extrapolate)
+#
+# Operates currently on 32 msec intervals; longer intervals will need local
+# tolerance for breathy signals
+#
+# Asssuming positive polarity, ie u(t) >~ 0:
+#    left endpoint = GCI
+#   right endpoint = GOI
 
 low_idx = np.where(u_seg <= tol_value)[0]
 subintervals = []
@@ -103,20 +130,28 @@ if low_idx.size:
     for region in regions:
         if region.size < 2:
             continue
-        left = None
-        right = None
-        for i in range(region.size):
-            li = int(region[i])
-            for j in range(region.size - 1, i - 1, -1):
-                rj = int(region[j])
-                if du_dt[li] * du_dt[rj] < 1.0:
-                    left = li
-                    right = rj
-                    break
-            if left is not None:
-                break
-        if left is not None:
-            subintervals.append((left, right))
+
+        d = du_dt[region]
+        energy = d[:, None] * d[None, :]  # NxN
+
+        valid = energy < 0.0
+        valid = np.triu(valid, k=0)
+
+        if not valid.any():
+            continue
+
+        # mask invalid pairs to -inf so they never win
+        masked = np.where(valid, np.abs(energy), -np.inf)
+
+        # find best pair
+        flat_idx = np.argmax(masked)
+        i, j = np.unravel_index(flat_idx, masked.shape)
+
+        # (i, j) are indices into `region`
+        left = int(region[i]) + 1
+        right = int(region[j]) - 1
+
+        subintervals.append((left, right))
 
 fig.add_trace(
     go.Scattergl(
@@ -125,6 +160,8 @@ fig.add_trace(
         mode="lines",
         opacity=0.7,
         name="u(t)",
+        customdata=np.sign(du_dt),
+        hovertemplate="t=%{x:.3f} ms<br>u=%{y:.6g}<br>sign(u')=%{customdata:.0f}<extra></extra>",
     ),
     row=2,
     col=1,
@@ -143,7 +180,7 @@ for k, (left, right) in enumerate(subintervals):
                 type="data",
                 symmetric=False,
                 array=[0.0, 0.0],
-                arrayminus=[tol_value - u_min, tol_value - u_min],
+                arrayminus=[tol_value, tol_value],
                 thickness=1,
                 width=6,
                 color="black",
