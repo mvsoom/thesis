@@ -10,7 +10,7 @@ import plotly.colors as pc
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-from scipy.stats import chi2
+from scipy.stats import chi2, spearmanr
 
 from lvm.qgpvlm import sample_qgpvlm
 from prism.svi import (
@@ -320,7 +320,7 @@ def sample_latent_gmm_pointwise(gmm, plvm, psi, tau_test, unwhiten, nsamples=6):
         f_sample = Psi @ mu_eps_sample.squeeze()
 
         fig.add_trace(
-            go.Scatter(
+            go.Scattergl(
                 x=np.array(tau_test),
                 y=f_sample,
                 mode="lines",
@@ -370,7 +370,7 @@ def plot_cluster_means_in_data_space(qgp, tau_test):
 
         # upper envelope (anchor for fill)
         fig.add_trace(
-            go.Scatter(
+            go.Scattergl(
                 x=tau_test,
                 y=upper,
                 mode="lines",
@@ -383,7 +383,7 @@ def plot_cluster_means_in_data_space(qgp, tau_test):
 
         # lower envelope + fill
         fig.add_trace(
-            go.Scatter(
+            go.Scattergl(
                 x=tau_test,
                 y=lower,
                 mode="lines",
@@ -398,7 +398,7 @@ def plot_cluster_means_in_data_space(qgp, tau_test):
 
         # mean line (only legend entry)
         fig.add_trace(
-            go.Scatter(
+            go.Scattergl(
                 x=tau_test,
                 y=mean,
                 mode="lines",
@@ -446,7 +446,7 @@ def plot_cluster_samples_in_data_space(key, gqp, tau_test, nsamples=6):
         c = i % ncols + 1
 
         fig.add_trace(
-            go.Scatter(
+            go.Scattergl(
                 x=x,
                 y=f_sample,
                 mode="lines",
@@ -490,3 +490,43 @@ def plot_logl_histogram(log_prob_gmm, log_prob_u, n_eff, K):
         title=f"[K={K}] Normalized log likelihoods per sample",
         labels={"loglik": "Log likelihood per sample", "count": "Count"},
     )
+
+
+def plot_oq_vs_loglik(oq, loglik, title=None):
+    oq = np.asarray(oq).ravel()
+    loglik = np.asarray(loglik).ravel()
+
+    if oq.size != loglik.size:
+        raise ValueError("oq and loglik must have the same number of points")
+
+    if title is None:
+        title = "Open quotient vs log likelihood"
+
+    fig = go.Figure(
+        data=[
+            go.Scattergl(
+                x=oq,
+                y=loglik,
+                mode="markers",
+                marker=dict(size=4, opacity=0.6),
+                showlegend=False,
+            )
+        ]
+    )
+    fig.update_layout(
+        title=title,
+        xaxis_title="open quotient (oq)",
+        yaxis_title="normalized log likelihood",
+        margin=dict(l=0, r=0, b=0, t=30),
+        height=450,
+        width=600,
+    )
+    fig.update_xaxes(type="log")
+    return fig
+
+
+def oq_sensitivity_spearman(oq, ll):
+    oq = np.asarray(oq)
+    ll = np.asarray(ll)
+    rho, p = spearmanr(oq, ll)
+    return {"oq_sensitivity": float(rho), "oq_sensitivity_p": float(p)}
