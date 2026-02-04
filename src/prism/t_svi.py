@@ -4,10 +4,6 @@ import jax.scipy as jsp
 
 from utils.jax import safe_cholesky
 
-# ------------------------------------------------------------
-# Utilities
-# ------------------------------------------------------------
-
 
 def gamma_kl(alpha_q, beta_q, alpha_p, beta_p):
     """
@@ -21,11 +17,6 @@ def gamma_kl(alpha_q, beta_q, alpha_p, beta_p):
         + alpha_p * (jnp.log(beta_q) - jnp.log(beta_p))
         + alpha_q * (beta_p / beta_q - 1.0)
     )
-
-
-# ------------------------------------------------------------
-# Core: collapsed Gaussian machinery with diagonal weights
-# ------------------------------------------------------------
 
 
 def _collapsed_gaussian_stats(q, t, y, w):
@@ -83,6 +74,9 @@ def _collapsed_gaussian_stats(q, t, y, w):
         sigma2
     )
 
+    # Posterior covariance of eps
+    Sigma_eps = jsp.linalg.cho_solve((L, True), jnp.eye(M))
+
     # Posterior moments of f
     m = Psi.T @ mu_eps  # [W,1]
 
@@ -96,6 +90,8 @@ def _collapsed_gaussian_stats(q, t, y, w):
     aux = dict(
         Psi=Psi,
         L=L,
+        mu_eps=mu_eps,
+        Sigma_eps=Sigma_eps,
         AAT=AAT,
         Kxx_diag=Kxx_diag,
         n_eff=jnp.sum(mask_w),
@@ -132,63 +128,48 @@ def _collapsed_gaussian_elbo(y, w, aux, sigma2):
     return 0.5 * (two_log_prob - two_trace)
 
 
-# ------------------------------------------------------------
-# t-PRISM ELBO for one waveform
-# ------------------------------------------------------------
-
-
 def collapsed_elbo_masked_t(q, t, y, nu, num_inner=3):
-    """
-    Collapsed t-PRISM ELBO for ONE waveform with NaN masking.
-
-    Local variables: q(lambda_n) via CAVI
-    Global variables: Z, theta, sigma2, nu
-    """
     sigma2 = q.posterior.likelihood.obs_stddev**2
 
-    # initialization: E[lambda] = 1
-    w = jnp.ones_like(y)[:, None]
+    mask = ~jnp.isnan(y)
+    y0 = jnp.where(mask, y, 0.0)[:, None]
+    mask_col = mask[:, None]
+
+    # initialise E[lambda] = 1 on valid points, 0 on padded
+    w = mask_col.astype(y.dtype)
 
     for _ in range(num_inner):
         m, v, aux = _collapsed_gaussian_stats(q, t, y, w)
 
-        r2 = (y[:, None] - m) ** 2 + v
+        r2 = (y0 - m) ** 2 + v
         alpha = 0.5 * (nu + 1.0)
         beta = 0.5 * (nu + r2 / sigma2)
 
         beta = jnp.maximum(beta, 1e-12)
-        w = alpha / beta
+        w = (alpha / beta) * mask_col
 
-    # final moments
-    m, v, aux = _collapsed_gaussian_stats(q, t, y, w)
+    # final Gaussian collapsed term (expects safe y)
+    elbo_gauss = _collapsed_gaussian_elbo(y0, w, aux, sigma2)
 
-    # Gaussian collapsed term
-    elbo_gauss = _collapsed_gaussian_elbo(y[:, None], w, aux, sigma2)
-
-    # Gamma terms
+    # lambda terms
+    r2 = (y0 - m) ** 2 + v
     alpha = 0.5 * (nu + 1.0)
-    beta = 0.5 * (nu + ((y[:, None] - m) ** 2 + v) / sigma2)
+    beta = 0.5 * (nu + r2 / sigma2)
+    beta = jnp.maximum(beta, 1e-12)
 
     E_loglam = jsp.special.digamma(alpha) - jnp.log(beta)
+    E_loglam = E_loglam * mask_col
 
-    kl_lam = gamma_kl(
-        alpha_q=alpha,
-        beta_q=beta,
-        alpha_p=0.5 * nu,
-        beta_p=0.5 * nu,
-    )
+    # KL(q(lambda) || p(lambda)) where both are Gamma(shape, rate)
+    a = alpha
+    b = beta
+    a0 = 0.5 * nu
+    b0 = 0.5 * nu
 
-    # Mask padded points
-    mask = ~jnp.isnan(y)
-    E_loglam = E_loglam * mask[:, None]
-    kl_lam = kl_lam * mask[:, None]
+    kl_lam = gamma_kl(a, b, a0, b0)
+    kl_lam = jnp.sum(kl_lam * mask_col)
 
-    return elbo_gauss + 0.5 * jnp.sum(E_loglam) - jnp.sum(kl_lam)
-
-
-# ------------------------------------------------------------
-# Batch ELBO (SVI)
-# ------------------------------------------------------------
+    return elbo_gauss + 0.5 * jnp.sum(E_loglam) - kl_lam
 
 
 def batch_collapsed_elbo_masked_t(q, data, nu, I_total, num_inner=3):
@@ -204,36 +185,29 @@ def batch_collapsed_elbo_masked_t(q, data, nu, I_total, num_inner=3):
     return (I_total / B) * jnp.sum(elbos)
 
 
-# ------------------------------------------------------------
-# Robust projection: posterior over eps
-# ------------------------------------------------------------
-
-
 def infer_eps_posterior_single_t(q, t, y, nu, num_inner=3):
-    """
-    Robust PRISM projection:
-    returns N(mu_eps, Sigma_eps) for one waveform
-    """
     sigma2 = q.posterior.likelihood.obs_stddev**2
 
-    w = jnp.ones_like(y)[:, None]
+    mask = ~jnp.isnan(y)
+    y0 = jnp.where(mask, y, 0.0)[:, None]
+    mask_col = mask[:, None]
+
+    w = mask_col.astype(y.dtype)
 
     for _ in range(num_inner):
         m, v, aux = _collapsed_gaussian_stats(q, t, y, w)
-        r2 = (y[:, None] - m) ** 2 + v
+
+        r2 = (y0 - m) ** 2 + v
         alpha = 0.5 * (nu + 1.0)
         beta = 0.5 * (nu + r2 / sigma2)
-        w = alpha / jnp.maximum(beta, 1e-12)
 
-    # build weighted BLR posterior
-    Psi = aux["Psi"].T  # [W,M]
-    sw = jnp.sqrt(w[:, 0])
+        beta = jnp.maximum(beta, 1e-12)
+        w = (alpha / beta) * mask_col
 
-    A = (Psi * sw[:, None]) / jnp.sqrt(sigma2)
-    precision = jnp.eye(Psi.shape[1]) + A.T @ A
-    Lp = safe_cholesky(precision)
+    # one final consistent Gaussian posterior with final weights
+    m, v, aux = _collapsed_gaussian_stats(q, t, y, w)
 
-    Sigma_eps = jsp.linalg.cho_solve((Lp, True), jnp.eye(Psi.shape[1]))
-    mu_eps = (Sigma_eps @ (Psi.T @ (w[:, 0] * y)) / sigma2).squeeze()
+    mu_eps = aux["mu_eps"].squeeze() # (M,)
+    Sigma_eps = aux["Sigma_eps"] # (M,M)
 
     return mu_eps, Sigma_eps
