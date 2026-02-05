@@ -105,6 +105,8 @@
     #include "./appendix/nonparametric-gfm.typ"
     #include "./appendix/gps.typ"
     #include "./appendix/related-contributions.typ"
+    #include "./appendix/prism.typ"
+    #include "./appendix/t-prism.typ"
   ],
 )
 
