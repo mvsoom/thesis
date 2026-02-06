@@ -1,7 +1,13 @@
-# lvm/pack_01
+# lvm/qpack_test
 
-Continue on pack:d to further investigate (d=0, d=1) cases for larger M and Q
+Test on learning u(t) NOT u'(t) on EGIFA
+from lousy GCI estimates from DYPSAGOI
 
-pack:0 clearly wins at M=128, K=4, Q=12
+## results
+Look reasonable
 
-Samples look OK; very nonsmooth
+High M ~ 128 is needed
+d=1 wins
+Memory issues for M >= 256
+
+Not really clear if closed phase is learnt well
