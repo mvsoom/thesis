@@ -7,10 +7,11 @@ import numpy as np
 import optax as ox
 import plotly.express as px
 from flax import nnx
-from gpjax.parameters import Parameter
+from scipy.stats import ecdf
 from tqdm import tqdm
 
 from prism.pack import NormalizedPACK
+from prism.t_svi import t_batch_collapsed_elbo_masked
 from utils.jax import nocheck, safe_cholesky
 
 
@@ -48,6 +49,14 @@ def init_Z_grid(key, M):
 
     z = jnp.mod(z + shift, 1.0)
     return z
+
+
+def init_Z_inverse_ecdf(key, M, X):
+    res = ecdf(X[~np.isnan(X)].flatten())
+
+    u = init_Z_grid(key, M).flatten()  # quasi-uniform grid in [0,1]
+
+    return jnp.interp(u, res.cdf.probabilities, res.cdf.quantiles)[:, None]
 
 
 def collapsed_elbo_masked(q, t, y):
@@ -203,7 +212,10 @@ def optimize(key, model, dataset, lr, batch_size, num_iters, **fit_kwargs):
     optim = ox.adam(learning_rate=lr)
 
     def cost(q, d):
-        return -batch_collapsed_elbo_masked(q, d, N)
+        if not hasattr(q, "nu"):
+            return -batch_collapsed_elbo_masked(q, d, N)  # PRISM
+        else:
+            return -t_batch_collapsed_elbo_masked(q, d, N)  # t-PRISM
 
     fitted, cost_history = gpx.fit(
         model=model,
@@ -213,7 +225,6 @@ def optimize(key, model, dataset, lr, batch_size, num_iters, **fit_kwargs):
         num_iters=num_iters,
         key=key,
         batch_size=batch_size,
-        trainable=Parameter,
         **fit_kwargs,
     )
 
