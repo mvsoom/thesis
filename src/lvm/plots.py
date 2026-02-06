@@ -18,9 +18,12 @@ from prism.svi import (
 )
 
 
-def pair_plots_oq(qlvm, pairs, showdensity, showscatter, oq):
+def pair_plots_oq(qlvm, pairs, showdensity, showscatter, oq=None):
     X_mu = qlvm.X_mu
     X_var = qlvm.X_var
+
+    if oq is None:
+        oq = np.full((len(X_mu),), np.nan)
 
     if showdensity:
         for pair in pairs:
@@ -95,9 +98,12 @@ def pair_plots_oq(qlvm, pairs, showdensity, showscatter, oq):
     return fig
 
 
-def single_plot_oq(qlvm, top3, oq):
+def single_plot_oq(qlvm, top3, oq=None):
     X_mu = qlvm.X_mu
     X_var = qlvm.X_var
+
+    if oq is None:
+        oq = np.full((len(X_mu),), np.nan)
 
     i, j, k = top3
 

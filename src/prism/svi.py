@@ -423,6 +423,11 @@ def reconstruct_waveforms(mu_eps, qsvi, train_data, test_indices, tau_test):
         labels={"tau": "tau", "value": "u'(t)", "series": ""},
     )
 
+    fig.update_layout(
+        legend=dict(orientation="h", x=0.5, xanchor="center", y=-0.2, yanchor="top"),
+        margin=dict(b=80),
+    )
+
     return fig
 
 # %%

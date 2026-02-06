@@ -7,11 +7,11 @@ import parselmouth
 import tensorflow_probability.substrates.jax.bijectors as tfb
 import tensorflow_probability.substrates.jax.distributions as tfd
 
+import aplawd
 from utils import (
     __cache__,
     __datadir__,
     __memory__,
-    aplawd,
     bijectors,
     constants,
     praat,
