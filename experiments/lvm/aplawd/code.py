@@ -394,6 +394,7 @@ def process_K(K, key=vk()):
         qgp,
         f_list=f_list,
         Psi_list=Psi_list,
+        nu=qsvi.nu,
         obs_std=qsvi.posterior.likelihood.obs_stddev,
         noise_floor=np.sqrt(NOISE_FLOOR_POWER),
     )
@@ -423,5 +424,4 @@ results = [
     process_K(K, subkey)
     for K, subkey in zip(KS, jax.random.split(master_key, len(KS)))
 ]
-
 # %%
