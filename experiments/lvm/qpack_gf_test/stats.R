@@ -4,7 +4,7 @@ library(data.table)
 library(ggrepel)
 
 # Get experiment dir from environment variable
-runs_file <- file.path(Sys.getenv("PROJECT_EXPERIMENTS_PATH"), "lvm/qpack_test/runs.csv")
+runs_file <- file.path(Sys.getenv("PROJECT_EXPERIMENTS_PATH"), "lvm/qpack_gf_test/runs.csv")
 runs <- data.table(fread(runs_file))
 
 # Any nans in D_KL?
