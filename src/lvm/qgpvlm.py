@@ -3,6 +3,7 @@ import jax.numpy as jnp
 import numpy as np
 from flax import struct
 from joblib import Parallel, delayed
+from scipy.special import gammaln
 
 from lvm.bgplvm import BGPLVMPosterior
 from lvm.xdgmm import GMMFit
@@ -101,6 +102,7 @@ def loglikelihood_on_test(
     f_list,
     Psi_list,
     obs_std,
+    nu=np.inf,
     noise_floor=1e-3,
     jitter=1e-6,
     n_jobs=-1,
@@ -109,7 +111,9 @@ def loglikelihood_on_test(
 ):
     """Calculate the log likelihood of test data under the qGPVLM model
 
-    This is just a GMM in data space, but the reduced rank Psi matrices depend on each data point.
+    Depending on the value of nu, this uses either a Gaussian likelihood (nu=inf) or a Student-t likelihood (finite nu).
+
+    Note: this is just a GMM in data space, but the reduced rank Psi matrices depend on each data point.
     This defeats jax and plain numpy was too slow, so we use joblib for parallelism, which gives 50x speedup
     """
     sigma = max(float(obs_std), float(noise_floor))
@@ -161,7 +165,17 @@ def loglikelihood_on_test(
             logdet_M = 2.0 * np.sum(np.log(np.diag(LM)))
             logdet_C = T * np.log(sigma2) + logdet_Sig[k] + logdet_M
 
-            lps[k] = log_pi[k] - 0.5 * (T * log2pi + logdet_C + quad)
+            if np.isinf(nu):
+                # Gaussian likelihood
+                lps[k] = log_pi[k] - 0.5 * (T * log2pi + logdet_C + quad)
+            else:
+                # Student-t likelihood
+                term1 = gammaln((nu + T) / 2) - gammaln(nu / 2)
+                term2 = -0.5 * logdet_C
+                term3 = -(T / 2) * np.log(nu * np.pi)
+                term4 = -((nu + T) / 2) * np.log1p(quad / nu)
+
+                lps[k] = log_pi[k] + term1 + term2 + term3 + term4
 
         m = np.max(lps)
         return m + np.log(np.sum(np.exp(lps - m)))
