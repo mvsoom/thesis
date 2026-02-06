@@ -1,6 +1,7 @@
 import jax
 import jax.numpy as jnp
 import jax.scipy as jsp
+from gpjax.variational_families import CollapsedVariationalGaussian
 
 from utils.jax import safe_cholesky
 
@@ -128,7 +129,25 @@ def _collapsed_gaussian_elbo(y, w, aux, sigma2):
     return 0.5 * (two_log_prob - two_trace)
 
 
-def collapsed_elbo_masked_t(q, t, y, nu, num_inner=3):
+class t_CollapsedVariationalGaussian(CollapsedVariationalGaussian):
+    def __init__(
+        self,
+        posterior,
+        inducing_inputs,
+        nu: float = 1.0,
+        num_inner: int = 3,
+        jitter=1e-6,
+    ):
+        super().__init__(
+            posterior=posterior, inducing_inputs=inducing_inputs, jitter=jitter
+        )
+
+        self.num_inner = num_inner  # static
+        self.nu = nu  # static (for now)
+
+
+def t_collapsed_elbo_masked(q: t_CollapsedVariationalGaussian, t, y):
+    nu = q.nu
     sigma2 = q.posterior.likelihood.obs_stddev**2
 
     mask = ~jnp.isnan(y)
@@ -138,7 +157,7 @@ def collapsed_elbo_masked_t(q, t, y, nu, num_inner=3):
     # initialise E[lambda] = 1 on valid points, 0 on padded
     w = mask_col.astype(y.dtype)
 
-    for _ in range(num_inner):
+    for _ in range(q.num_inner):
         m, v, aux = _collapsed_gaussian_stats(q, t, y, w)
 
         r2 = (y0 - m) ** 2 + v
@@ -146,7 +165,9 @@ def collapsed_elbo_masked_t(q, t, y, nu, num_inner=3):
         beta = 0.5 * (nu + r2 / sigma2)
 
         beta = jnp.maximum(beta, 1e-12)
-        w = (alpha / beta) * mask_col
+        w = (
+            jax.lax.stop_gradient(alpha / beta) * mask_col
+        )  # Don't differentiate through CAVI: Hoffman local/global decoupling
 
     # final Gaussian collapsed term (expects safe y)
     elbo_gauss = _collapsed_gaussian_elbo(y0, w, aux, sigma2)
@@ -172,20 +193,23 @@ def collapsed_elbo_masked_t(q, t, y, nu, num_inner=3):
     return elbo_gauss + 0.5 * jnp.sum(E_loglam) - kl_lam
 
 
-def batch_collapsed_elbo_masked_t(q, data, nu, I_total, num_inner=3):
+def t_batch_collapsed_elbo_masked(
+    q: t_CollapsedVariationalGaussian, data, I_total
+):
     X = data.X
     y = data.y
     B = X.shape[0]
 
     elbos = jax.vmap(
-        lambda t_i, y_i: collapsed_elbo_masked_t(q, t_i, y_i, nu, num_inner),
+        lambda t_i, y_i: t_collapsed_elbo_masked(q, t_i, y_i),
         in_axes=(0, 0),
     )(X, y)
 
     return (I_total / B) * jnp.sum(elbos)
 
 
-def infer_eps_posterior_single_t(q, t, y, nu, num_inner=3):
+def t_infer_eps_posterior_single(q, t, y):
+    nu = q.nu
     sigma2 = q.posterior.likelihood.obs_stddev**2
 
     mask = ~jnp.isnan(y)
@@ -194,7 +218,7 @@ def infer_eps_posterior_single_t(q, t, y, nu, num_inner=3):
 
     w = mask_col.astype(y.dtype)
 
-    for _ in range(num_inner):
+    for _ in range(q.num_inner):
         m, v, aux = _collapsed_gaussian_stats(q, t, y, w)
 
         r2 = (y0 - m) ** 2 + v
@@ -202,12 +226,24 @@ def infer_eps_posterior_single_t(q, t, y, nu, num_inner=3):
         beta = 0.5 * (nu + r2 / sigma2)
 
         beta = jnp.maximum(beta, 1e-12)
-        w = (alpha / beta) * mask_col
+        w = (
+            jax.lax.stop_gradient(alpha / beta) * mask_col
+        )  # Don't differentiate through CAVI
 
     # one final consistent Gaussian posterior with final weights
     m, v, aux = _collapsed_gaussian_stats(q, t, y, w)
 
-    mu_eps = aux["mu_eps"].squeeze() # (M,)
-    Sigma_eps = aux["Sigma_eps"] # (M,M)
+    mu_eps = aux["mu_eps"].squeeze()  # (M,)
+    Sigma_eps = aux["Sigma_eps"]  # (M,M)
 
-    return mu_eps, Sigma_eps
+    return mu_eps, Sigma_eps, w.squeeze()
+
+
+def do_t_prism(q, dataset, device=jax.devices("cpu")[0]):
+    """Calculate the amplitude posterior for all waveforms in dataset, thereby refracting the dataset like a prism into latent space"""
+    with jax.default_device(device):
+        mu_eps, Sigma_eps, w = jax.vmap(
+            t_infer_eps_posterior_single,
+            in_axes=(None, 0, 0),
+        )(q, dataset.X, dataset.y)
+    return mu_eps, Sigma_eps, w
