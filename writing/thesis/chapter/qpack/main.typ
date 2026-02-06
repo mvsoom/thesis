@@ -245,12 +245,18 @@ In this sense, $ell$ admits a direct physiological interpretation as a cycle-to-
 
 This framework yields falsifiable predictions linking observed jitter statistics to latent smoothness of the underlying pitch trajectory, which can subsequently be tested by fitting the model to data.
 
+== Learning with t-PRISM
 
-== Learning Fourier features
+Tricks we use:
+- Normalize data to (0,1): this means we freeze mean to 0 *and* kernel variance to 1.
+- Lengthscale in ballpark order: 10. This is simply to cut number of iterations, the model does find lengthscales ~ 15 if initialized from 1, but takes much longer.
+- Inverse-ECDF initialization of inducing points. This is important because trajectory lengths are long tailed, and we need to place predictive power where it matters. In 1D we can just sample from the empirical distribution, with interpolation.
+- Set $nu$ based on event statistics. Optimizing $nu$ is possible, but more stable optimization. Results depend only very slightly on exact value of $nu$ as long as $<10$.
 
-Still the case that eigenfunctions do not depend on hyperparameters, only the expansion coefficients!
-- But Fourier inference on grid I think not possible anymore, though the Gram matrix can probably be calculated analytically in $O(M^2)$
+For the rest standard Adam optimizer with standard settings.
 
+==== Heuristic for setting $nu$
+We set $nu$ using a simple tail-probability heuristic derived from the expected frequency of spike events. After normalization, the GP prior has unit variance and the learned observation noise standard deviation is approximately $sigma approx 0.15$. Typical spikes have amplitude around $5$, corresponding to residuals of size $r approx 5 / 0.15 approx 30-35$ noise standard deviations. We interpret spikes as events that should lie in the heavy tails of the Student-t likelihood rather than being explained by the Gaussian core. Therefore we choose $nu$ such that the tail probability of a Student-t distribution satisfies $P(|X| > r) approx p_"spike"$, where $p_"spike"$ is the empirical spike rate (here about $1%$). Using the large-$r$ asymptotic tail behaviour $P(|X| > r) approx C * r^(-nu)$ and ignoring constants gives the practical rule $nu approx - log(p_"spike") / log(r)$. For $r approx 35$ and $p_"spike" approx 0.01$, this yields $nu approx 1-2$, which corresponds to a Cauchy-like heavy-tailed likelihood. This choice ensures that extreme residuals are downweighted rather than forcing the GP to explain them through excessive curvature.
 
 == Evaluation on `OPENGLOT-II`
 
