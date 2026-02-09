@@ -1,9 +1,10 @@
 # %%
 # parameters, export
-M = 64  # Number of PRISM basis functions
+kernelname = "matern:32"
+M = 32  # Number of PRISM basis functions
 Q = 6  # Latent dimensionality of qBGPLVM
 iteration = 1
-seed = 2455473317
+seed = 232426279
 
 
 # %%
@@ -42,7 +43,7 @@ from prism.svi import (
 from prism.t_svi import t_CollapsedVariationalGaussian
 from utils import time_this
 from utils.constants import NOISE_FLOOR_POWER
-from utils.jax import pca_reduce, vk
+from utils.jax import pca_reduce, resolve_gpjax_kernel, vk
 
 master_key = jax.random.key(seed)
 
@@ -50,7 +51,7 @@ master_key = jax.random.key(seed)
 # %%
 # Number of independent waveforms to process train/test
 N_TRAIN = 5_000
-N_TEST = 500
+N_TEST = 1_000
 
 
 # %%
@@ -85,8 +86,10 @@ print("Padding width (max waveform length):", WIDTH_TRAIN)
 # Secret sauce: "batching" complete waveforms via masking
 # ELBO factorizes over independent waveforms
 ##############################################################
-batch_size = 512  # len(train_data.y)
-num_iters = 3000  # 800
+batch_size = 512
+num_iters = (
+    3500  # 800 suffices if we init lengthscale to 10, but this also works
+)
 lr = 1e-2
 jitter = 1e-4
 num_restarts = 1
@@ -105,10 +108,8 @@ def trainable(path, v):
 def t_collapsed_svi(key=vk(), M=M, nu=1, num_inner=3):
     Z = init_Z_inverse_ecdf(key, M, X)
 
-    # kernel = RBF(lengthscale=10.0, variance=1.0)
-    from gpjax.kernels import Matern52
-
-    kernel = Matern52(lengthscale=1.0, variance=1.0)
+    k = resolve_gpjax_kernel(kernelname)
+    kernel = k(lengthscale=1.0, variance=1.0)
     prior = gpx.gps.Prior(kernel, Zero())
     likelihood = Gaussian(num_datapoints=WIDTH_TRAIN, obs_stddev=1.0)
 
@@ -151,22 +152,10 @@ px.line(
     labels={"x": "Iteration", "y": "ELBO"},
 ).show()
 
+
 print("Observation sigma_noise:", qsvi.posterior.likelihood.obs_stddev)
 print("Learned lengthscales:", qsvi.posterior.prior.kernel.lengthscale)
 print("Learned variance:", qsvi.posterior.prior.kernel.variance)
-
-from prism.t_svi import do_t_prism
-
-mu_eps, Sigma_eps, w = do_t_prism(qsvi, train_data)
-
-from prism.svi import reconstruct_waveforms
-
-# %%
-random_indices = np.random.choice(N_TRAIN, size=4, replace=False)
-test_indices = random_indices
-
-tau_test = jnp.linspace(0, n_eff * 3, 1000)
-reconstruct_waveforms(mu_eps, qsvi, train_data, test_indices, tau_test).show()
 
 
 # %%
@@ -175,7 +164,7 @@ def psi(t):
     return svi_basis(qsvi, t)
 
 
-tau_test = jnp.linspace(0, n_eff, 1000)
+tau_test = jnp.linspace(0, n_eff * 2, 1000)
 Psi_test = jax.vmap(psi)(tau_test)  # test indices
 
 master_key, subkey = jax.random.split(master_key)
@@ -198,6 +187,10 @@ px.line(Psi_test).update_traces(x=tau_test).update_layout(
     title="Learned basis functions psi_m(t)",
 ).show()
 
+# %%
+from prism.t_svi import do_t_prism
+
+mu_eps, Sigma_eps, w = do_t_prism(qsvi, train_data)
 
 # %%
 # Can we reconstruct waveforms from the SVI latent space?
@@ -293,6 +286,7 @@ px.line(
 # export
 svi_walltime = svi_timer.walltime
 svi_obs_std = float(qsvi.posterior.likelihood.obs_stddev)
+svi_lengthscale = float(qsvi.posterior.prior.kernel.lengthscale)
 
 lvm_walltime = lvm_timer.walltime
 lvm_obs_std = np.sqrt(qlvm.sigma2)
@@ -399,9 +393,7 @@ def process_K(K, key=vk()):
         noise_floor=np.sqrt(NOISE_FLOOR_POWER),
     )
 
-    mean_gmm_loglikelihood = (
-        log_prob_gmm.mean()
-    )  # FIXME => needs to be student-t loglikelihood with nu=qsvi.nu
+    mean_gmm_loglikelihood = log_prob_gmm.mean()
 
     print(
         f"[K={K}] Average log likelihood per sample (GMM model)",
@@ -415,7 +407,7 @@ def process_K(K, key=vk()):
     }
 
 
-KS = [1, 2, 4, 8]
+KS = [1, 2, 4, 8, 16]
 
 
 # %%
@@ -424,4 +416,3 @@ results = [
     process_K(K, subkey)
     for K, subkey in zip(KS, jax.random.split(master_key, len(KS)))
 ]
-# %%
