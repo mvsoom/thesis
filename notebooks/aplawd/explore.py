@@ -1,41 +1,34 @@
 # %%
 import numpy as np
 import plotly.graph_objects as go
+from IPython.display import Audio, display
 from plotly.subplots import make_subplots
 
-from aplawd import APLAWD, APLAWD_Markings
-from utils import __datadir__, pyglottal
+from aplawd.data import get_meta
+from gci.estimate import gci_estimates_from_quickgci
 
-aplawd_db = APLAWD(__datadir__("APLAWDW/dataset"))
-markings_db = APLAWD_Markings(__datadir__("APLAWDW/markings/aplawd_gci"))
-
+meta_list = get_meta()
+meta_with_speech = [m for m in meta_list if "speech" in m]
 
 # %%
-# check reference markings: need some local alignment by shift ~ 0.9 msec
-def plot_recording_and_degg(recordings, markings, key=None):
-    aplawd_db = recordings
-    markings_db = markings
 
-    if key is None:
-        key = np.random.choice(aplawd_db.keys())
 
-    # recording = aplawd_db.load_shifted(key)
-    recording = aplawd_db.load(key)
-    recording_gci = markings_db.load(recording.name)
+def plot_recording_and_degg(index=None):
+    if index is None:
+        index = np.random.randint(len(meta_with_speech))
 
-    # NOTE: use Serwys parameters: https://chatgpt.com/s/t_697e19dc95988191b1d2af6b89e81f3d
-    # NOTE 2: needs positive polarity
-    estimated_gci = pyglottal.quick_gci(
-        recording.s,
-        fs=recording.fs,
-        fmin=20,
-        fmax=400,
-        theta=-np.pi / 2,
-        reps=2,
-    )
+    meta = meta_with_speech[index]
 
-    t_s = 1e3 * np.arange(len(recording.s)) / recording.fs
-    t_d = 1e3 * np.arange(len(recording.d)) / recording.fs
+    speech = meta["speech"]
+    degg = meta["degg"]
+    fs = meta["fs"]
+    recording_gci = meta["markings"]
+    name = meta.get("name", meta.get("key", "APLAWD"))
+
+    estimated_gci = gci_estimates_from_quickgci(speech, fs)
+
+    t_s = 1e3 * np.arange(len(speech)) / fs
+    t_d = 1e3 * np.arange(len(degg)) / fs
 
     # t_s -= 0.9  # shift to align with markings
 
@@ -47,21 +40,17 @@ def plot_recording_and_degg(recordings, markings, key=None):
         cols=1,
         shared_xaxes=True,
         vertical_spacing=0.05,
-        subplot_titles=[f"APLAWD waveform: {recording.name}", "DEGG"],
+        subplot_titles=[f"APLAWD waveform: {name}", "DEGG"],
     )
 
     fig.add_trace(
-        go.Scattergl(
-            x=t_s, y=recording.s, mode="lines", opacity=0.6, name="speech"
-        ),
+        go.Scattergl(x=t_s, y=speech, mode="lines", opacity=0.6, name="speech"),
         row=1,
         col=1,
     )
 
     fig.add_trace(
-        go.Scattergl(
-            x=t_d, y=recording.d, mode="lines", opacity=0.6, name="DEGG"
-        ),
+        go.Scattergl(x=t_d, y=degg, mode="lines", opacity=0.6, name="DEGG"),
         row=2,
         col=1,
     )
@@ -144,26 +133,19 @@ def plot_recording_and_degg(recordings, markings, key=None):
     fig.update_layout(
         height=700,
         hovermode="x unified",
+        legend=dict(
+            orientation="h",
+            x=0.5,
+            xanchor="center",
+            y=-0.15,
+            yanchor="top",
+        ),
     )
 
     fig.show()
+    return meta
 
 
-plot_recording_and_degg(aplawd_db, markings_db)
+meta = plot_recording_and_degg()
 
-# %%
-# Test quick_gci
-key = np.random.choice(aplawd_db.keys())
-
-# recording = aplawd_db.load_shifted(key) # with 0.95 msec shift
-recording = aplawd_db.load(key)
-recording_gci = markings_db.load(recording.name)
-
-t_s = 1e3 * np.arange(len(recording.s)) / recording.fs
-t_d = 1e3 * np.arange(len(recording.d)) / recording.fs
-gci_t = t_d[recording_gci]
-
-# shift
-t_s -= 0.9
-
-pyglottal.quick_gci(recording.s, fs=recording.fs)
+display(Audio(meta["speech"], rate=meta["fs"]))
