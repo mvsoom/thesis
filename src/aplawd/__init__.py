@@ -2,6 +2,7 @@
 import os
 import pathlib
 from collections import namedtuple
+
 import numpy as np
 import scipy.signal as sig
 from scipy.io import wavfile
@@ -14,6 +15,9 @@ from scipy.io import wavfile
 #   file - file name for egg
 #   name - key
 speechfile = namedtuple('speechfile', 's, e, d, fs, file, name')
+
+MARKINGS_FS_HZ = 20000
+
 
 class APLAWD:
     def __init__(self, root):
