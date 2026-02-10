@@ -1,29 +1,23 @@
 from itertools import product
 from random import Random
 
-rng = Random(3368974)
+rng = Random(65933849)
 
 
 def configurations():
     for (
         M,  # number of PRISM basis functions
-        Q,  # latent dimension
         iteration,
-        d,
+        kernelname,
     ) in product(
-        [16, 32, 64, 128, 256],
-        [1, 3, 6, 9, 12, 15],
+        [4, 8, 16, 32, 64, 128],
         [1],
-        [0, 1, 2],
+        ["matern:12", "matern:32", "matern:52", "rbf"],
     ):
-        if M < Q:  # require dimensionality reduction
-            continue
-
         yield {
             "seed": rng.randint(0, 2**32 - 1),
             "M": M,
-            "Q": Q,
             "iteration": iteration,
-            "d": d,
-            "name": f"M={M}_Q={Q}_iter={iteration}_d={d}",
+            "kernelname": kernelname,
+            "name": f"M={M}_iter={iteration}_kernelname={kernelname}",
         }
