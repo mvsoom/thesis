@@ -374,7 +374,9 @@ def svi_basis(q, t):
     ).squeeze()  # psi = Lzz^{-1} Kzx
 
 # %%
-def reconstruct_waveforms(mu_eps, qsvi, train_data, test_indices, tau_test):
+def reconstruct_waveforms(
+    mu_eps, qsvi, train_data, test_indices, tau_test, weights=None
+):
     """Is the learned RKHS rich enough to reconstruct some test waveforms?"""
     f_means = jax.vmap(
         lambda eps: gp_posterior_mean_from_eps(qsvi, tau_test, eps)
@@ -389,28 +391,33 @@ def reconstruct_waveforms(mu_eps, qsvi, train_data, test_indices, tau_test):
 
         x_data = np.array(train_data.X[idx_int])
         y_data = np.array(train_data.y[idx_int])
-        for x_val, y_val in zip(x_data, y_data):
-            plot_rows.append(
-                {
-                    "tau": x_val,
-                    "value": y_val,
-                    "series": "Data",
-                    "panel": panel_label,
-                }
-            )
+        if weights is not None:
+            w_data = np.array(weights[idx_int])
+        for i, (x_val, y_val) in enumerate(zip(x_data, y_data)):
+            row = {
+                "tau": x_val,
+                "value": y_val,
+                "series": "Data",
+                "panel": panel_label,
+            }
+            if weights is not None:
+                row["weight"] = w_data[i]
+            plot_rows.append(row)
 
         x_pred = np.array(tau_test)
         y_pred = np.array(f_mean)
         for x_val, y_val in zip(x_pred, y_pred):
-            plot_rows.append(
-                {
-                    "tau": x_val,
-                    "value": y_val,
-                    "series": "Posterior mean",
-                    "panel": panel_label,
-                }
-            )
+            row = {
+                "tau": x_val,
+                "value": y_val,
+                "series": "Posterior mean",
+                "panel": panel_label,
+            }
+            if weights is not None:
+                row["weight"] = None
+            plot_rows.append(row)
 
+    hover_data = ["weight"] if weights is not None else None
     fig = px.line(
         plot_rows,
         x="tau",
@@ -421,6 +428,7 @@ def reconstruct_waveforms(mu_eps, qsvi, train_data, test_indices, tau_test):
         category_orders={"panel": panel_order},
         title="Posterior mean vs data (selected test indices)",
         labels={"tau": "tau", "value": "u'(t)", "series": ""},
+        hover_data=hover_data,
     )
 
     fig.update_layout(
@@ -502,3 +510,14 @@ def latent_pair_density(Xmu, Xvar, pair, nx=200, ny=200, pad=0.5):
 
     extent = [xmin, xmax, ymin, ymax]
     return dens, extent
+
+# %%
+from gpjax.kernels import White
+
+
+def as_null_model(qsvi):
+    kernel_variance = qsvi.posterior.prior.kernel.variance
+
+    qsvi_null = nnx.clone(qsvi)
+    qsvi_null.posterior.prior.kernel = White(variance=kernel_variance)
+    return qsvi_null

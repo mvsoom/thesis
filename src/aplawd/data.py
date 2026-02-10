@@ -24,7 +24,7 @@ def get_data_periods(n=None, offset=0, width=None, dtype=np.float64):
         period_list = get_list_of_periods()[offset:]
     else:
         period_list = get_list_of_periods()[offset : offset + n]
-    indices_list = [np.arange(len(p)) for p in period_list]
+    indices_list = [0.5 + np.arange(len(p)) for p in period_list]
 
     pairs = list(zip(indices_list, period_list))
 
