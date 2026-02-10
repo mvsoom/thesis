@@ -1,5 +1,6 @@
 import time
 
+import gpjax as gpx
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -188,3 +189,16 @@ def nocheck(f):
 
 def symmetrize(A):
     return 0.5 * (A + jnp.swapaxes(A, -1, -2))
+
+
+def resolve_gpjax_kernel(kernel):
+    if kernel == "matern:12":
+        return gpx.kernels.Matern12
+    elif kernel == "matern:32":
+        return gpx.kernels.Matern32
+    elif kernel == "matern:52":
+        return gpx.kernels.Matern52
+    elif kernel == "rbf":
+        return gpx.kernels.RBF
+    else:
+        raise ValueError(f"Unknown kernel: {kernel}")

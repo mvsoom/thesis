@@ -111,7 +111,7 @@ def loglikelihood_on_test(
 ):
     """Calculate the log likelihood of test data under the qGPVLM model
 
-    Depending on the value of nu, this uses either a Gaussian likelihood (nu=inf) or a Student-t likelihood (finite nu).
+    Depending on the value of nu, this uses either a Gaussian likelihood (nu=inf) or a Student-t likelihood (finite nu); the latter is a reduced rank Student-t process model, NOT the same as a GP + Student-t noise.
 
     Note: this is just a GMM in data space, but the reduced rank Psi matrices depend on each data point.
     This defeats jax and plain numpy was too slow, so we use joblib for parallelism, which gives 50x speedup
@@ -166,10 +166,10 @@ def loglikelihood_on_test(
             logdet_C = T * np.log(sigma2) + logdet_Sig[k] + logdet_M
 
             if np.isinf(nu):
-                # Gaussian likelihood
+                # Gaussian likelihood: Gaussian process
                 lps[k] = log_pi[k] - 0.5 * (T * log2pi + logdet_C + quad)
             else:
-                # Student-t likelihood
+                # Student-t likelihood: Student-t process
                 term1 = gammaln((nu + T) / 2) - gammaln(nu / 2)
                 term2 = -0.5 * logdet_C
                 term3 = -(T / 2) * np.log(nu * np.pi)
