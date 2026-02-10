@@ -15,6 +15,12 @@ from utils import (
     constants,
 )
 
+PITCH_TRACK_MODEL_NAME = "svi/aplawd/runs/M=64_iter=1_kernelname=matern:52.ipynb"  # TODO: FIXME: pick best
+
+
+def pitch_track_model(model_name=PITCH_TRACK_MODEL_NAME):
+    return load_egg(model_name)
+
 
 def get_meta():
     """Return APLAWD data = pairs of (speech, GCI markers). Note speech is NOT shifted"""
@@ -137,13 +143,66 @@ if __name__ == "__main__":
         "Events > cutoff (99%):", np.sum(y >= p99)
     )  # 1% => implies value of nu in t-PRISM
 
+
 # %%
+import jax.numpy as jnp
+import numpy as np
+from gpjax import Dataset
+
+from aplawd.data import get_data_periods
+from prism.t_svi import do_t_prism
 from utils import load_egg
 
-PITCH_TRACK_MODEL = load_egg(
-    "svi/aplawd/runs/M=64_iter=1_kernelname=matern:32.ipynb"
-)
 
+def group_based_on_weights(w):
+    w = np.array(w)
+    good = w > 1.0
+    mask = w == 0.0
+
+    g = np.abs(np.diff(good, axis=1, prepend=0))
+    g = g.astype(bool)
+    g = g | (~good)
+    g = np.cumsum(g, axis=1)
+    g = g - g[:, 0][:, None]  # start from 0 for each waveform
+
+    groups = g
+    groups[mask] = -1  # Mask out the masked points with group -1
+
+    return groups
+
+
+@__memory__.cache
+def get_meta_grouped(model_name=PITCH_TRACK_MODEL_NAME):
+    """Get APLAWD metadata with each GCI marked assigned to a group
+
+    Groups are defined based on the weights (E[lambda]) from t-PRISM: a group is a contiguous sequence of GCIs where the weight is > 1.0, separated by GCIs with weight <= 1.0.
+    Group numbers are assigned in order of occurrence, starting from 0 and incrementing by 1 at each transition from good to bad, bad to bad, or bad to good.
+    GCIs with weight == 0.0 have been masked out by pad_waveforms() and occupy group number -1.
+    """
+    MODEL = pitch_track_model(model_name)
+
+    X, y, meta = get_data_periods(with_metadata=True)
+
+    width = 320  # cutoff at 99% quantile
+    X, y = get_data_periods(width=width)
+    X = jnp.array(X, dtype=jnp.float64)
+    y = jnp.array(y, dtype=jnp.float64)
+
+    y = jnp.log10(y)
+    y = MODEL["whiten"](y)
+
+    # Heavy calculation
+    _, _, weights = do_t_prism(MODEL["qsvi"], Dataset(X, y))
+
+    groups = group_based_on_weights(weights)
+    for m, g, w in zip(meta, groups, weights):
+        m["groups"] = g
+        m["weights"] = w
+
+    return meta
+
+
+# %%
 
 def load_recording_and_markers(recordings, markings, key):
     k = recordings.load(key)
