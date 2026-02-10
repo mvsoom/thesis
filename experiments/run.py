@@ -8,6 +8,11 @@ Usage:
   python -m experiments.run collect   <experiment-folder> [--output runs.csv]
   python -m experiments.run list      <experiment-folder> [-- ...jcache-args]
 
+Notebook environment variables (set during `generate`, available at runtime):
+  - EXPERIMENT_NAME: experiment folder basename
+  - EXPERIMENT_NOTEBOOK_REL: notebook path relative to this file's directory
+  - EXPERIMENT_NOTEBOOK_ABS: notebook absolute path
+
 TODO:
   - When hyperparam takes on EXTRA values, be able to reuse old combinations
   - On `generate`: remove all non-code cells for copies
@@ -21,6 +26,7 @@ TODO:
   - commands to only update failed notebooks if many of them have succeeded
   - allow a config.csv to specify hyperparameter grid instead of config.py
   - allow percent sign scripts
+  - allow a # memoize or # dump tag which memoizes and reuses or dumps with cloudpickle
 """
 
 import argparse
@@ -46,6 +52,7 @@ KERNEL_NAME = "python3"
 CACHE_DIRNAME = ".jupyter_cache"
 RUNS_DIRNAME = "runs"
 EXPORT_CELL_ID = "export-glue"
+ENV_CELL_ID = "experiment-env"
 
 
 def exp_paths(exp):
@@ -155,8 +162,45 @@ def prepare_from_config(exp, runs):
             print("remove stale:", f)
             f.unlink()
 
+    append_env_cell(exp, notebooks)
     append_export_cell(notebooks)
     return notebooks
+
+
+def append_env_cell(exp, notebooks):
+    runpy_dir = Path(__file__).resolve().parent
+    exp_name = exp.name
+
+    for nb_path in tqdm(list(notebooks), desc="env-cell"):
+        nb = nbformat.read(nb_path, as_version=4)
+        nb.cells = [c for c in nb.cells if getattr(c, "id", None) != ENV_CELL_ID]
+
+        nb_abs = nb_path.resolve()
+        nb_rel = os.path.relpath(nb_abs, start=runpy_dir)
+        env = OrderedDict(
+            [
+                ("EXPERIMENT_NAME", exp_name),
+                ("EXPERIMENT_NOTEBOOK_REL", nb_rel),
+                ("EXPERIMENT_NOTEBOOK_ABS", str(nb_abs)),
+            ]
+        )
+
+        lines = [
+            "import os",
+            "",
+            "# Added by experiments.run to expose runtime context.",
+        ]
+        lines += [f"os.environ[{k!r}] = {v!r}" for k, v in env.items()]
+
+        nb.cells.insert(
+            0,
+            nbformat.v4.new_code_cell(
+                source="\n".join(lines),
+                id=ENV_CELL_ID,
+                metadata={"tags": ["experiment-env"]},
+            ),
+        )
+        nbformat.write(nb, nb_path)
 
 
 def append_export_cell(notebooks):
