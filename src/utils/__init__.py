@@ -2,6 +2,7 @@ import os
 import pathlib
 import time
 
+import cloudpickle
 import matplotlib.pyplot as plt
 import numpy as np
 from IPython.display import display
@@ -23,6 +24,10 @@ def __figuresdir__(s=""):
 
 def __datadir__(s=""):
     return pathlib.Path(os.environ["PROJECT_DATA_PATH"]) / s
+
+
+def __eggdir__(s=""):
+    return __datadir__("eggs") / s
 
 
 def __cachedir__(s=""):
@@ -52,6 +57,23 @@ def __cache__(func):
         return cached_func._cache
 
     return cached_func
+
+
+def dump_egg(payload, name):
+    """Dump a payload to a file with the given name, using cloudpickle"""
+    path = __eggdir__(name + ".pkl")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "wb") as f:
+        cloudpickle.dump(payload, f)
+    print(f"Dumped egg to {path}")
+
+
+def load_egg(name):
+    """Load a payload from a file with the given name, using cloudpickle"""
+    path = __eggdir__(name + ".pkl")
+    with open(path, "rb") as f:
+        payload = cloudpickle.load(f)
+    return payload
 
 
 def batch_generator(generator, batch_size: int):
