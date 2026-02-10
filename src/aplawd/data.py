@@ -3,6 +3,7 @@ import random
 import warnings
 
 import numpy as np
+from tqdm import tqdm
 
 import aplawd
 from aplawd import MARKINGS_FS_HZ, APLAWD_Markings
@@ -15,18 +16,17 @@ from utils import (
 )
 
 
-def _collect_periods_and_meta():
+def get_meta():
+    """Return APLAWD data = pairs of (speech, GCI markers). Note speech is NOT shifted"""
     markings_db = APLAWD_Markings(__datadir__("APLAWDW/markings/aplawd_gci"))
     recordings = aplawd.APLAWD(__datadir__("APLAWDW/dataset"))
 
-    period_list = []
     meta_list = []
-    for key in markings_db.keys():
+    for key in tqdm(markings_db.keys(), desc="Loading APLAWD metadata"):
         markings = markings_db.load(key)
         markings_ms = markings / MARKINGS_FS_HZ * 1000  # msec
         period_samples = np.diff(markings)
         period_ms = np.diff(markings_ms)
-        period_list.append(period_ms)
 
         meta = {
             "key": key,
@@ -62,20 +62,19 @@ def _collect_periods_and_meta():
 
         meta_list.append(meta)
 
-    return period_list, meta_list
+    return meta_list
 
 
 def get_list_of_periods(with_metadata=False):
-    period_list, meta_list = _collect_periods_and_meta()
-    if with_metadata:
-        return period_list, meta_list
-    return period_list
+    meta = get_meta()
+    period_list = [m["periods_ms"] for m in meta]
+    return period_list, meta if with_metadata else period_list
 
 
 def get_data_periods(
     n=None, offset=0, width=None, dtype=np.float64, with_metadata=False
 ):
-    period_list, meta_list = _collect_periods_and_meta()
+    period_list, meta_list = get_list_of_periods(True)
     if n is None:
         period_list = period_list[offset:]
         meta_list = meta_list[offset:]
