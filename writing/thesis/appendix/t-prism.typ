@@ -7,7 +7,7 @@ We now introduce t-PRISM: a robust extension of PRISM that downweights outliers 
 We replace the Gaussian noise by a Student-t likelihood with degrees of freedom $nu$ and scale $sigma^2$:
 
 $
-  p(y_(i n) mid f_i(t_(i n)), nu, sigma^2) = mono("StudentT")(y_(i n) mid f_(i n), nu, sigma^2).
+  p(y_(i n) | f_i(t_(i n)), nu, sigma^2) = mono("StudentT")(y_(i n) | f_(i n), nu, sigma^2).
 $
 
 Use the standard Normal-Gamma augmentation:
@@ -15,15 +15,15 @@ Use the standard Normal-Gamma augmentation:
 $
   lambda_(i n) ~ mono("Gamma")(nu/2, nu/2),
   quad
-  y_(i n) mid f_(i n), lambda_(i n) ~ mono("Normal")(f_(i n), sigma^2 / lambda_(i n)).
+  y_(i n) | f_(i n), lambda_(i n) ~ mono("Normal")(f_(i n), sigma^2 / lambda_(i n)).
 $
 
 Given $lambda_i = (lambda_(i 1), dots, lambda_(i N_i))$, the likelihood becomes Gaussian with diagonal noise:
 
 $
-  p(y_i mid f_i, lambda_i, sigma^2)
+  p(y_i | f_i, lambda_i, sigma^2)
   =
-  mono("Normal")(y_i mid f_i, sigma^2 Lambda_i^(-1)),
+  mono("Normal")(y_i | f_i, sigma^2 Lambda_i^(-1)),
   quad
   Lambda_i = mono("diag")(lambda_(i 1), dots, lambda_(i N_i)).
 $
@@ -35,7 +35,7 @@ For each example $i$:
 $
   p(y_i, f_i, u_i, lambda_i)
   =
-  p(y_i mid f_i, lambda_i)\, p(f_i mid u_i)\, p(u_i)\, p(lambda_i).
+  p(y_i | f_i, lambda_i)\, p(f_i | u_i)\, p(u_i)\, p(lambda_i).
 $
 
 == Mean-field variational family: local and global structure
@@ -62,7 +62,7 @@ The per-example ELBO is:
 
 $
   cal(L)_i^t =
-  bb(E)_(q_i (u_i) q_i (lambda_i))[log p(y_i mid f_i, lambda_i)]
+  bb(E)_(q_i (u_i) q_i (lambda_i))[log p(y_i | f_i, lambda_i)]
   +
   bb(E)_(q_i (u_i))[log p(u_i) - log q_i (u_i)]
   +
@@ -72,9 +72,9 @@ $
 We now simplify each term carefully.
 
 === Term A: expected log likelihood given $q_i (u_i)$ and $q_i (lambda_i)$
-Because $p(y_i mid f_i, lambda_i)$ is Gaussian with diagonal precision $Lambda_i / sigma^2$:
+Because $p(y_i | f_i, lambda_i)$ is Gaussian with diagonal precision $Lambda_i / sigma^2$:
 $
-  log p(y_i mid f_i, lambda_i)
+  log p(y_i | f_i, lambda_i)
   =
   -1/2 (
     N_i log(2 pi) + N_i log sigma^2
@@ -114,7 +114,7 @@ Take expectation under $q_i (u_i) q_i (lambda_i)$:
 So Term A becomes:
 
 $
-  bb(E)[log p(y_i mid f_i, lambda_i)]
+  bb(E)[log p(y_i | f_i, lambda_i)]
   =
   -1/2 (
     N_i log(2 pi) + N_i log sigma^2
@@ -176,7 +176,7 @@ Then the Gaussian collapsed term for that example is:
 $
   cal(L)_i^("coll")(Z, theta, sigma^2; W_i)
   =
-  log mono("Normal")(tilde(y)_i mid 0, tilde(Q)_(i i) + sigma^2 I)
+  log mono("Normal")(tilde(y)_i | 0, tilde(Q)_(i i) + sigma^2 I)
   - 1/(2 sigma^2) mono("Tr")(W_i (K_(i i) - Q_(i i))),
 $
 
@@ -334,6 +334,145 @@ $
 $
 
 Then take a gradient step in the global parameters $(Z, theta, sigma^2, nu)$.
+
+== Test-set scoring via importance-sampled marginal likelihood
+
+We evaluate models using an approximation of the marginal likelihood
+
+$
+  p(y)
+  =
+  integral p(y | f, lambda)
+  p(f)
+  p(lambda)
+  dif f
+  dif lambda,
+$
+
+where $f$ denotes the latent GP function and $lambda$ are the per-sample scale variables arising from the Student-$t$ likelihood formulation. In our model,
+
+- $f$ is represented via a collapsed sparse GP (PRISM),
+- $lambda_n$ are latent precision variables such that
+$
+  y_n | f_n, lambda_n
+  ~
+  cal(N)(f_n, sigma^2 / lambda_n),
+  quad
+  lambda_n
+  ~
+  mono("Gamma")(nu / 2, nu / 2).
+$
+
+=== Collapsing the latent function
+
+Conditioned on $lambda$, the model becomes Gaussian and the latent function $f$
+(or equivalently the latent amplitudes $epsilon$)
+can be analytically marginalized.
+This yields a closed-form expression
+
+$
+  p(y | lambda)
+  =
+  cal(N)(y; 0, C(lambda)),
+$
+
+with covariance determined by the learned basis functions and the scaled noise term.
+Thus only the integral over $lambda$ remains:
+
+$
+  p(y)
+  =
+  integral p(y | lambda)
+  p(lambda)
+  dif lambda.
+$
+
+=== Importance sampling using the variational posterior
+
+This remaining integral is intractable.
+During training we obtain a factorized variational posterior
+
+$
+  q(lambda)
+  =
+  product_n mono("Gamma")(lambda_n; alpha_n, beta_n)
+$
+
+via local variational updates.
+We reuse this distribution as a proposal for importance sampling:
+
+1. Draw samples
+$
+  lambda^(s)
+  ~
+  q(lambda),
+  quad
+  s = 1, dots, S.
+$
+
+2. Compute importance weights
+$
+  w^(s)
+  =
+  p(y | lambda^(s))
+  p(lambda^(s))
+  /
+  q(lambda^(s)).
+$
+
+3. Estimate the log marginal likelihood using log-sum-exp:
+
+$
+  log hat(p)(y)
+  =
+  log
+  (
+    1 / S
+    sum_(s = 1)^S w^(s)
+  ).
+$
+
+This estimator can be viewed as an importance-corrected ELBO
+(or IWELBO),
+providing a tighter approximation to the true evidence than the variational bound alone.
+
+=== Length normalization and null comparison
+
+Waveforms have varying numbers of valid samples $n_("eff", i)$,
+making the log evidence an *extensive* quantity:
+
+$
+  log p(y_i)
+  ~
+  cal(O)(n_("eff", i)).
+$
+
+To remove shared extensive terms, we compare against a null model consisting of iid Student-$t$ noise:
+
+$
+  Delta_i
+  =
+  log p_("model")(y_i)
+  -
+  log p_("null")(y_i).
+$
+
+However, even the difference remains extensive in sequence length.
+Therefore we normalize per waveform by
+
+$
+  s_i
+  =
+  Delta_i / n_("eff", i),
+$
+
+yielding an average log-evidence improvement per datapoint.
+This normalization effectively stratifies across the empirical distribution of waveform lengths,
+preventing longer sequences from dominating the comparison.
+
+The reported test score is the mean of $s_i$ across the test set,
+along with its standard error.
+
 
 === Practical notes
 - The only change from Gaussian PRISM to t-PRISM at the linear algebra level is the diagonal weight matrix $W_i$, which reweights residuals and effective noise per time sample.
