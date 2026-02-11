@@ -1,14 +1,24 @@
-"""Investigate GCI estimation errors and jitter from APLAWD"""
+"""Investigate GCI estimation errors and jitter from APLAWD
+
+GCI estimation algorithms:
+- QuickGCI
+- Praat toPulse()
+- DYPSA(GOI)
+- SEDREAMS
+"""
 
 # %%
 import numpy as np
 import plotly.express as px
 from tqdm import tqdm
 
-from aplawd.data import get_praatgci_meta, get_quickgci_meta
-from utils import (
-    align_and_intersect,
+from aplawd.data import (
+    get_dypsagoi_meta,
+    get_praatgci_meta,
+    get_quickgci_meta,
+    get_sedreams_meta,
 )
+from utils import align_and_intersect
 from utils.constants import MIN_NUM_PERIODS
 
 
@@ -38,6 +48,16 @@ def get_errors(meta):
     errors = np.concatenate(errors)
     return errors
 
+def show_errors_histogram(errors, algorithm_name):
+    fig = px.histogram(x=errors)
+    fig.update_layout(title=f"{algorithm_name} (true - estimate) errors")
+    fig.add_vline(
+        x=-0.95,
+        line_color="red",
+        annotation_text="Approximate larynx-to-mic delay (Naylor et al. 2007)",
+    )
+    return fig
+
 
 # %%
 meta = get_quickgci_meta()
@@ -46,14 +66,7 @@ errors = get_errors(meta)
 # 2 is smallest distance allowed (max 500 Hz F0)
 mask = (-2 <= errors) & (errors <= 2)
 
-fig = px.histogram(x=errors[mask])
-fig.add_vline(
-    x=-0.95,
-    line_color="red",
-    annotation_text="Approximate larynx-to-mic delay (Naylor et al. 2007)",
-)
-fig.update_layout(title="QuickGCI (true - estimate) errors")
-fig.show()
+show_errors_histogram(errors[mask], "QuickGCI").show()
 
 # %%
 meta = get_praatgci_meta()
@@ -61,10 +74,23 @@ errors = get_errors(meta)
 
 mask = (-10 <= errors) & (errors <= 10)
 
-fig = px.histogram(x=errors[mask])
-fig.update_layout(title="Praat_ToPulse (true - estimate) errors")
-fig.show()
+show_errors_histogram(errors[mask], "Praat toPulse()").show()
 
+# %%
+meta = get_dypsagoi_meta()
+errors = get_errors(meta)
+
+mask = (-2 <= errors) & (errors <= 2)
+
+show_errors_histogram(errors[mask], "DYPSA(GOI)").show()
+
+# %%
+meta = get_sedreams_meta()
+errors = get_errors(meta)
+
+mask = (-2 <= errors) & (errors <= 2)
+
+show_errors_histogram(errors[mask], "SEDREAMS").show()
 
 # %%
 # Measure APLAWD jitter over voiced groups
