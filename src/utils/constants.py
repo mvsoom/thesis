@@ -56,7 +56,7 @@ IMPULSE_RESPONSE_ENERGY_MSEC = 1.0
 
 # In APLAWD and VTRFormants, reject a voiced group or vowel segment
 # if it has less than `MIN_NUM_PERIODS` pitch periods
-MIN_NUM_PERIODS = 3
+MIN_NUM_PERIODS = 5
 
 # Determined empirically from Holmberg (1988)
 MIN_DECLINATION_TIME_MSEC = 0.2

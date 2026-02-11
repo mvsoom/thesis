@@ -265,3 +265,21 @@ def kl_mvn(to, fr):
     term2 = logdet(S_fr) - logdet(S_to)
     term3 = d.T @ solve(d)
     return (term1 + term2 + term3 - len(d)) / 2.0
+
+
+def align_and_intersect(a, b):
+    """Align two arrays containing sample indices as closely as possible"""
+    a, b = a.copy(), b.copy()
+    dist = np.abs(a[:, None] - b[None, :])
+    i, j = np.unravel_index(dist.argmin(), dist.shape)
+    d = j - i
+    if d >= 0:
+        intersect = min(len(a), len(b) - d)
+        a = a[0:intersect]
+        b = b[d : d + intersect]
+    elif d < 0:
+        d = np.abs(d)
+        intersect = min(len(a) - d, len(b))
+        a = a[d : d + intersect]
+        b = b[0:intersect]
+    return a, b
