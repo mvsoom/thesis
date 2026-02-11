@@ -5,13 +5,15 @@ rng = Random(65933849)
 
 
 def configurations():
+    iterations = range(16)
+
     for (
         M,  # number of PRISM basis functions
         iteration,
         kernelname,
     ) in product(
-        [4, 8, 16, 32, 64, 128],
-        [1],
+        [4, 8, 16, 32, 64],
+        iterations,
         ["matern:12", "matern:32", "matern:52", "rbf"],
     ):
         yield {
