@@ -223,3 +223,14 @@ def get_quickgci_meta():  # 10 min
 
 def get_praatgci_meta():  # 30 sec
     return get_gci_meta(gci_estimates_from_praat)
+
+def get_dypsagoi_meta():  # 15 min, needs MATLAB
+    from gci.egifa import gci_estimates_from_dypsagoi
+
+    return get_gci_meta(gci_estimates_from_dypsagoi)
+
+
+def get_sedreams_meta():  # 10 min, needs MATLAB
+    from gci.egifa import gci_estimates_from_sedreams
+
+    return get_gci_meta(gci_estimates_from_sedreams)
