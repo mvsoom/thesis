@@ -11,7 +11,7 @@ meta = [m for m in get_meta_grouped() if "groups" in m]
 
 # %%
 # It works well. The condition weight > 1 is conservative, but plenty of data survives
-
+# Parity means: when parity flips (0 -> 1 or 1 -> 0), a new group has started. It's just a plotting trick
 
 def _track_dataframe(m):
     tau = np.asarray(m["tau"])

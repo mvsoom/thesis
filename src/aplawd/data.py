@@ -1,5 +1,4 @@
 # %%
-import random
 import warnings
 
 import numpy as np
@@ -9,10 +8,8 @@ import aplawd
 from aplawd import MARKINGS_FS_HZ, APLAWD_Markings
 from prism.svi import pad_waveforms
 from utils import (
-    __cache__,
     __datadir__,
     __memory__,
-    constants,
 )
 
 PITCH_TRACK_MODEL_NAME = "svi/aplawd/runs/M=64_iter=1_kernelname=matern:52.ipynb"  # TODO: FIXME: pick best
@@ -155,8 +152,7 @@ from utils import load_egg
 
 
 def group_based_on_weights(w):
-    w = np.array(w)
-    good = w > 1.0
+    good = w > 1.0  # conservative
     mask = w == 0.0
 
     g = np.abs(np.diff(good, axis=1, prepend=0))
@@ -176,6 +172,9 @@ def get_meta_grouped(model_name=PITCH_TRACK_MODEL_NAME):
     """Get APLAWD metadata with each GCI marked assigned to a group
 
     Groups are defined based on the weights (E[lambda]) from t-PRISM: a group is a contiguous sequence of GCIs where the weight is > 1.0, separated by GCIs with weight <= 1.0.
+    This is a conservative choice which works quite well in practice.
+    A more lenient choice could be weight > 0.5.
+
     Group numbers are assigned in order of occurrence, starting from 0 and incrementing by 1 at each transition from good to bad, bad to bad, or bad to good.
     GCIs with weight == 0.0 have been masked out by pad_waveforms() and occupy group number -1.
     """
@@ -194,6 +193,7 @@ def get_meta_grouped(model_name=PITCH_TRACK_MODEL_NAME):
     # Heavy calculation
     _, _, weights = do_t_prism(MODEL["qsvi"], Dataset(X, y))
 
+    weights = np.array(weights)
     groups = group_based_on_weights(weights)
     for m, g, w in zip(meta, groups, weights):
         m["groups"] = g
@@ -203,191 +203,23 @@ def get_meta_grouped(model_name=PITCH_TRACK_MODEL_NAME):
 
 
 # %%
-
-def load_recording_and_markers(recordings, markings, key):
-    k = recordings.load(key)
-    try:
-        m = markings.load(key)
-    except FileNotFoundError:
-        m = None
-    return k, m
-
-
-def split_markings_into_voiced_groups(m, fs):
-    """Split the markings into groups where the waveform is voiced"""
-    max_period_length_msec = constants.MAX_PERIOD_LENGTH_MSEC
-    min_num_periods = constants.MIN_NUM_PERIODS
-
-    periods = np.diff(m) / fs * 1000  # msec
-    split_at = np.where(periods > max_period_length_msec)[0] + 1
-    for group in np.split(m, split_at):
-        if len(group) <= min_num_periods + 1:
-            continue
-        else:
-            yield group
-
-
-def align_and_intersect(a, b):
-    """Align two arrays containing sample indices as closely as possible"""
-    a, b = a.copy(), b.copy()
-    dist = np.abs(a[:, None] - b[None, :])
-    i, j = np.unravel_index(dist.argmin(), dist.shape)
-    d = j - i
-    if d >= 0:
-        intersect = min(len(a), len(b) - d)
-        a = a[0:intersect]
-        b = b[d : d + intersect]
-    elif d < 0:
-        d = np.abs(d)
-        intersect = min(len(a) - d, len(b))
-        a = a[d : d + intersect]
-        b = b[0:intersect]
-    return a, b
-
-
-def _realistic_periods(
-    true_group,
-    estimated_group,
-    fs,
-    min_period_length_msec,
-    max_period_length_msec,
-):
-    """Check that the periods are within the physiological bounds"""
-    min_period_length_msec = constants.MIN_PERIOD_LENGTH_MSEC
-    max_period_length_msec = constants.MAX_PERIOD_LENGTH_MSEC
-
-    true_periods = np.diff(true_group) / fs * 1000  # msec
-    estimated_periods = np.diff(estimated_group) / fs * 1000  # msec
-
-    if np.any(true_periods > max_period_length_msec) or np.any(
-        true_periods < min_period_length_msec
-    ):
-        return False
-
-    if np.any(estimated_periods > max_period_length_msec) or np.any(
-        estimated_periods < min_period_length_msec
-    ):
-        return False
-
-    return True
-
-
-def yield_training_pairs(recordings, markings, estimate_gcis):
-    """Yield all training pairs consisting of the true and Praat-estimated pitch periods in msec"""
-    min_num_periods = constants.MIN_NUM_PERIODS
-
-    for key in recordings.keys():
-        k, m = load_recording_and_markers(recordings, markings, key)
-        if m is None:
-            # Only a few dozen
-            warnings.warn(
-                f"{k.name}: Discarded entire recording because of ground truth markings are missing"
-            )
-            continue
-
-        try:
-            gci_estimates = estimate_gcis(k.s, k.fs)
-        except Exception as e:
-            # Occurs when the recording is too short
-            warnings.warn(
-                f"{k.name}: Discarded entire recording because of Exception in `estimate_gcis()`: {e}"
-            )
-            continue
-
-        voiced_groups = split_markings_into_voiced_groups(m, k.fs)
-
-        # We call the APLAWD markings the 'true' group markings
-        for true_group in voiced_groups:
-            if len(true_group) < min_num_periods + 1:
-                continue  # Discard voiced groups which are a priori too short
-
-            # Intersect the current ground truth group as well as possible with Praat estimates
-            true_group, estimated_group = align_and_intersect(
-                true_group, gci_estimates
-            )
-            assert len(true_group) == len(estimated_group)
-            if len(true_group) < min_num_periods + 1:
-                continue
-
-            if not _realistic_periods(
-                true_group,
-                estimated_group,
-                k.fs,
-            ):
-                warnings.warn(
-                    f"{k.name}: Discarded voiced group of GCIs because one of the synced periods is not within `{min | max}_period_length_msec`"
-                )
-                continue
-
-            yield true_group, estimated_group
+from gci.estimate import gci_estimates_from_praat, gci_estimates_from_quickgci
 
 
 @__memory__.cache
-def get_aplawd_training_pairs(return_praat_gci_error=False):
-    """
-    Get the training pairs from the APLAWD database.
+def get_gci_meta(gci_estimator):
+    meta = [m for m in get_meta_grouped() if "groups" in m]
 
-    A training pair consists of (1) the ground truth pitch periods derived from the
-    manually verified GCI markings and (2) the pitch periods as estimated
-    from Praat's pulses. The latter (2) is aligned as closely as possible to (1).
-    """
-    # Get the recordings and the GCI markings
-    recordings = aplawd.APLAWD(__datadir__("APLAWDW/dataset"))
-    markings = aplawd.APLAWD_Markings(
-        __datadir__("APLAWDW/markings/aplawd_gci")
-    )
+    for m in tqdm(meta, desc="Estimating GCIs"):
+        m["gcis"] = gci_estimator(m["speech"], m["fs"])
+        m["gcis_ms"] = m["gcis"] * 1000 / m["fs"]
 
-    # Get pairs of 'true' pitch periods and the ones estimated by Praat based on the recordings
-    training_pairs = list(
-        yield_training_pairs(recordings, markings, return_praat_gci_error)
-    )
-
-    return training_pairs
+    return meta
 
 
-@__memory__.cache
-def get_aplawd_training_pairs_subset(
-    subset_size=5000,
-    max_num_periods=100,
-    seed=411489,
-    return_praat_gci_error=False,
-):
-    """Select a subset of the training pairs with a max number of pitch periods"""
-    training_pairs = get_aplawd_training_pairs(return_praat_gci_error)
-
-    random.seed(seed)
-    subset = random.choices(
-        list(filter(lambda s: len(s[0]) <= max_num_periods, training_pairs)),
-        k=subset_size,
-    )
-
-    return subset
+def get_quickgci_meta():  # 10 min
+    return get_gci_meta(gci_estimates_from_quickgci)
 
 
-def _moving_average(x, w):
-    # https://stackoverflow.com/a/54628145/6783015
-    return np.convolve(x, np.ones(w), "valid") / w
-
-
-def _iqr(x):
-    return float(np.diff(np.quantile(x, [0.25, 0.75])))
-
-
-@__cache__
-def fit_praat_relative_gci_error():
-    fullset = get_aplawd_training_pairs_subset(return_praat_gci_error=True)
-
-    praat_periods = np.concatenate([f[1] for f in fullset])
-    praat_gci_errors = np.concatenate(
-        [_moving_average(f[2], 2) for f in fullset]
-    )
-
-    rel_error = praat_gci_errors / praat_periods
-
-    # Convert median and IQR to the Gaussian counterparts
-    # See https://en.wikipedia.org/wiki/Interquartile_range#Distributions
-    # for the 1.349 coefficient
-    mu = np.median(rel_error)
-    sigma = _iqr(rel_error) / 1.349
-
-    return mu, sigma
+def get_praatgci_meta():  # 30 sec
+    return get_gci_meta(gci_estimates_from_praat)
