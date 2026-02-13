@@ -6,7 +6,8 @@ import scipy.io
 import scipy.io.wavfile
 from tqdm import tqdm
 
-from utils import __datadir__
+from gci.meta import get_meta_grouped as gci_get_meta_grouped
+from utils import __datadir__, __memory__
 
 EGIFA_DIR = __datadir__("EGIFA")
 
@@ -66,7 +67,7 @@ def get_meta(path_contains=None):
     meta_list = []
     pairs = find_wav_mat_pairs(EGIFA_DIR)
     for wav, mat in tqdm(pairs, desc="EGIFA"):
-        if path_contains not in str(wav):
+        if path_contains is not None and path_contains not in str(wav):
             continue
 
         p = parse_filename(wav)
@@ -114,5 +115,44 @@ if __name__ == "__main__":
     plt.show()
 
 # %%
-def get_meta_marked():
-    pass
+from gci.lgid import level_based_glottal_instant_detection
+
+
+@__memory__.cache
+def get_meta_gid():  # 5 min
+    meta = get_meta()
+    for m in tqdm(meta, desc="LGID"):
+        gf = m["gf"]
+        fs = m["fs"]
+
+        instants, aux = level_based_glottal_instant_detection(
+            gf, fs, return_aux=True
+        )
+
+        gci = instants[:, 0]
+        gci_ms = gci * 1e3 / fs
+
+        m["lgid_aux"] = aux
+
+        m["instants"] = instants
+        m["instants_ms"] = 1e3 * instants / fs
+        m["period_samples"] = np.diff(gci)
+        m["periods_ms"] = np.diff(gci_ms)
+
+    return meta
+
+
+if __name__ == "__main__":
+    meta = get_meta_gid()
+    print(f"Computed LGID for {len(meta)} EGIFA recordings")
+
+
+# %%
+@__memory__.cache
+def get_meta_grouped():
+    return gci_get_meta_grouped(get_meta_gid())
+
+
+if __name__ == "__main__":
+    meta = get_meta_grouped()
+    print(f"Computed groups for {len(meta)} EGIFA recordings")
