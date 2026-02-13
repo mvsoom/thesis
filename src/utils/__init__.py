@@ -38,15 +38,22 @@ def __experimentsdir__(s=""):
     return pathlib.Path(os.environ["PROJECT_EXPERIMENTS_PATH"]) / s
 
 
-# Configure joblib's caching mechanism
-# NOTE: joblib cannot cache arbitrary functions, because it cannot
-# hash/pickle all possible input/output values. In particular, it
-# isn't able to memoize functions that return `tfb.Bijector`s or
-# or `tfd.Distribution`s. For these functions we use @__cache__
-# which calculates the return value of the function once when it
-# is called the first time and then caches it.
 import joblib
 
+# FIXME: in the future, a better memory mechanism is just to cache only on function and a `version` argument which we ourselves bump when we rewrite the function
+# example:
+# @__cache__(version=1)
+# def f(a, b, **kwargs):
+#     return a + b + len(kwargs)
+#
+# then f(1, 2, c=3) should call f(1, 2, c=3, version=1) and joblib only caches on `f` and the `version` kwarg
+#
+# Or perhaps better because more explicit:
+# @__cache_version__
+# def f(a, b, version=1, **kwargs):
+#     return a + b + len(kwargs)
+#
+# and @__cache_version__ just configures joblib to only hash on `f` and `version`
 __memory__ = joblib.Memory(__cachedir__("joblib"), verbose=2)
 
 
