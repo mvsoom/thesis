@@ -41,7 +41,7 @@ def interpolate_everywhere(x, signal):
 
 def level_based_glottal_instant_detection(gf, fs, level=0.01, return_aux=False):
     """
-    Level-based Glottal Instant Detection (LGID).
+    Level-based Glottal Instant Detection (LBGID).
 
     Detects glottal closure (GCI) and opening (GOI) instants by:
 
@@ -59,8 +59,8 @@ def level_based_glottal_instant_detection(gf, fs, level=0.01, return_aux=False):
 
     Returns
     -------
-    instants : list[tuple[int, int]]
-        Detected (gci, goi) index pairs.
+    instants : array of shape (n_instants, 2)
+        Detected (gci, goi) index pairs, one per row.
     """
     peaks, troughs = find_extrema(gf, fs)
 
@@ -107,6 +107,8 @@ def level_based_glottal_instant_detection(gf, fs, level=0.01, return_aux=False):
             goi = int(region[j]) - 1
 
             instants.append((gci, goi))  # where gci < goi
+
+    instants = np.array(instants, dtype=int)
 
     aux = {
         "roof": roof,
