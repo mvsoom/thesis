@@ -6,23 +6,22 @@ NOT using dimensionality reduction (better)
 
 We tried M=128 but it gives very little advantage over M=64, plus average (n_effective) points is ~50, so we dont need to have 128 inducing points arguably
 
-To get std_loglike down, we do 16 iterations
+To get std_loglike down, we do 16 iterations: OK
 
-Dump SVI models
-
-FIXME: TODO: set correct model in get_meta_grouped() !!!
+Dump SVI models: OK
 
 ## Observations
 
-Currently (runs not finished yet), the scoreboard is:
+RBF wins at M=64 (so quantized RBF wins). The scoreboard is:
 ```
 # best models
     kernelname     M    score  score95 lengthscale   obs_std
- 1:        rbf    32 2.061(7)  2.06(1)    15.28(2)  0.148(2)
- 2:  matern:52    32 1.995(7)  1.99(1)    17.23(4) 0.1538(7)
- 3:        rbf    16 1.975(9)  1.98(2)    14.95(4)  0.158(1)
- 4:  matern:32    32 1.953(8)  1.95(2)    18.76(5) 0.1624(6)
- ```
+ 1:        rbf    64 2.117(7)  2.12(1)    15.25(2)  0.137(2)
+ 2:  matern:52    64 2.070(7)  2.07(1)    17.35(4) 0.1442(7)
+ 3:        rbf    32 2.051(9)  2.05(2)    15.28(4)  0.147(1)
+ 4:  matern:32    64 2.029(8)  2.03(2)    18.65(5) 0.1482(6)
+ 5:  matern:52    32 2.008(8)  2.01(2)   17.232(8)  0.153(2)
+```
 Here `score` is just log likelihood over test set averaged both over all test points and runs with different iterations, and `score95` is the same but at 2 sigma level.
 The scores answer:
 > Which model will score best on average for a random draw from the test distribution?
