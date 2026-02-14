@@ -7,7 +7,7 @@ from IPython.display import Audio, display
 from plotly.subplots import make_subplots
 
 from egifa.data import get_meta
-from gci.lgid import level_based_glottal_instant_detection
+from gci.lbgid import level_based_glottal_instant_detection
 
 # %%
 meta = get_meta("speech")
@@ -163,4 +163,3 @@ import matplotlib.pyplot as plt
 
 T = np.diff(np.concatenate(instants))
 plt.plot(np.log10(T))
-# %%
