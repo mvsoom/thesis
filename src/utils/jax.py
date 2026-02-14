@@ -200,5 +200,7 @@ def resolve_gpjax_kernel(kernel):
         return gpx.kernels.Matern52
     elif kernel == "rbf":
         return gpx.kernels.RBF
+    elif kernel == "rationalquadratic":
+        return gpx.kernels.RationalQuadratic
     else:
         raise ValueError(f"Unknown kernel: {kernel}")
