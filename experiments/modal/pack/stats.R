@@ -4,7 +4,7 @@ library(data.table)
 library(ggrepel)
 
 # Get experiment dir from environment variable
-runs_file <- file.path(Sys.getenv("PROJECT_EXPERIMENTS_PATH"), "pack_modal/runs.csv")
+runs_file <- file.path(Sys.getenv("PROJECT_EXPERIMENTS_PATH"), "modal/pack/runs.csv")
 runs <- data.table(fread(runs_file))
 
 df <- runs[, .(
