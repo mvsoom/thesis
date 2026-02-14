@@ -331,6 +331,33 @@ def do_prism(q, dataset, device=jax.devices("cpu")[0]):
     return mu_eps, Sigma_eps
 
 
+def do_prism_scan(q, dataset, batch_size=None, device=jax.devices("cpu")[0]):
+    """Scanning version of do_prism() to prevent OOM"""
+    with jax.default_device(device):
+        mu_eps, Sigma_eps = jax.lax.map(
+            infer_eps_posterior_single,
+            in_axes=(None, 0, 0),
+        )(q, dataset.X, dataset.y)
+    return mu_eps, Sigma_eps
+
+
+def do_prism_scan(q, dataset, batch_size=None, device=jax.devices("cpu")[0]):
+    """Scanning version of do_prism() to prevent OOM"""
+
+    def body(inputs):
+        t_row, y_row = inputs
+        return infer_eps_posterior_single(q, t_row, y_row)
+
+    with jax.default_device(device):
+        mu_eps, Sigma_eps = jax.lax.map(
+            body,
+            (dataset.X, dataset.y),
+            batch_size=batch_size,
+        )
+
+    return mu_eps, Sigma_eps
+
+
 def gp_posterior_mean_from_eps(q, t_star, mu_eps):
     """
     GP posterior mean at t_star for ONE waveform,

@@ -1,7 +1,7 @@
 from itertools import product
 from random import Random
 
-rng = Random(3368974)
+rng = Random(456789132)
 
 
 def configurations():
@@ -10,11 +10,13 @@ def configurations():
         Q,  # latent dimension
         iteration,
         d,
+        am,
     ) in product(
-        [16, 32, 64, 128, 256],
-        [1, 3, 6, 9, 12, 15],
+        [16, 32, 64, 128],
+        [1, 3, 6, 9, 12],
         [1],
-        [0, 1, 2],
+        [1],
+        ["rbf"],  # ["rbf", "rationalquadratic"],
     ):
         if M < Q:  # require dimensionality reduction
             continue
@@ -25,5 +27,6 @@ def configurations():
             "Q": Q,
             "iteration": iteration,
             "d": d,
-            "name": f"M={M}_Q={Q}_iter={iteration}_d={d}",
+            "am": am,
+            "name": f"M={M}_Q={Q}_iter={iteration}_d={d}_am={am}",
         }
