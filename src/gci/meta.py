@@ -86,6 +86,13 @@ def get_meta_grouped(meta, model_name=PITCH_TRACK_MODEL_NAME, **kwargs):
 
     return meta
 
+def subgroups(groups):
+    for gid in np.unique(groups):
+        if gid == -1:
+            continue
+        idx = np.flatnonzero(groups == gid)
+        yield idx
+
 
 if __name__ == "__main__":
     model = pitch_track_model()
