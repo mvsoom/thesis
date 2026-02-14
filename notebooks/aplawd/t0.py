@@ -18,16 +18,9 @@ from aplawd.data import (
     get_quickgci_meta,
     get_sedreams_meta,
 )
+from gci.meta import subgroups
 from utils import align_and_intersect
 from utils.constants import MIN_NUM_PERIODS
-
-
-def subgroups(groups):
-    for gid in np.unique(groups):
-        if gid == -1:
-            continue
-        idx = np.flatnonzero(groups == gid)
-        yield idx
 
 
 def get_errors(meta):

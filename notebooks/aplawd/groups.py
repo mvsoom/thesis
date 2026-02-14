@@ -14,7 +14,7 @@ meta = [m for m in get_meta_grouped() if "groups" in m]
 # Parity means: when parity flips (0 -> 1 or 1 -> 0), a new group has started. It's just a plotting trick
 
 def _track_dataframe(m):
-    tau = np.asarray(m["tau"])
+    tau = np.arange(len(m["periods_ms"])) + 0.5
     periods = np.asarray(m["periods_ms"])
     groups = np.asarray(m["groups"]).astype(int)
     weights = np.asarray(m["weights"])
