@@ -36,6 +36,8 @@ python - "$tmp" "$out" "$width" "$height" <<'PY'
 import sys
 import plotly.io as pio
 
+pio.defaults.mathjax = "https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-MML-AM_SVG"
+
 json_path, out, width, height = sys.argv[1:]
 
 fig = pio.from_json(open(json_path).read())
@@ -43,7 +45,7 @@ fig = pio.from_json(open(json_path).read())
 # Styling from https://gist.github.com/Miladiouss/e2f4fef284ebf8461752a769e6ec5864
 style_dict = {
     'layout.plot_bgcolor': 'rgba(0, 0, 0, 0)',
-    'layout.font.family': 'JuliaMono',
+    'layout.font.family': 'Libertinus Serif',
     'layout.xaxis.linecolor': 'black',
     'layout.xaxis.ticks': 'inside',
     'layout.xaxis.mirror': True,
