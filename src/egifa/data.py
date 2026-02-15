@@ -159,6 +159,12 @@ if __name__ == "__main__":
 
 
 # %%
+from fractions import Fraction
+
+import numpy as np
+from scipy.ndimage import gaussian_filter1d
+from scipy.signal import resample_poly
+
 from gci.meta import subgroups
 from utils import __datadir__, __memory__
 from utils.constants import MIN_NUM_PERIODS
@@ -237,7 +243,79 @@ def _split_idx_by_max_samples(idx, anchors, max_samples):
         i = j - 1
 
 
-def get_voiced_meta(path_contains=None, max_samples=None):
+def smooth_and_dgf(v, delta_ms=0.1, k=2.0):
+    """Compute smoothed versions gf and derive dgf
+
+    See .chat:[Smoothing DGF]
+
+    We smooth according to 0.1 msec temporal resolution of GCI events [Herbst et al. (2014); Orlikoff et al. (2012)].
+
+    This corresponds to Gaussian smoothing of the glottal flow, followed by resampling to a target sampling density of ~2 samples per 0.1 msec window (ie k := 2.0)
+
+    This happens to land at 20 kHz resampling rate, which is native EGIFA rate.
+
+    delta_ms:
+        physiologically meaningful temporal scale (≈ closure duration)
+
+    k:
+        desired sampling density per delta window, ie how many samples per effective time scale
+    """
+    t_samples = v["t_samples"]
+    tau = v["tau"]
+    gf = v["gf"]
+    speech = v["speech"]
+    fs = v["fs"]
+
+    # smoothed Gaussian filter and derivative filter
+    t_sec = delta_ms * 1e-3
+    sigma = (t_sec * fs) / 2.355
+
+    gf_smooth = gf_smooth = gaussian_filter1d(
+        gf, sigma=sigma, order=0, mode="nearest"
+    )
+    dgf = (
+        gaussian_filter1d(
+            gf,
+            sigma=sigma,
+            order=1,
+            mode="nearest",
+        )
+        * fs
+    )
+
+    # resampling target
+    dt_target = t_sec / k
+    fs_target = 1.0 / dt_target
+
+    ratio = fs_target / fs
+    frac = Fraction(ratio).limit_denominator(1000)
+    up, down = frac.numerator, frac.denominator
+
+    gf_rs = resample_poly(gf_smooth, up, down)
+    dgf_rs = resample_poly(dgf, up, down)
+    speech_rs = resample_poly(speech, up, down)
+
+    fs_rs = fs * up / down
+
+    # rebuild tau
+    N_rs = len(dgf_rs)
+    idx_rs = np.arange(N_rs) * (fs / fs_rs)
+    tau_rs = np.interp(idx_rs, np.arange(len(tau)), tau)
+    t_samples_rs = t_samples[0] + idx_rs
+
+    s = {
+        "t_samples": t_samples_rs,
+        "tau": tau_rs,
+        "gf": gf_rs,
+        "dgf": dgf_rs,
+        "speech": speech_rs,
+        "fs": fs_rs,
+    }
+
+    return s
+
+
+def get_voiced_meta(path_contains=None, max_samples=None, **smooth_dgf_kwargs):
     meta = get_meta_grouped()
     for m in tqdm(meta):
         if path_contains is not None and path_contains not in m["wav"]:
@@ -290,16 +368,21 @@ def get_voiced_meta(path_contains=None, max_samples=None):
                 v["periods_ms"] = period / m["fs"] * 1000
                 v["oq"] = 1.0 - (goi - gci)[:-1] / period
 
+                # smooth according to physiological plausibility
+                s = smooth_and_dgf(v, **smooth_dgf_kwargs)
+
+                v["smooth"] = {}
+
+                v["smooth"]["t_samples"] = s["t_samples"]
+                v["smooth"]["tau"] = s["tau"]
+                v["smooth"]["gf"] = s["gf"]
+                v["smooth"]["dgf"] = s["dgf"]
+                v["smooth"]["speech"] = s["speech"]
+                v["smooth"]["fs"] = s["fs"]
+
                 yield v
 
-
 # %%
-from fractions import Fraction
-
-import numpy as np
-from scipy.ndimage import gaussian_filter1d
-from scipy.signal import resample_poly
-
 from prism.svi import pad_waveforms
 
 
@@ -317,53 +400,6 @@ def nanwhiten(s):
     return (s - mean) / std
 
 
-def smooth_dgf(tau, gf, speech, fs, delta_ms=0.1, k=2.0):
-    """Compute smoothed and resampled derivative of Gaussian glottal flow
-
-    See [Smoothing DGF] in .chat for physiological motivation of both Gaussian smoothing AND sigma := 2.0 at 44.1 kHz (which corresponds to ~0.1 msec temporal resolution of GCI events) [Herbst et al. (2014); Orlikoff et al. (2012)]
-
-    delta_ms:
-        physiologically meaningful temporal scale (≈ closure duration)
-
-    k:
-        desired sampling density per delta window, ie how many samples per effective time scale
-        ~2 is usually sufficient after smoothing.
-    """
-    # smoothed Gaussian derivative
-    t_sec = delta_ms * 1e-3
-    sigma = (t_sec * fs) / 2.355
-
-    dgf = (
-        gaussian_filter1d(
-            gf,
-            sigma=sigma,
-            order=1,
-            mode="nearest",
-        )
-        * fs
-    )
-
-    # resampling target
-    dt_target = t_sec / k
-    fs_target = 1.0 / dt_target
-
-    ratio = fs_target / fs
-    frac = Fraction(ratio).limit_denominator(1000)
-    up, down = frac.numerator, frac.denominator
-
-    dgf_rs = resample_poly(dgf, up, down)
-    speech_rs = resample_poly(speech, up, down)
-
-    fs_rs = fs * up / down
-
-    # rebuild tau
-    N_rs = len(dgf_rs)
-    idx_rs = np.arange(N_rs) * (fs / fs_rs)
-    tau_rs = np.interp(idx_rs, np.arange(len(tau)), tau)
-
-    return tau_rs, dgf_rs, speech_rs, fs_rs
-
-
 def get_data(
     n=None,
     offset=0,
@@ -371,29 +407,29 @@ def get_data(
     width=None,
     dtype=np.float64,
     with_metadata=False,
+    **smooth_dgf_kwargs,
 ):
-    def gather():
-        for v in get_voiced_meta(
-            path_contains=path_contains, max_samples=width
-        ):
-            dgf_tau, dgf, dgf_speech, dgf_fs = smooth_dgf(
-                v["tau"], v["gf"], v["speech"], v["fs"]
-            )
+    """Get data for learning test learning u'(t) from EGIFA
+
+    Data is shuffled, whitened and nan-padded to `width`.
+    They are (tau, dgf) pairs, where tau is the normalized time within the glottal cycle (0 at GCI, 1 at next GCI, etc) and dgf is the smoothed and resampled derivative of Gaussian glottal flow.
+    """
+    meta = get_voiced_meta(
+        path_contains=path_contains, max_samples=width, **smooth_dgf_kwargs
+    )
+    vs = _shuffle_iterable(list(meta))
+    vs = vs[offset:] if n is None else vs[offset : offset + n]
+
+    def pairs():
+        for v in vs:
+            tau = v["smooth"]["tau"]
+            dgf = v["smooth"]["dgf"]
 
             dgf = nanwhiten(dgf)
 
-            v["dgf_tau"] = dgf_tau
-            v["dgf"] = dgf
-            v["dgf_speech"] = dgf_speech
-            v["dgf_fs"] = dgf_fs
+            yield tau, dgf
 
-            yield v
-
-    vs = _shuffle_iterable(gather())
-    vs = vs[offset:] if n is None else vs[offset : offset + n]
-    pairs = [(v["dgf_tau"], v["dgf"]) for v in vs]
-
-    X, y = pad_waveforms(pairs, width=width, dtype=dtype)
+    X, y = pad_waveforms(list(pairs()), width=width, dtype=dtype)
 
     if with_metadata:
         return X, y, vs
