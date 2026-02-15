@@ -36,26 +36,79 @@ python - "$tmp" "$out" "$width" "$height" <<'PY'
 import sys
 import plotly.io as pio
 
-pio.defaults.mathjax = "https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-MML-AM_SVG"
+pio.defaults.mathjax = (
+    "https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js"
+    "?config=TeX-MML-AM_SVG"
+)
 
 json_path, out, width, height = sys.argv[1:]
 
 fig = pio.from_json(open(json_path).read())
 
-# Styling from https://gist.github.com/Miladiouss/e2f4fef284ebf8461752a769e6ec5864
-style_dict = {
-    'layout.plot_bgcolor': 'rgba(0, 0, 0, 0)',
-    'layout.font.family': 'Libertinus Serif',
-    'layout.xaxis.linecolor': 'black',
-    'layout.xaxis.ticks': 'inside',
-    'layout.xaxis.mirror': True,
-    'layout.xaxis.showline': True,
-    'layout.yaxis.linecolor': 'black',
-    'layout.yaxis.ticks': 'inside',
-    'layout.yaxis.mirror': True,
-    'layout.yaxis.showline': True,
-}
-fig.update(**style_dict)
+# =========================
+# GOD-TIER SCIENTIFIC THEME
+# =========================
+
+fig.update_layout(
+
+    # Background
+    plot_bgcolor="white",
+    paper_bgcolor="white",
+
+    # Typography
+    font=dict(
+        family="Libertinus Serif",
+        size=16,
+        color="#111111",
+    ),
+
+    # Margins (important subtle improvement)
+    margin=dict(l=70, r=40, t=60, b=60),
+
+    # Legend clarity
+    legend=dict(
+        bgcolor="rgba(0,0,0,0)",
+        borderwidth=0,
+    ),
+)
+
+# Axis styling (gnuplot-inspired but modern)
+axis_common = dict(
+    showline=True,
+    mirror=True,
+    linecolor="#000000",
+    linewidth=1.4,
+
+    ticks="inside",
+    tickwidth=1.2,
+
+    # Major gridlines
+    showgrid=True,
+    gridcolor="rgba(0,0,0,0.22)",
+    gridwidth=1,
+    griddash="dot",
+
+    zeroline=False,
+
+    # Minor ticks + grid
+    minor=dict(
+        ticks="inside",
+        ticklen=4,
+        showgrid=True,
+        gridcolor="rgba(0,0,0,0.10)",
+        griddash="dot",
+    )
+)
+
+fig.update_xaxes(**axis_common)
+fig.update_yaxes(**axis_common)
+
+fig.update_traces(
+    line=dict(width=2.4),
+    marker=dict(size=6),
+)
+
+# =========================
 
 kwargs = {}
 if width:
