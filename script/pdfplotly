@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+set -e
+
+usage() {
+cat <<EOF
+pdfplotly — export Plotly figure from notebook to PDF
+
+Usage:
+  pdfplotly NOTEBOOK.ipynb FIGINDEX OUT.pdf [WIDTH HEIGHT]
+
+WIDTH/HEIGHT are in pixels (optional).
+EOF
+}
+
+[ "$#" -lt 3 ] && usage && exit 1
+
+nb="$1"
+fig="$2"
+out="$3"
+width="${4:-}"
+height="${5:-}"
+
+tmp=$(mktemp)
+trap 'rm -f "$tmp"' EXIT
+
+# extract full figure json
+jq -c --argjson k "$fig" '
+[
+  .cells[].outputs[]?
+  | .data["application/vnd.plotly.v1+json"]?
+  | select(.data | length > 0)
+][ $k ]
+' "$nb" > "$tmp"
+
+python - "$tmp" "$out" "$width" "$height" <<'PY'
+import sys
+import plotly.io as pio
+
+json_path, out, width, height = sys.argv[1:]
+
+fig = pio.from_json(open(json_path).read())
+
+# Styling from https://gist.github.com/Miladiouss/e2f4fef284ebf8461752a769e6ec5864
+style_dict = {
+    'layout.plot_bgcolor': 'rgba(0, 0, 0, 0)',
+    'layout.font.family': 'JuliaMono',
+    'layout.xaxis.linecolor': 'black',
+    'layout.xaxis.ticks': 'inside',
+    'layout.xaxis.mirror': True,
+    'layout.xaxis.showline': True,
+    'layout.yaxis.linecolor': 'black',
+    'layout.yaxis.ticks': 'inside',
+    'layout.yaxis.mirror': True,
+    'layout.yaxis.showline': True,
+}
+fig.update(**style_dict)
+
+kwargs = {}
+if width:
+    kwargs["width"] = int(width)
+if height:
+    kwargs["height"] = int(height)
+
+fig.write_image(out, **kwargs)
+PY
