@@ -19,7 +19,7 @@ def frame_signal(x: np.ndarray, frame_len: int, hop: int) -> np.ndarray:
     """Return a view of `x` with shape (n_frames, frame_len).
 
     - Frames start every `hop` samples.
-    - Any “ragged” tail that can’t make a full window is dropped.
+    - Any “ragged” tail that can't make a full window is dropped.
     - If `len(x) < frame_len`, zero-pad *before* the data and return exactly one frame.
     """
     n = len(x)
@@ -166,7 +166,17 @@ def fit_affine_lag_nrmse(x, y, maxlag):
 
     For each lag k in [-maxlag, maxlag], we align x and y on their
     overlapping support, then fit an affine map a*x + b -> y
-    by least squares. We compute the RMSE for that lag and pick the lag with smallest RMSE, then normalize and return normalized RMSE \in [0,1]
+    by least squares. We compute the RMSE for that lag and pick the lag with smallest RMSE, then normalize and return normalized RMSE in [0,1].
+
+    This implements comparison on an equivalence class rather than on
+    raw waveforms. Signals are considered equivalent up to an affine
+    amplitude transform and a constant time shift, i.e. x(t) ~ a*x(t - tau) + b.
+    Absolute gain and bias are not identifiable in source-filter models,
+    and constant delay between signals can arise from propagation,
+    inverse filtering, or group delay effects rather than modeling error.
+    By optimizing over (a, b, tau) before scoring, the metric evaluates
+    similarity only in the identifiable subspace and avoids penalizing
+    physically meaningless differences in scale or alignment.
     """
     x = np.asarray(x)
     y = np.asarray(y)

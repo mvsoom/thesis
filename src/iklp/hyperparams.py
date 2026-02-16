@@ -7,7 +7,7 @@ import scipy
 from flax import struct
 from mpmath import digamma, findroot
 
-from utils.jax import maybe32, static_constant
+from utils.jax import jnp_default, maybe32, static_constant
 
 from .mercer import psd_svd
 from .util import _periodic_kernel_batch
@@ -47,7 +47,7 @@ class KrylovParams:
     cg_tol: int | None = static_constant(None)
     cg_maxiter: int = static_constant(512)
 
-    key: jnp.ndarray = jax.random.PRNGKey(0)  # non-static
+    key: jnp.ndarray = jnp_default(jax.random.PRNGKey(0))
 
 
 @struct.dataclass
@@ -62,11 +62,11 @@ class Hyperparams:
 
     Phi: jnp.ndarray  # (I,M,r)
 
-    alpha: jnp.ndarray = maybe32(1.0)
-    aw: jnp.ndarray = maybe32(1.0)
-    bw: jnp.ndarray = maybe32(1.0)
-    ae: jnp.ndarray = maybe32(1.0)
-    be: jnp.ndarray = maybe32(1.0)
+    alpha: jnp.ndarray = jnp_default(maybe32(1.0))
+    aw: jnp.ndarray = jnp_default(maybe32(1.0))
+    bw: jnp.ndarray = jnp_default(maybe32(1.0))
+    ae: jnp.ndarray = jnp_default(maybe32(1.0))
+    be: jnp.ndarray = jnp_default(maybe32(1.0))
 
     arprior: ARPrior = struct.field(default_factory=ARPrior)
 

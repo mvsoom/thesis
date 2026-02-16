@@ -39,7 +39,8 @@ def weighted_pitch_error(f0, weights, true_pitch, eps=1e-16):
     w = normalize_weights(weights)
 
     err = f0 - true_pitch
+    est = (w * f0).sum()
     wmae = (w * np.abs(err)).sum()
     wrmse = np.sqrt((w * err**2).sum())
 
-    return wmae, wrmse
+    return est, wmae, wrmse

@@ -4,7 +4,7 @@ from flax import struct
 
 from iklp.mercer_op import sample_parts_given_observation
 from iklp.psi import psi_matvec
-from utils.jax import maybe32
+from utils.jax import jnp_default, maybe32
 
 from .state import (
     Auxiliaries,
@@ -26,8 +26,8 @@ class StateMetrics:
     signals: jnp.ndarray  # (h.num_metrics_samples, M)
     noise: jnp.ndarray  # (h.num_metrics_samples, M)
 
-    i: jnp.ndarray = maybe32(0)  # ()
-    improvement: jnp.ndarray = jnp.nan  # ()
+    i: jnp.ndarray = jnp_default(maybe32(0))  # ()
+    improvement: jnp.ndarray = jnp_default(jnp.nan)  # ()
 
 
 def compute_metrics(key, state: VIState) -> StateMetrics:

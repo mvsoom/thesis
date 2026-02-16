@@ -21,9 +21,16 @@ def vk(key=None):
         return jax.random.PRNGKey(key)
 
 
+def jnp_default(a):
+    return struct.field(default_factory=lambda: a)
+
+
 def static_constant(default_value):
     """Make JAX specialize on this value"""
-    return struct.field(pytree_node=False, default=default_value)
+    return struct.field(
+        pytree_node=False,
+        default_factory=lambda: default_value,
+    )
 
 
 def maybe32(x):
