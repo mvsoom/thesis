@@ -47,7 +47,91 @@ json_path, out, width, height = sys.argv[1:]
 fig = pio.from_json(open(json_path).read())
 
 # =========================
-# GOD SCIENCE TEMPLATE — tuned
+# Apply Latex fix to allow "$...$" anywhere in strings
+# not just if the whole string is math.
+# =========================
+
+import re
+
+# matches $...$ but ignores escaped \$ 
+_math_re = re.compile(r'(?<!\\)\$(.+?)(?<!\\)\$')
+
+def _escape_text_for_tex(s):
+    # minimal escaping for \text{}
+    return (
+        s.replace("\\", r"\\")
+         .replace("{", r"\{")
+         .replace("}", r"\}")
+    )
+
+def latexify_string(s):
+    if "$" not in s:
+        return s
+
+    # skip hovertemplate style strings
+    # these often contain $ but are not math
+    if "%{" in s:
+        return s
+
+    matches = list(_math_re.finditer(s))
+    if not matches:
+        return s
+
+    # if whole string already single math block -> leave untouched
+    if len(matches) == 1 and matches[0].span() == (0, len(s)):
+        return s
+
+    parts = []
+    last = 0
+
+    for m in matches:
+        start, end = m.span()
+
+        # preceding plain text
+        if start > last:
+            txt = s[last:start]
+            if txt:
+                parts.append(r"\text{" + _escape_text_for_tex(txt) + "}")
+
+        # math body (without $)
+        parts.append(m.group(1))
+
+        last = end
+
+    # trailing text
+    if last < len(s):
+        txt = s[last:]
+        parts.append(r"\text{" + _escape_text_for_tex(txt) + "}")
+
+    return "$" + "".join(parts) + "$"
+
+
+def walk_and_fix(obj, parent_key=None):
+    if isinstance(obj, dict):
+        new = {}
+        for k, v in obj.items():
+            # skip hovertemplate completely
+            if k == "hovertemplate":
+                new[k] = v
+            else:
+                new[k] = walk_and_fix(v, k)
+        return new
+
+    elif isinstance(obj, list):
+        return [walk_and_fix(v, parent_key) for v in obj]
+
+    elif isinstance(obj, str):
+        return latexify_string(obj)
+
+    else:
+        return obj
+
+fig_dict = fig.to_plotly_json()
+fig_dict = walk_and_fix(fig_dict)
+fig = go.Figure(fig_dict)
+
+# =========================
+# GOD SCIENCE TEMPLATE
 # =========================
 
 axis_common = dict(
