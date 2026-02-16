@@ -26,7 +26,7 @@ from utils.jax import maybe32
 runs = get_voiced_runs(frame_len_msec=128.0, hop_msec=128.0)  # FIXME
 
 # %%
-N_TEST = 100
+N_TEST = 10 # FIXME
 
 runs = _shuffle_iterable(list(runs))
 runs = runs[:N_TEST]
@@ -105,6 +105,7 @@ h = pi_kappa_hyperparameters(
     num_metrics_samples=1,
     num_vi_iters=max_vi_iter,
     beta=maybe32(beta),
+    mercer_backend="woodbury",
 )
 
 print("Phi shape:", h.Phi.shape)  # (I, M, r)
@@ -112,7 +113,7 @@ print("Phi dtype:", h.Phi.dtype)
 print("Mercer operator backend:", backend(h))
 
 # %%
-batch_size = 8
+batch_size = 8  # mem used is 4 GB
 
 with time_this() as elapsed:
     metrics_tree, unpack = vi_run_criterion_batched(
@@ -151,7 +152,6 @@ try:
     print(i)
 
     print(f"Voicedness db {results[i]['voicedness_db']:.2f}")
-
     print(f"I_eff: {results[i]['I_eff']:.2f}")
 
     figs = plot_run(runs[i], metrics_list[i], f0)
@@ -168,6 +168,7 @@ try:
     print(i)
 
     print(f"Voicedness db {results[i]['voicedness_db']:.2f}")
+    print(f"I_eff: {results[i]['I_eff']:.2f}")
 
     plot_run(runs[i], metrics_list[i], f0)
 except Exception:
