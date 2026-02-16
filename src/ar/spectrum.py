@@ -21,6 +21,24 @@ def ar_power_spectrum(a, fs, n_fft=4096, fmax=None, db=False):
     return f, Pxx
 
 
+def band_ratio_db(f, P, low_max=200.0, mid_max=5000.0):
+    # masks
+    low = (f >= 0.0) & (f < low_max)
+    mid = (f >= low_max) & (f < mid_max)
+    high = f >= mid_max
+
+    # integrate (sum is fine since grid uniform)
+    E_low = np.sum(P[low])
+    E_mid = np.sum(P[mid])
+    E_high = np.sum(P[high])
+
+    # ratios (mid relative to others)
+    R_mid_low_db = 10.0 * np.log10(E_mid / E_low)
+    R_mid_high_db = 10.0 * np.log10(E_mid / E_high)
+
+    return R_mid_low_db, R_mid_high_db
+
+
 def ar_gain_energy(a, n_w=16384):
     """Impulse response energy"""
     if not ar_stat_score(a) > 0.0:

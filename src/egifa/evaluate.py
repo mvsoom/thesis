@@ -84,12 +84,14 @@ import plotly.graph_objects as go
 import scipy.io
 import scipy.io.wavfile
 from IPython.display import Audio, display
+from plotly.colors import qualitative
 from plotly.subplots import make_subplots
 
 from ar.spectrum import (
     ar_gain_energy,
     ar_power_spectrum,
     ar_stat_score,
+    band_ratio_db,
     estimate_formants,
 )
 from iklp.hyperparams import active_components
@@ -127,17 +129,17 @@ def _infer_pitch_from_frame(frame):
     return 1000.0 / np.mean(periods_ms)
 
 
-def _align_true_to_inferred(true_dgf, inferred_dgf, fs, maxlag):
+def _align_true_to_inferred(true_dgf, inferred_source, fs, maxlag):
     true_dgf = np.asarray(true_dgf, dtype=np.float64)
-    inferred_dgf = np.asarray(inferred_dgf, dtype=np.float64)
-    n = int(min(len(true_dgf), len(inferred_dgf)))
+    inferred_source = np.asarray(inferred_source, dtype=np.float64)
+    n = int(min(len(true_dgf), len(inferred_source)))
     true_dgf = true_dgf[:n]
-    inferred_dgf = inferred_dgf[:n]
+    inferred_source = inferred_source[:n]
     if n == 0:
         return np.asarray([], dtype=np.float64), np.nan
 
     try:
-        best, _ = fit_affine_lag_nrmse(true_dgf, inferred_dgf, maxlag=maxlag)
+        best, _ = fit_affine_lag_nrmse(true_dgf, inferred_source, maxlag=maxlag)
         aligned_true_dgf = np.asarray(best["aligned"], dtype=np.float64)
         lag_est_ms = 1e3 * float(best["lag"]) / float(fs)
     except Exception:
@@ -173,32 +175,36 @@ def post_process_run(run, metrics, f0):
         "Multiple samples not supported in post-processing yet"
     )
 
-    inferred_dgf = metrics.signals[0]
+    inferred_signal = metrics.signals[0]
     inferred_noise = metrics.noise[0]
+    inferred_source = inferred_signal + inferred_noise
 
-    voicedness_db = 10 * np.log10(np.var(inferred_dgf) / np.var(inferred_noise))
+    SNR_db = 10 * np.log10(np.var(inferred_signal) / np.var(inferred_noise))
 
     dt = 1.0 / float(frame["fs"])
     maxlag = int(0.5 / pitch_true / dt)  # half a pitch period
 
     # calculate NRMSE for signal only
     best, original = fit_affine_lag_nrmse(
-        inferred_dgf, frame["dgf"], maxlag=maxlag
+        inferred_signal, frame["dgf"], maxlag=maxlag
     )
-    dgf_nrmse = original["nrmse"]
-    dgf_aligned_nrmse = best["nrmse"]
+    signal_nrmse = original["nrmse"]
+    signal_aligned_nrmse = best["nrmse"]
 
-    # caculate NRMSE for signal + noise
-    best_both, original_both = fit_affine_lag_nrmse(
-        inferred_dgf + inferred_noise, frame["dgf"], maxlag=maxlag
+    # calculate NRMSE for source (signal + noise)
+    best, original = fit_affine_lag_nrmse(
+        inferred_source, frame["dgf"], maxlag=maxlag
     )
-    dgf_both_nrmse = original_both["nrmse"]
-    dgf_both_aligned_nrmse = best_both["nrmse"]
+    source_nrmse = original["nrmse"]
+    source_aligned_nrmse = best["nrmse"]
     _, lag_est = _align_true_to_inferred(
-        frame["dgf"], inferred_dgf + inferred_noise, frame["fs"], maxlag
+        frame["dgf"], inferred_source, frame["fs"], maxlag
     )
 
     # estimate formants
+    f, P = ar_power_spectrum(metrics.a, frame["fs"], db=False)
+    filter_MLR_db, filter_MHR_db = band_ratio_db(f, P)
+
     f, power_db = ar_power_spectrum(metrics.a, frame["fs"], db=True)
     centers, bandwidths = estimate_formants(f, power_db, peak_prominence=1.0)
 
@@ -229,13 +235,15 @@ def post_process_run(run, metrics, f0):
         "pitch_wrmse": pitch_wrmse,
         "pitch_wmae": pitch_wmae,
         # fit
-        "voicedness_db": voicedness_db,
-        "dgf_nrmse": dgf_nrmse,
-        "dgf_aligned_nrmse": dgf_aligned_nrmse,
-        "dgf_both_nrmse": dgf_both_nrmse,
-        "dgf_both_aligned_nrmse": dgf_both_aligned_nrmse,
+        "SNR_db": SNR_db,
+        "signal_nrmse": signal_nrmse,
+        "signal_aligned_nrmse": signal_aligned_nrmse,
+        "source_nrmse": source_nrmse,
+        "source_aligned_nrmse": source_aligned_nrmse,
         "lag_est": lag_est,
         # filter
+        "filter_MLR_db": filter_MLR_db,
+        "filter_MHR_db": filter_MHR_db,
         "filter_gain_energy": filter_gain_energy,
         "filter_stationary_score": filter_stationary_score,
         # formants
@@ -278,7 +286,7 @@ def plot_run(run, metrics, f0):
 
     inferred_signal = np.asarray(metrics.signals[0], dtype=np.float64)[:n]
     inferred_noise = np.asarray(metrics.noise[0], dtype=np.float64)[:n]
-    inferred_signal_plus_noise = inferred_signal + inferred_noise
+    inferred_source = inferred_signal + inferred_noise
     frame_duration_ms = 1e3 * len(speech) / fs_model
 
     true_pitch = _infer_pitch_from_frame(frame)
@@ -289,7 +297,7 @@ def plot_run(run, metrics, f0):
         maxlag = max(1, int(0.002 / dt))
 
     aligned_true_dgf, align_lag_ms = _align_true_to_inferred(
-        dgf, inferred_signal_plus_noise, fs_model, maxlag
+        dgf, inferred_source, fs_model, maxlag
     )
 
     fs_file, speech_full, gf_full = _load_full_file_context(group)
@@ -302,9 +310,6 @@ def plot_run(run, metrics, f0):
     t_ms = _as_ms(t_samples, fs_abs)
 
     group_t_ms = _as_ms(group["smooth"]["t_samples"], fs_abs)
-    group_speech = np.asarray(group["smooth"]["speech"], dtype=np.float64)
-    group_gf = np.asarray(group["smooth"]["gf"], dtype=np.float64)
-    group_dgf = np.asarray(group["smooth"]["dgf"], dtype=np.float64)
     group_start_ms = float(group_t_ms[0])
     group_end_ms = float(group_t_ms[-1])
 
@@ -324,11 +329,27 @@ def plot_run(run, metrics, f0):
     p_ar_db_plot = p_ar_db[mask_ar]
     centers, bandwidths = estimate_formants(f_ar, p_ar_db, peak_prominence=1.0)
 
+    f_source, p_source_db = power_spectrum_db(inferred_signal, fs_model)
+    mask_source = (
+        np.isfinite(f_source) & np.isfinite(p_source_db) & (f_source > 0)
+    )
+    f_source_plot = f_source[mask_source]
+    p_source_db_plot = p_source_db[mask_source]
+    f_source_true, p_source_true_db = power_spectrum_db(dgf, fs_model)
+    mask_source_true = (
+        np.isfinite(f_source_true)
+        & np.isfinite(p_source_true_db)
+        & (f_source_true > 0)
+    )
+    f_source_true_plot = f_source_true[mask_source_true]
+    p_source_true_db_plot = p_source_true_db[mask_source_true]
+
     f_n, p_n_db = power_spectrum_db(inferred_noise, fs_model)
     mask_n = np.isfinite(f_n) & np.isfinite(p_n_db) & (f_n > 0)
     f_n_plot = f_n[mask_n]
     p_n_db_plot = p_n_db[mask_n]
     theta = np.asarray(metrics.E.theta, dtype=np.float64)
+    theta = theta / (theta.sum() + 1e-16)
     f0 = np.asarray(f0, dtype=np.float64)
     use_f0_axis = len(f0) == len(theta)
     pitch_x = f0 if use_f0_axis else np.arange(len(theta))
@@ -337,15 +358,13 @@ def plot_run(run, metrics, f0):
         if np.isfinite(frame_duration_ms)
         else "n/a"
     )
-    colors = [
-        "#1f77b4",
-        "#ff7f0e",
-        "#2ca02c",
-        "#d62728",
-        "#9467bd",
-        "#8c564b",
-        "#e377c2",
-    ]
+    colors = qualitative.Plotly
+    c_truth = colors[0]  # primary theme blue for ground truth
+    c_inferred = colors[2]
+    c_noise = "rgba(120,120,120,0.75)"
+    c_black_tempered = "rgba(45,45,45,0.72)"
+    c_pitch_posterior = c_black_tempered
+    c_ar = c_black_tempered
     ar_xmax = (
         float(np.max(f_ar_plot))
         if len(f_ar_plot) and np.isfinite(np.max(f_ar_plot))
@@ -354,6 +373,19 @@ def plot_run(run, metrics, f0):
     ar_xmax = max(50.0, ar_xmax)
     if ar_xmax <= 50.0:
         ar_xmax = 50.5
+    source_xmax = ar_xmax
+    if len(f_source_plot) and np.isfinite(np.max(f_source_plot)):
+        source_xmax = max(source_xmax, float(np.max(f_source_plot)))
+    if len(f_source_true_plot) and np.isfinite(np.max(f_source_true_plot)):
+        source_xmax = max(source_xmax, float(np.max(f_source_true_plot)))
+    source_xmax = max(50.5, source_xmax)
+    noise_xmax = (
+        float(np.max(f_n_plot))
+        if len(f_n_plot) and np.isfinite(np.max(f_n_plot))
+        else ar_xmax
+    )
+    noise_xmax = max(50.5, noise_xmax)
+    env_xmax = max(ar_xmax, source_xmax, noise_xmax)
 
     harmonics = np.asarray([], dtype=np.float64)
     if np.isfinite(true_pitch) and true_pitch > 0:
@@ -363,12 +395,12 @@ def plot_run(run, metrics, f0):
             harmonics = harmonics[
                 np.isfinite(harmonics)
                 & (harmonics >= 50.0)
-                & (harmonics <= min(5000.0, ar_xmax))
+                & (harmonics <= min(5000.0, env_xmax))
             ]
     gf_panel_title = (
-        f"Frame detail: gf (estimated lag={align_lag_ms:+.2f} ms)"
+        f"Frame detail: gf (estimated lag = {align_lag_ms:+.2f} ms)"
         if np.isfinite(align_lag_ms)
-        else "Frame detail: gf (estimated lag=n/a)"
+        else "Frame detail: gf (estimated lag = n/a)"
     )
 
     fig = make_subplots(
@@ -378,10 +410,10 @@ def plot_run(run, metrics, f0):
         row_heights=[
             1.0,
             1.0,
-            1.3,
             1.0,
             1.0,
             1.3,
+            1.0,
             1.0,
             1.0,
             1.0,
@@ -390,12 +422,12 @@ def plot_run(run, metrics, f0):
         subplot_titles=[
             "File context: speech",
             "File context: glottal flow",
-            "Selected voiced group: speech / gf / dgf",
-            f"Frame detail ({frame_duration_text}): speech",
+            f"Frame detail: speech ({frame_duration_text})",
             gf_panel_title,
-            "Frame detail: dgf (aligned true / inferred / inferred+noise)",
-            "AR spectral envelope with estimated formants",
+            "Frame detail: dgf (aligned true / inferred signal / inferred source)",
+            "Signal spectral envelope",
             "Noise spectral envelope",
+            "AR spectral envelope with estimated formants",
             "Pitch posterior",
         ],
     )
@@ -407,7 +439,7 @@ def plot_run(run, metrics, f0):
             y=speech_full,
             mode="lines",
             name="file speech",
-            line=dict(color=colors[0]),
+            line=dict(color=c_truth),
             showlegend=False,
         ),
         row=1,
@@ -419,44 +451,10 @@ def plot_run(run, metrics, f0):
             y=gf_full,
             mode="lines",
             name="file gf",
-            line=dict(color=colors[0]),
+            line=dict(color=c_truth),
             showlegend=False,
         ),
         row=2,
-        col=1,
-    )
-
-    fig.add_trace(
-        go.Scatter(
-            x=group_t_ms,
-            y=group_speech,
-            mode="lines",
-            name="group speech",
-            line=dict(color=colors[0]),
-        ),
-        row=3,
-        col=1,
-    )
-    fig.add_trace(
-        go.Scatter(
-            x=group_t_ms,
-            y=group_gf,
-            mode="lines",
-            name="group gf",
-            line=dict(color=colors[1]),
-        ),
-        row=3,
-        col=1,
-    )
-    fig.add_trace(
-        go.Scatter(
-            x=group_t_ms,
-            y=group_dgf,
-            mode="lines",
-            name="group dgf",
-            line=dict(color=colors[2]),
-        ),
-        row=3,
         col=1,
     )
 
@@ -466,10 +464,10 @@ def plot_run(run, metrics, f0):
             y=speech,
             mode="lines",
             name="frame speech",
-            line=dict(color=colors[0]),
+            line=dict(color=c_truth),
             showlegend=False,
         ),
-        row=4,
+        row=3,
         col=1,
     )
     fig.add_trace(
@@ -478,10 +476,10 @@ def plot_run(run, metrics, f0):
             y=gf,
             mode="lines",
             name="frame gf",
-            line=dict(color=colors[0]),
+            line=dict(color=c_truth),
             showlegend=False,
         ),
-        row=5,
+        row=4,
         col=1,
     )
     fig.add_trace(
@@ -490,9 +488,9 @@ def plot_run(run, metrics, f0):
             y=aligned_true_dgf,
             mode="lines",
             name="true dgf (aligned)",
-            line=dict(color=colors[3]),
+            line=dict(color=c_truth),
         ),
-        row=6,
+        row=5,
         col=1,
     )
     fig.add_trace(
@@ -501,22 +499,139 @@ def plot_run(run, metrics, f0):
             y=inferred_signal,
             mode="lines",
             name="inferred signal",
-            line=dict(color=colors[4]),
+            line=dict(color=c_inferred),
+        ),
+        row=5,
+        col=1,
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=t_ms,
+            y=inferred_source,
+            mode="lines",
+            name="inferred source = signal + noise",
+            line=dict(color=c_noise),
+            opacity=0.8,
+        ),
+        row=5,
+        col=1,
+    )
+
+    def add_envelope_decorations(
+        row, x_max, y_series, show_harmonic_legend=False
+    ):
+        finite_series = []
+        for y in y_series:
+            y_arr = np.asarray(y, dtype=np.float64)
+            y_arr = y_arr[np.isfinite(y_arr)]
+            if len(y_arr):
+                finite_series.append(y_arr)
+        if not finite_series:
+            return
+        y_peak = max(float(np.max(y_arr)) for y_arr in finite_series)
+        y_floor = min(float(np.min(y_arr)) for y_arr in finite_series)
+        y_span = y_peak - y_floor
+        y_top = y_peak + 0.1 * (y_span if y_span > 0 else max(abs(y_peak), 1.0))
+
+        if np.isfinite(true_pitch) and 50.0 <= true_pitch <= min(5000.0, x_max):
+            fig.add_vline(
+                x=float(true_pitch),
+                line_color=c_truth,
+                line_dash="dash",
+                opacity=0.9,
+                row=row,
+                col=1,
+            )
+
+        if len(harmonics) > 0:
+            fig.add_trace(
+                go.Scatter(
+                    x=harmonics,
+                    y=np.full_like(harmonics, y_top),
+                    mode="markers",
+                    marker=dict(
+                        symbol="triangle-down",
+                        size=6,
+                        color=c_truth,
+                    ),
+                    name="F0 harmonics up to 5 kHz",
+                    cliponaxis=False,
+                    opacity=0.75,
+                    showlegend=show_harmonic_legend,
+                ),
+                row=row,
+                col=1,
+            )
+
+        fig.add_vrect(
+            x0=50.0,
+            x1=200.0,
+            fillcolor="rgba(120,120,120,0.20)",
+            line_width=0,
+            layer="below",
+            row=row,
+            col=1,
+        )
+        if x_max > 5000.0:
+            fig.add_vrect(
+                x0=5000.0,
+                x1=x_max,
+                fillcolor="rgba(120,120,120,0.20)",
+                line_width=0,
+                layer="below",
+                row=row,
+                col=1,
+            )
+
+    fig.add_trace(
+        go.Scatter(
+            x=f_source_true_plot,
+            y=p_source_true_db_plot,
+            mode="lines",
+            name="source spectrum (true)",
+            line=dict(color=c_truth),
+            showlegend=False,
         ),
         row=6,
         col=1,
     )
     fig.add_trace(
         go.Scatter(
-            x=t_ms,
-            y=inferred_signal_plus_noise,
+            x=f_source_plot,
+            y=p_source_db_plot,
             mode="lines",
-            name="inferred signal + noise",
-            line=dict(color="rgba(120,120,120,0.90)"),
-            opacity=0.9,
+            name="signal spectrum (inferred)",
+            line=dict(color=c_inferred),
+            showlegend=False,
         ),
         row=6,
         col=1,
+    )
+    add_envelope_decorations(
+        row=6,
+        x_max=source_xmax,
+        y_series=[p_source_db_plot, p_source_true_db_plot],
+        show_harmonic_legend=True,
+    )
+
+    fig.add_trace(
+        go.Scatter(
+            x=f_n_plot,
+            y=p_n_db_plot,
+            mode="lines",
+            name="noise spectrum",
+            line=dict(color=c_noise),
+            opacity=0.8,
+            showlegend=False,
+        ),
+        row=7,
+        col=1,
+    )
+    add_envelope_decorations(
+        row=7,
+        x_max=noise_xmax,
+        y_series=[p_n_db_plot],
+        show_harmonic_legend=False,
     )
 
     fig.add_trace(
@@ -525,9 +640,10 @@ def plot_run(run, metrics, f0):
             y=p_ar_db_plot,
             mode="lines",
             name="AR spectrum",
-            line=dict(color=colors[5]),
+            line=dict(color=c_ar),
+            showlegend=False,
         ),
-        row=7,
+        row=8,
         col=1,
     )
     for x in centers:
@@ -535,10 +651,10 @@ def plot_run(run, metrics, f0):
             continue
         fig.add_vline(
             x=float(x),
-            line_color="green",
+            line_color=c_black_tempered,
             line_dash="dot",
             opacity=0.8,
-            row=7,
+            row=8,
             col=1,
         )
     for c, bw in zip(np.asarray(centers), np.asarray(bandwidths)):
@@ -563,116 +679,19 @@ def plot_run(run, metrics, f0):
                 x=[x0, x1],
                 y=[y_bw, y_bw],
                 mode="lines",
-                line=dict(color="green", width=2),
+                line=dict(color=c_black_tempered, width=2),
                 name="-3 dB bandwidth",
                 showlegend=False,
             ),
-            row=7,
-            col=1,
-        )
-
-    if len(f_ar_plot) > 0:
-        y_top = float(np.nanmax(p_ar_db_plot))
-        y_bottom = float(np.nanmin(p_ar_db_plot))
-        y_span = max(1e-6, y_top - y_bottom)
-
-        if np.isfinite(true_pitch) and 50.0 <= true_pitch <= min(
-            5000.0, ar_xmax
-        ):
-            fig.add_vline(
-                x=float(true_pitch),
-                line_color=colors[3],
-                line_dash="dash",
-                opacity=0.9,
-                annotation_text=f"F0={true_pitch:.1f} Hz",
-                annotation_position="top right",
-                row=7,
-                col=1,
-            )
-
-        if len(harmonics) > 0:
-            fig.add_trace(
-                go.Scatter(
-                    x=harmonics,
-                    y=np.full_like(harmonics, y_top),
-                    mode="markers",
-                    marker=dict(
-                        symbol="triangle-down",
-                        size=6,
-                        color="rgba(227,119,194,0.75)",
-                    ),
-                    name="F0 harmonics up to 5 kHz",
-                    cliponaxis=False,
-                ),
-                row=7,
-                col=1,
-            )
-
-        low_start = 50.0
-        low_end = 200.0
-        high_start = 5000.0
-        high_end = ar_xmax
-
-        if low_end > low_start:
-            fig.add_vrect(
-                x0=low_start,
-                x1=low_end,
-                fillcolor="rgba(120,120,120,0.20)",
-                line_width=0,
-                layer="below",
-                row=7,
-                col=1,
-            )
-        if high_end > high_start:
-            fig.add_vrect(
-                x0=high_start,
-                x1=high_end,
-                fillcolor="rgba(120,120,120,0.20)",
-                line_width=0,
-                layer="below",
-                row=7,
-                col=1,
-            )
-
-    fig.add_trace(
-        go.Scatter(
-            x=f_n_plot,
-            y=p_n_db_plot,
-            mode="lines",
-            name="noise spectrum",
-            line=dict(color="rgba(120,120,120,0.90)"),
-            opacity=0.9,
-            showlegend=False,
-        ),
-        row=8,
-        col=1,
-    )
-
-    noise_xmax = (
-        float(np.max(f_n_plot))
-        if len(f_n_plot) and np.isfinite(np.max(f_n_plot))
-        else ar_xmax
-    )
-    noise_xmax = max(50.5, noise_xmax)
-    fig.add_vrect(
-        x0=50.0,
-        x1=200.0,
-        fillcolor="rgba(120,120,120,0.20)",
-        line_width=0,
-        layer="below",
-        row=8,
-        col=1,
-    )
-    if noise_xmax > 5000.0:
-        fig.add_vrect(
-            x0=5000.0,
-            x1=noise_xmax,
-            fillcolor="rgba(120,120,120,0.20)",
-            line_width=0,
-            layer="below",
             row=8,
             col=1,
         )
+    add_envelope_decorations(
+        row=8,
+        x_max=ar_xmax,
+        y_series=[p_ar_db_plot],
+        show_harmonic_legend=False,
+    )
 
     fig.add_trace(
         go.Scatter(
@@ -680,7 +699,7 @@ def plot_run(run, metrics, f0):
             y=theta,
             mode="lines",
             name="pitch posterior",
-            line=dict(color=colors[0]),
+            line=dict(color=c_pitch_posterior),
             showlegend=False,
         ),
         row=9,
@@ -691,7 +710,7 @@ def plot_run(run, metrics, f0):
     ):
         fig.add_vline(
             x=float(true_pitch),
-            line_color="red",
+            line_color=c_truth,
             line_dash="dash",
             opacity=0.8,
             annotation_text="pitch_true",
@@ -712,7 +731,7 @@ def plot_run(run, metrics, f0):
         )
 
     if np.isfinite(frame_start_ms) and np.isfinite(frame_end_ms):
-        for row in (1, 2, 3):
+        for row in (1, 2):
             fig.add_vrect(
                 x0=frame_start_ms,
                 x1=frame_end_ms,
@@ -729,7 +748,7 @@ def plot_run(run, metrics, f0):
             line_color="green",
             line_width=1,
             opacity=0.35,
-            row=5,
+            row=4,
             col=1,
         )
     for x in frame_goi_ms:
@@ -738,17 +757,18 @@ def plot_run(run, metrics, f0):
             line_color="purple",
             line_width=1,
             opacity=0.25,
-            row=5,
+            row=4,
             col=1,
         )
 
     fig.update_xaxes(matches="x", row=2, col=1)
-    fig.update_xaxes(matches="x", row=3, col=1)
-    fig.update_xaxes(matches="x4", row=5, col=1)
-    fig.update_xaxes(matches="x4", row=6, col=1)
+    fig.update_xaxes(matches="x3", row=4, col=1)
+    fig.update_xaxes(matches="x3", row=5, col=1)
+    fig.update_xaxes(matches="x6", row=7, col=1)
+    fig.update_xaxes(matches="x6", row=8, col=1)
 
     if np.isfinite(frame_start_ms) and np.isfinite(frame_end_ms):
-        for row in (4, 5, 6):
+        for row in (3, 4, 5):
             fig.update_xaxes(
                 range=[frame_start_ms, frame_end_ms], row=row, col=1
             )
@@ -757,20 +777,27 @@ def plot_run(run, metrics, f0):
         title_text="absolute time (ms): file/group context",
         title_standoff=2,
         automargin=True,
-        row=3,
+        row=2,
         col=1,
     )
     fig.update_xaxes(
         title_text="absolute time (ms): frame detail",
         title_standoff=2,
         automargin=True,
+        row=5,
+        col=1,
+    )
+    fig.update_xaxes(
+        type="log",
+        range=[np.log10(50.0), np.log10(env_xmax)],
+        title_standoff=2,
+        automargin=True,
         row=6,
         col=1,
     )
     fig.update_xaxes(
-        title_text="frequency (Hz)",
         type="log",
-        range=[np.log10(50.0), np.log10(ar_xmax)],
+        range=[np.log10(50.0), np.log10(env_xmax)],
         title_standoff=2,
         automargin=True,
         row=7,
@@ -779,7 +806,7 @@ def plot_run(run, metrics, f0):
     fig.update_xaxes(
         title_text="frequency (Hz)",
         type="log",
-        range=[np.log10(50.0), np.log10(noise_xmax)],
+        range=[np.log10(50.0), np.log10(env_xmax)],
         title_standoff=2,
         automargin=True,
         row=8,
@@ -804,12 +831,12 @@ def plot_run(run, metrics, f0):
                 )
     fig.update_xaxes(row=9, col=1, **row9_axis_kwargs)
 
-    fig.update_yaxes(title_text="speech", row=1, col=1)
-    fig.update_yaxes(title_text="gf", row=2, col=1)
+    fig.update_yaxes(title_text="amplitude", row=1, col=1)
+    fig.update_yaxes(title_text="amplitude", row=2, col=1)
     fig.update_yaxes(title_text="amplitude", row=3, col=1)
-    fig.update_yaxes(title_text="speech", row=4, col=1)
-    fig.update_yaxes(title_text="gf", row=5, col=1)
-    fig.update_yaxes(title_text="dgf", row=6, col=1)
+    fig.update_yaxes(title_text="amplitude", row=4, col=1)
+    fig.update_yaxes(title_text="amplitude", row=5, col=1)
+    fig.update_yaxes(title_text="power (dB)", row=6, col=1)
     fig.update_yaxes(title_text="power (dB)", row=7, col=1)
     fig.update_yaxes(title_text="power (dB)", row=8, col=1)
     fig.update_yaxes(title_text="probability", row=9, col=1)
@@ -817,18 +844,21 @@ def plot_run(run, metrics, f0):
     fig.update_layout(
         height=240 * 9,
         hovermode="x unified",
-        title=(
-            "EGIFA run diagnostics | "
-            f"{group['name']} ({group['f0_hz']} Hz) | "
-            f"group={group['group']} frame={frame['frame_index']} "
-            f"restart={frame['restart_index']} | "
-            f"elbo={metrics.elbo:.3f}"
+        title=dict(
+            text=(
+                "EGIFA | "
+                f"{group['name']} {group['f0_hz']} Hz | "
+                f"group {group['group']} | "
+                f"frame {frame['frame_index']} | "
+                f"restart {frame['restart_index']}"
+            ),
+            pad=dict(b=14),
         ),
-        margin=dict(r=60, b=90),
+        margin=dict(r=60, b=70),
         legend=dict(
             orientation="h",
             x=0.5,
-            y=-0.06,
+            y=-0.035,
             xanchor="center",
             yanchor="top",
             bgcolor="rgba(255,255,255,0.75)",
