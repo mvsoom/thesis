@@ -148,10 +148,10 @@ from egifa.evaluate import plot_run
 print("Best u'(t) fit:", end=" ")
 
 try:
-    i = int(np.nanargmin([r["dgf_both_aligned_nrmse"] for r in results]))
+    i = int(np.nanargmin([r["source_aligned_nrmse"] for r in results]))
     print(i)
 
-    print(f"Voicedness db {results[i]['voicedness_db']:.2f}")
+    print(f"SNR dB {results[i]['SNR_db']:.2f}")
     print(f"I_eff: {results[i]['I_eff']:.2f}")
 
     figs = plot_run(runs[i], metrics_list[i], f0)
@@ -164,10 +164,10 @@ except Exception:
 print("Worst u'(t) fit:", end=" ")
 
 try:
-    i = int(np.nanargmax([r["dgf_both_aligned_nrmse"] for r in results]))
+    i = int(np.nanargmax([r["source_aligned_nrmse"] for r in results]))
     print(i)
 
-    print(f"Voicedness db {results[i]['voicedness_db']:.2f}")
+    print(f"SNR dB {results[i]['SNR_db']:.2f}")
     print(f"I_eff: {results[i]['I_eff']:.2f}")
 
     plot_run(runs[i], metrics_list[i], f0)

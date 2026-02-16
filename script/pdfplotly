@@ -189,11 +189,14 @@ template = go.layout.Template(
             color="#111111",
         ),
 
-        margin=dict(l=60, r=90, t=55, b=65),
+        margin=dict(l=60, r=90, t=65, b=65),
 
         title=dict(
             x=0.03,
             xanchor="left",
+            y=0.995,
+            yanchor="top",
+            pad=dict(b=16),
             font=dict(size=20),
         ),
 
