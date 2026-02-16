@@ -96,6 +96,7 @@ Radar, sonar, and seismic matched-filter detection routinely optimize over unkno
 
 The absence of an analogous treatment in many source-evaluation pipelines is therefore historical rather than principled.
 
+
 === Source-Domain Analogy
 
 The same reasoning applies to source evaluation.
@@ -109,10 +110,23 @@ $
 
 evaluated per frame.
 
-Cosine similarity after affine normalization is a natural choice on this quotient space, just as log-spectral distances are natural in envelope-based spectral spaces.
+After quotienting out these nuisance degrees of freedom, similarity is naturally measured by the normalized inner product (cosine similarity) between aligned signals. Let
 
-Failure to quotient out delay risks conflating physically induced dispersion with modeling error.
-This effect is expected to be strongest precisely in vowel classes known to exhibit narrow formants, providing a plausible explanation for systematic performance differences reported in the literature.
+$
+  tilde(u)'(t) = a^* u'_"est" (t - tau^*) + b^*
+$
+
+denote the affine and delay aligned estimate obtained by minimizing squared error over the equivalence class. The similarity score is then
+
+$
+  "score" = ( angle.l tilde(u)'_c , u'_("true",c) angle.r ) /
+  ( ||tilde(u)'_c|| ||u'_("true",c)|| ),
+$
+
+where the subscript $c$ denotes mean centering over the overlapping support. This evaluates agreement in waveform shape while remaining invariant to global gain, bias, and constant timing shifts. In this sense, cosine similarity plays the same role in the source domain as log spectral distances do in envelope based spectral representations: both compare signals only along identifiable dimensions after quotienting out physically ambiguous transformations.
+
+Failure to quotient out delay risks conflating physically induced dispersion with modeling error. This effect is expected to be strongest precisely in vowel classes known to exhibit narrow formants, providing a plausible explanation for systematic performance differences reported in the literature.
+
 
 === Why Per-Frame, Not Per-Cycle
 

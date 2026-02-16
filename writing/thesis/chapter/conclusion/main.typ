@@ -1,6 +1,8 @@
 = Conclusion
 <chapter:conclusion>
 
+#image("3d.pdf")
+
 /*
 Nice introduction to importance of clinical speech science as a whole in @Andrade-Miranda2024
 */
@@ -21,6 +23,12 @@ Recent article in Nature Parkison's disease
 
 > The recommended and widely employed tests are 1) sustained phonation of the vowel /a/ in a single breath, which helps assess breath control, vocal fold function and vocal quality @Cao2025
 > 2) rapid repetition of syllables such as /pa/, /ta/ and /ka/ to evaluate consonant and vowel articulation, articulation rate and regularity, coordination and speech timing;
+
+#figure(
+  image("holmberg.pdf"),
+  placement: auto,
+  caption: [*Test image* from Plotly.],
+) <fig:plotly-test>
 
 Important features: vocal fold oscillation irregularity, breathiness and noise, *and vocal tract resonance fluctuations* // https://pubmed.ncbi.nlm.nih.gov/22249592/
 
