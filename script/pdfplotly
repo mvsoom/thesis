@@ -60,13 +60,13 @@ axis_common = dict(
     tickwidth=1.2,
 
     showgrid=True,
-    gridcolor="rgba(0,0,0,0.22)",
+    gridcolor="rgba(0,0,0,0.19)",
     gridwidth=1,
     griddash="dot",
 
     zeroline=False,
 
-    tickfont=dict(size=15),   # ⭐ match your perfect histogram ticks
+    tickfont=dict(size=15),
     title_font=dict(size=17),
 
     title_standoff=10,
@@ -75,7 +75,7 @@ axis_common = dict(
         ticks="inside",
         ticklen=4,
         showgrid=True,
-        gridcolor="rgba(0,0,0,0.10)",
+        gridcolor="rgba(0,0,0,0.07)",
         griddash="dot",
     ),
 )
@@ -86,6 +86,19 @@ template = go.layout.Template(
         plot_bgcolor="white",
         paper_bgcolor="white",
 
+        colorway=[
+            "#636EFA",
+            "#EF553B",
+            "#00CC96",
+            "#AB63FA",
+            "#FFA15A",
+            "#19D3F3",
+            "#FF6692",
+            "#B6E880",
+            "#FF97FF",
+            "#FECB52",
+        ],
+
         font=dict(
             family="Libertinus Serif",
             size=15,   # slightly larger global base
@@ -95,7 +108,7 @@ template = go.layout.Template(
         margin=dict(l=60, r=90, t=55, b=65),
 
         title=dict(
-            x=0.03,     # ⭐ visually left but not extreme
+            x=0.03,
             xanchor="left",
             font=dict(size=20),
         ),
@@ -122,7 +135,7 @@ template = go.layout.Template(
 
         scatter=[
             go.Scatter(
-                line=dict(width=1.8),   # ⭐ thinner fixes legend look
+                line=dict(width=1.8),
                 marker=dict(size=5),
             )
         ],
@@ -156,5 +169,4 @@ if height:
     kwargs["height"] = int(height)
 
 fig.write_image(out, **kwargs)
-
 PY
