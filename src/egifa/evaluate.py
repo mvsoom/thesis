@@ -7,8 +7,8 @@ from utils.audio import frame_signal
 
 def get_voiced_runs(
     path_contains=None,
-    frame_len_msec=32.0,
-    hop_msec=16.0,
+    frame_len_msec=128.0,
+    hop_msec=64.0,
     num_vi_restarts=1,
     dtype=np.float64,
     **smooth_dgf_kwargs,
@@ -95,8 +95,34 @@ from ar.spectrum import (
     estimate_formants,
 )
 from iklp.hyperparams import active_components
+from prism.pack import NormalizedPACK
 from utils.audio import fit_affine_lag_nrmse, power_spectrum_db
 from utils.stats import weighted_pitch_error
+
+
+def get_standard_pack(d, period):
+    """Return PACK with params estimated from experiments/lf/pack"""
+    sigma_bc_by_d = {
+        0: {"sigma_b": 2.0, "sigma_c": 0.5},
+        1: {"sigma_b": 1.0, "sigma_c": 3.0},
+        2: {"sigma_b": 0.4, "sigma_c": 7.0},
+        3: {"sigma_b": 0.5, "sigma_c": 5.0},
+    }
+
+    sigma_a = 1.0
+    sigma_b = sigma_bc_by_d[d]["sigma_b"]
+    sigma_c = sigma_bc_by_d[d]["sigma_c"]
+
+    pack = NormalizedPACK(
+        d=d,
+        J=1,
+        period=period,
+        sigma_a=sigma_a,
+        sigma_b=sigma_b,
+        sigma_c=sigma_c,
+    )
+
+    return pack
 
 
 def unpack4(x):
@@ -153,8 +179,6 @@ def post_process_run(run, metrics, f0):
     group = run["group"]
     frame = run["frame"]
 
-    group_type = "vowel" if "vowel" in group["wav"] else "speech"
-
     posterior_pi = metrics.E.nu_w / (metrics.E.nu_w + metrics.E.nu_e)
     sum_theta = (metrics.E.theta).sum()
 
@@ -203,7 +227,7 @@ def post_process_run(run, metrics, f0):
 
     # estimate formants
     f, P = ar_power_spectrum(metrics.a, frame["fs"], db=False)
-    filter_MLR_db, filter_MHR_db = band_ratio_db(f, P)
+    filter_mid_low_db, filter_mid_high_db = band_ratio_db(f, P)
 
     f, power_db = ar_power_spectrum(metrics.a, frame["fs"], db=True)
     centers, bandwidths = estimate_formants(f, power_db, peak_prominence=1.0)
@@ -214,7 +238,6 @@ def post_process_run(run, metrics, f0):
     return {
         # frame metadata
         "wav": group["wav"],
-        "type": group_type,
         "name": group["name"],
         "f0_hz_nominal": group["f0_hz"],
         "pressure_pa": group["pressure_pa"],
@@ -235,15 +258,15 @@ def post_process_run(run, metrics, f0):
         "pitch_wrmse": pitch_wrmse,
         "pitch_wmae": pitch_wmae,
         # fit
-        "SNR_db": SNR_db,
+        "SNR_db": SNR_db,  # if small, noise is doing source sculpting
         "signal_nrmse": signal_nrmse,
         "signal_aligned_nrmse": signal_aligned_nrmse,
         "source_nrmse": source_nrmse,
         "source_aligned_nrmse": source_aligned_nrmse,
         "lag_est": lag_est,
         # filter
-        "filter_MLR_db": filter_MLR_db,
-        "filter_MHR_db": filter_MHR_db,
+        "filter_mid_low_db": filter_mid_low_db,  # if small, AR is doing source sculpting
+        "filter_mid_high_db": filter_mid_high_db,
         "filter_gain_energy": filter_gain_energy,
         "filter_stationary_score": filter_stationary_score,
         # formants
