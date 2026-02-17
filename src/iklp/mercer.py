@@ -1,7 +1,9 @@
 """Compute Mercer expansion of a batch of PSD matrices using SVD"""
 
+import jax
 import jax.numpy as jnp
 import numpy as np
+import scipy.linalg
 
 
 def sqrt_clip(x):
@@ -70,3 +72,58 @@ def psd_svd_fixed(K, rank):
     energy = covered / (total + 1e-15)  # avoid div by 0
 
     return Phi, energy
+
+
+def psd_eigh_fixed(K, rank, eps=1e-15):
+    """
+    Reduced-rank Mercer expansion using SciPy partial eigendecomposition. (Don't have JAX backend support for this.)
+
+    Args:
+        K : (..., M, M) PSD matrices (jax or numpy array)
+        rank : int
+
+    Returns:
+        Phi : (..., M, rank)
+        energy : (...)
+    """
+    # move to host numpy for SciPy
+    K_np = np.asarray(K)
+
+    M = K_np.shape[-1]
+
+    # total spectral energy via trace
+    total = np.trace(K_np, axis1=-2, axis2=-1)
+
+    # flatten batch dims
+    batch_shape = K_np.shape[:-2]
+    Ks = K_np.reshape((-1, M, M))
+
+    Phi_list = []
+    energy_list = []
+
+    lo = M - rank
+    hi = M - 1
+
+    for Ki, total_i in zip(Ks, total.reshape(-1)):
+        # partial eigendecomposition (largest rank eigenpairs)
+        w, U = scipy.linalg.eigh(Ki, subset_by_index=[lo, hi])
+
+        # ascending -> descending
+        w = w[::-1]
+        U = U[:, ::-1]
+
+        w = np.clip(w, 0.0, None)
+
+        Phi = U * np.sqrt(w)[None, :]
+
+        covered = np.sum(w)
+        energy = covered / (total_i + eps)
+
+        Phi_list.append(Phi)
+        energy_list.append(energy)
+
+    Phi = np.stack(Phi_list).reshape(batch_shape + (M, rank))
+    energy = np.array(energy_list).reshape(batch_shape)
+
+    # return as JAX arrays
+    return jax.device_put(Phi), jax.device_put(energy)

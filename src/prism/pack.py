@@ -367,7 +367,7 @@ class NormalizedPACK(gpx.kernels.AbstractKernel):
 
         self.d = int(d)
         self.J = int(J)
-        self.period = float(period)
+        self.period = period
 
         self._eps_c = float(eps_c)  # keep c strictly inside (-1, 1)
 
@@ -426,4 +426,6 @@ if __name__ == "__main__":
 
     x, y = jnp.array([0.3]), jnp.array([0.1])
 
-    k(x, y), ks(x, y)
+    print("Equal?", k(x, y), ks(x, y))
+
+    ks.gram(jnp.array([[0.3], [0.5]])).to_dense()
