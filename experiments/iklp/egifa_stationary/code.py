@@ -1,9 +1,9 @@
 # %%
+# export, parameters
 collection = "vowel"
 kernel = "periodickernel"
 seed = 54512703
-
-# TODO: sample mean if num_vi_samples==1 (as it is now)
+egifa_f0 = 90
 
 # %%
 import os
@@ -28,7 +28,12 @@ from utils import dump_egg, time_this
 from utils.jax import maybe32
 
 # %%
-runs = list(get_voiced_runs(path_contains=collection))
+runs = [
+    r
+    for r in get_voiced_runs(path_contains=collection)
+    if r["group"]["f0_hz"] == egifa_f0
+]
+
 
 print("Number of runs:", len(runs))
 fs = runs[0]["frame"]["fs"]
@@ -43,7 +48,7 @@ print("Data shape:", x.shape)
 print("Data dtype:", x.dtype)
 
 # %%
-f0 = f0_series(60, 320, 200)
+f0 = f0_series(60, 320, 100)
 I = len(f0)
 r = 16
 
@@ -119,7 +124,7 @@ print("Phi dtype:", h.Phi.dtype)
 print("Mercer operator backend:", backend(h))
 
 # %%
-batch_size = 7  # divides 28; VRAM used is ~3.5 GB
+batch_size = 32  # VRAM used is ~4 GB
 master_key = jax.random.PRNGKey(seed)
 
 with time_this() as elapsed:
@@ -140,9 +145,9 @@ results = [
 
 # %%
 payload = {
-    "results": results,
     "metrics_list": metrics_list,
     "runs": runs,
+    # calculate `results` from these to save in disk space
 }
 
 dump_egg(payload, os.getenv("EXPERIMENT_NOTEBOOK_REL"))
@@ -171,4 +176,3 @@ for qi, i in zip(qpos, qidx):
         plot_run(runs[i], metrics_list[i], f0)
     except Exception:
         traceback.print_exc()
-# %%
