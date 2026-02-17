@@ -33,17 +33,12 @@ def _unflatten_vec(v, I, r):
     return jnp.reshape(v, (I, r))
 
 
-def _assemble_core_chol(Phi, w, nu, beta):
-    # Phi: (I, M, r), w: (I,)
+def _assemble_core_chol(G_blocks, w, nu, beta):
+    # G_blocks: (I, I, r, r), w: (I,)
     # Build G_ij = Phi_i^T Phi_j in one shot: G in (I, I, r, r)
     # Then scale each (i,j) block by sqrt(w_i w_j)/nu and reshape to (L, L).
-    I, M, r = Phi.shape
+    I, _, r, _ = G_blocks.shape
     L = I * r
-
-    # Block Gram: G[i,j] = Phi[i].T @ Phi[j]  -> (I, I, r, r)
-    # einsum: sum over m: (i m r) * (j m s) -> (i j r s)
-    # O(I^2 M r^2) => can be done analytically for Fourier basis Phi
-    G_blocks = jnp.einsum("imr,jms->ijrs", Phi, Phi)
 
     # Scalar weights per block
     sw = jnp.sqrt(w)
@@ -55,7 +50,7 @@ def _assemble_core_chol(Phi, w, nu, beta):
     A_mat = jnp.transpose(A_blocks, (0, 2, 1, 3)).reshape(L, L)
 
     # Add identity
-    A = jnp.eye(L, dtype=Phi.dtype) + A_mat
+    A = jnp.eye(L, dtype=G_blocks.dtype) + A_mat
 
     chol = safe_cholesky(A, lower=True, beta=beta)
     return chol, L, r
@@ -65,9 +60,10 @@ def build_operator(
     nu: jnp.ndarray, weights: jnp.ndarray, data: Data
 ) -> MercerWoodburyOp:
     """Precompute Woodbury core for the Mercer operator which is reused by all ops"""
-    Phi = data.h.Phi  # (I,M,r)
-    chol_core, L, r = _assemble_core_chol(Phi, weights, nu, data.h.beta)
-    Phi_norms = jnp.sum(Phi * Phi, axis=(1, 2)) / nu  # (I,)
+    chol_core, L, r = _assemble_core_chol(
+        data.G_blocks, weights, nu, data.h.beta
+    )
+    Phi_norms = data.Phi_norms0 / nu  # (I,)
     return MercerWoodburyOp(
         data=data,
         nu=nu,
@@ -148,21 +144,14 @@ def trinv(op: MercerWoodburyOp):
 def trinv_Ki(op: MercerWoodburyOp):
     # tr(S^{-1} K_i) = (1/nu) ||Phi_i||_F^2 - (1/nu^2) * ||L^{-1} B_i||_F^2
     # with B_i = Phi_w^T Phi_i = vertstack_j [ sqrt(w_j) * (Phi_j^T Phi_i) ] in R^{L x r}
-
-    # TODO: this recomputes G from _assemble_core_chol()
-
-    Phi = op.data.h.Phi
-    I, M, r = Phi.shape
-    L = M * r
+    G = op.data.G_blocks  # (I, I, r, r)
+    I = G.shape[0]
+    r = op.r
+    sqrt_w = jnp.sqrt(op.w)
 
     def one_i(i):
-        def blk(j):
-            return jnp.matmul(Phi[j].T, Phi[i]) * jnp.sqrt(op.w[j])  # (r, r)
-
-        Bij_blocks = jax.vmap(blk)(jnp.arange(I))  # (I, r, r)
-        B_i = jnp.reshape(
-            Bij_blocks, (I * r, r)
-        )  # (L, r), row order matches A rows
+        Bij_blocks = G[:, i] * sqrt_w[:, None, None]  # (I, r, r)
+        B_i = jnp.reshape(Bij_blocks, (I * r, r))  # (L, r)
 
         # Frobenius form: tr(B^T A^{-1} B) = ||L^{-1} B||_F^2
         Y = jla.solve_triangular(op.chol_core, B_i, lower=True)  # (L, r)

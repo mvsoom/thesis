@@ -7,7 +7,14 @@ from jax import random
 
 from .gig import compute_gig_expectations, sample_gig
 from .hyperparams import Hyperparams
-from .mercer_op import Data, MercerOp, build_data, build_operator, sample
+from .mercer_op import (
+    Data,
+    MercerOp,
+    build_data,
+    build_operator,
+    sample,
+    trinv_Ki,
+)
 from .psi import solve_Psi
 from .util import gamma_shape_rate, gamma_shape_scale, stabilize_ar
 
@@ -209,6 +216,7 @@ class Auxiliaries:
     E: Expectations
     Omega: MercerOp
     S: MercerOp
+    tKi_Omega: jnp.ndarray
 
 
 def compute_auxiliaries(state: VIState) -> Auxiliaries:
@@ -218,4 +226,5 @@ def compute_auxiliaries(state: VIState) -> Auxiliaries:
     S = build_operator(
         1 / E.nu_e_inv, 1 / (E.nu_w_inv * E.theta_inv), state.data
     )
-    return Auxiliaries(E, Omega, S)
+    tKi_Omega = trinv_Ki(Omega)
+    return Auxiliaries(E, Omega, S, tKi_Omega)
