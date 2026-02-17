@@ -47,7 +47,7 @@ def update_theta(state: VIState) -> VIState:
         * compute_unscaled_quads(state, aux)
     )
 
-    new_rho_theta = 2 * alpha + aux.E.nu_w * trinv_Ki(aux.Omega)
+    new_rho_theta = 2 * alpha + aux.E.nu_w * aux.tKi_Omega
     new_tau_theta = quads
 
     new_xi = state.xi.replace(
@@ -64,7 +64,7 @@ def update_nu_w(state: VIState) -> VIState:
     bw = state.data.h.bw
     quads = ((1 / aux.E.nu_w_inv) ** 2) * compute_unscaled_quads(state, aux)
 
-    new_rho_w = 2 * bw + jnp.dot(aux.E.theta, trinv_Ki(aux.Omega))
+    new_rho_w = 2 * bw + jnp.dot(aux.E.theta, aux.tKi_Omega)
     new_tau_w = jnp.dot(1 / aux.E.theta_inv, quads)
 
     new_xi = state.xi.replace(

@@ -60,6 +60,8 @@ class Data:
     h: Hyperparams
     X: jnp.ndarray  # (M,P)
     x: jnp.ndarray  # (M,)
+    G_blocks: jnp.ndarray  # (I,I,r,r)
+    Phi_norms0: jnp.ndarray  # (I,)
 
 
 def build_X(x, P):
@@ -78,7 +80,10 @@ def build_data(x, h: Hyperparams) -> Data:
     x = x - jnp.mean(x)  # Zero-mean
     P = h.arprior.mean.shape[0]
     X = build_X(x, P)
-    return Data(h, X, x)
+    Phi = h.Phi
+    G_blocks = jnp.einsum("imr,jms->ijrs", Phi, Phi)
+    Phi_norms0 = jnp.sum(Phi * Phi, axis=(1, 2))
+    return Data(h, X, x, G_blocks, Phi_norms0)
 
 
 def safe_cholesky(A, lower=True, beta=1.0):
