@@ -5,12 +5,12 @@ import jax.numpy as jnp
 from jax import lax
 from tqdm import tqdm
 
-from iklp.metrics import StateMetrics, compute_metrics, compute_new_metrics
+from iklp.metrics import StateMetrics, compute_metrics
 from iklp.state import (
     VIState,
     init_state,
 )
-from iklp.vi import vi_step
+from iklp.vi import compute_elbo_bound, vi_step
 
 
 def print_progress(metrics: StateMetrics):
@@ -39,14 +39,20 @@ def vi_run_criterion(
 
     key, k0, k1 = jax.random.split(key, 3)
     state = init_state(k0, x, h)
-    metrics = compute_metrics(k1, state)
-    maybe_callback(metrics)
+    elbo = compute_elbo_bound(state)
+    i = jnp.array(0, dtype=jnp.int32)
+    improvement = jnp.array(jnp.nan, dtype=elbo.dtype)
+
+    if callback:
+        metrics = compute_metrics(k1, state).replace(
+            elbo=elbo,
+            i=i,
+            improvement=improvement,
+        )
+        maybe_callback(metrics)
 
     def cond(carry):
-        _, _, metrics = carry
-
-        i = metrics.i
-        improvement = metrics.improvement
+        _, _, _, i, improvement = carry
 
         converged = improvement < h.vi_criterion
         diverged = improvement < 0.0
@@ -57,17 +63,31 @@ def vi_run_criterion(
         return keep_going
 
     def body(carry):
-        key, state, metrics = carry
+        key, state, elbo, i, _improvement = carry
 
         new_key, key = jax.random.split(key)
         new_state = vi_step(state)
-        new_metrics = compute_new_metrics(key, new_state, old=metrics)
-        maybe_callback(new_metrics)
+        new_elbo = compute_elbo_bound(new_state)
+        new_i = i + 1
+        new_improvement = (new_elbo - elbo) / jnp.abs(elbo)
 
-        return (new_key, new_state, new_metrics)
+        if callback:
+            new_metrics = compute_metrics(key, new_state).replace(
+                elbo=new_elbo,
+                i=new_i,
+                improvement=new_improvement,
+            )
+            maybe_callback(new_metrics)
 
-    _, final_state, final_metrics = lax.while_loop(
-        cond, body, (key, state, metrics)
+        return (new_key, new_state, new_elbo, new_i, new_improvement)
+
+    key, final_state, final_elbo, final_i, final_improvement = lax.while_loop(
+        cond, body, (key, state, elbo, i, improvement)
+    )
+    final_metrics = compute_metrics(key, final_state).replace(
+        elbo=final_elbo,
+        i=final_i,
+        improvement=final_improvement,
     )
     return final_state, final_metrics
 
