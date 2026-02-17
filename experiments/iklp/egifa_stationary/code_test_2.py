@@ -3,10 +3,7 @@ collection = "vowel"
 kernel = "periodickernel"
 seed = 54512703
 
-# TODO: sample mean if num_vi_samples==1 (as it is now)
-
 # %%
-import os
 import traceback
 
 import jax
@@ -24,11 +21,14 @@ from iklp.hyperparams import (
 from iklp.mercer_op import backend
 from iklp.periodic import f0_series
 from iklp.run import vi_run_criterion_batched
-from utils import dump_egg, time_this
+from utils import time_this
 from utils.jax import maybe32
 
 # %%
 runs = list(get_voiced_runs(path_contains=collection))
+
+# FIXME
+runs = runs[:7]
 
 print("Number of runs:", len(runs))
 fs = runs[0]["frame"]["fs"]
@@ -43,7 +43,7 @@ print("Data shape:", x.shape)
 print("Data dtype:", x.dtype)
 
 # %%
-f0 = f0_series(60, 320, 200)
+f0 = f0_series(60, 320, 100)
 I = len(f0)
 r = 16
 
@@ -133,19 +133,12 @@ metrics_list = list(unpack(metrics_tree))
 # export
 time_per_iter = elapsed.walltime / metrics_tree.i.sum()
 
+print(time_per_iter)
+
 results = [
     post_process_run(run, metrics, f0)
     for run, metrics in tqdm(zip(runs, metrics_list))
 ]
-
-# %%
-payload = {
-    "results": results,
-    "metrics_list": metrics_list,
-    "runs": runs,
-}
-
-dump_egg(payload, os.getenv("EXPERIMENT_NOTEBOOK_REL"))
 
 # %%
 # Plot 5 quartiles from best to worst
@@ -166,6 +159,8 @@ for qi, i in zip(qpos, qidx):
     print(f"SNR dB   : {results[i]['SNR_db']:.2f}")
     print(f"I_eff    : {results[i]['I_eff']:.2f}")
     print(f"VI iters : {metrics_list[i].i}")
+
+    print("ELBO **** :", float(metrics_list[i].elbo))
 
     try:
         plot_run(runs[i], metrics_list[i], f0)

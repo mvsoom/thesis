@@ -4,7 +4,7 @@ import jax
 import jax.numpy as jnp
 
 from .gig import gig_dkl_from_gamma
-from .mercer_op import logdet, solve, solve_normal_eq, trinv, trinv_Ki
+from .mercer_op import logdet, solve, solve_normal_eq, trinv
 from .psi import psi_matvec
 from .state import (
     Auxiliaries,
@@ -124,7 +124,7 @@ def compute_elbo_bound_aux(state: VIState, aux: Auxiliaries):
     likelihood_bound_terms = jnp.asarray(
         [
             logdet(aux.Omega),
-            aux.E.nu_w * jnp.sum(aux.E.theta * trinv_Ki(aux.Omega)),
+            aux.E.nu_w * jnp.sum(aux.E.theta * aux.tKi_Omega),
             aux.E.nu_e * trinv(aux.Omega),
             jnp.sum(quads),
             quad0,
