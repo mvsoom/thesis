@@ -18,14 +18,12 @@ Other factors: precision, GPU vs CPU.
 |`M` small, `r` small|Cholesky  |O(M^3)          |O(M^2)              |
 |`M` small, `r` large|Cholesky  |O(M^3)          |O(M^2)              |
 |`M` large, `r` small|Woodbury  |O(M r^2 + r^3)  |O(M r + r^2)        |
-|`M` large, `r` large|Krylov (≈)|O(M r (p m + k))|O(M r + M p + M m p)|
 
 ## VI Mercer mixture (L = I·r)
 |Regime              |Method    |Compute                    |Memory                    |
 |--------------------|----------|--------------------------:|--------------------------:|
 |`M` small           |Cholesky  |O(M^3 + I M^2 r)           |O(M^2 + I M r)            |
 |`M` large, `L/M ≲ 2`|Woodbury  |O(M L^2 + L^3)             |O(I M r + L^2)            |
-|`M` large, `L/M > 2`|Krylov (≈)|O(I M r (p m + p + k))     |O(I M r + M p + M m p)    |
 
 ## Variables
 
@@ -34,7 +32,6 @@ Other factors: precision, GPU vs CPU.
 - `I`: number of kernels in a Mercer mixture.
 - `L = I r`: total reduced rank across all kernels.
 - `p`: number of probe vectors for stochastic trace/logdet estimation.
-- `m`: Krylov/Lanczos subspace depth.
 - `k`: number of CG iterations.
 
 
@@ -73,6 +70,10 @@ def build_X(x, P):
 
 
 def build_data(x, h: Hyperparams) -> Data:
+    """Preprocess and build data
+
+    Note: we center but not whiten because per-frame whitening destroys energy information.
+    """
     x = jnp.asarray(x, dtype=h.Phi.dtype)  # Convert data to chosen precision
     x = x - jnp.mean(x)  # Zero-mean
     P = h.arprior.mean.shape[0]
@@ -119,14 +120,12 @@ class MercerOp:
 
 def backend(h: Hyperparams):
     """Dynamic dispath to appropriate Mercer operator backend"""
-    from iklp.mercer_op import cholesky, krylov, woodbury
+    from iklp.mercer_op import cholesky, woodbury
 
     if h.mercer_backend == "cholesky":
         return cholesky
     elif h.mercer_backend == "woodbury":
         return woodbury
-    elif h.mercer_backend == "krylov":
-        return krylov
     elif h.mercer_backend == "auto":
         I, M, r = h.Phi.shape
         L = I * r
@@ -134,8 +133,6 @@ def backend(h: Hyperparams):
             return cholesky
         elif L / M <= 2.0:
             return woodbury
-        else:
-            return krylov
     else:
         raise ValueError(f"Unknown mercer_backend: {h.mercer_backend}")
 

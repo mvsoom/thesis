@@ -11,9 +11,7 @@ jax.config.update("jax_debug_nans", True)
 
 
 # Small test run
-h = random_periodic_kernel_hyperparams(
-    vk(), I=400, M=512, hyper_kwargs={"P": 12}
-)
+h = random_periodic_kernel_hyperparams(vk(), I=20, M=128)
 state = init_test_stable_state(vk(), h)
 
 state = vi.update_delta_a(state)

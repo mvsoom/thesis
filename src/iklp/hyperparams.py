@@ -2,14 +2,15 @@ from __future__ import annotations
 
 import jax
 import jax.numpy as jnp
+import jax.scipy.linalg as jla
 import numpy as np
 import scipy
 from flax import struct
 from mpmath import digamma, findroot
 
+from iklp.mercer import psd_eigh_fixed
 from utils.jax import jnp_default, maybe32, static_constant
 
-from .mercer import psd_svd
 from .util import _periodic_kernel_batch
 
 
@@ -20,34 +21,23 @@ class ARPrior:
 
     @staticmethod
     def yoshii_lambda(P, lam=0.1):
-        lam = 0.1
         mu = np.zeros(P)
         Sigma = lam * np.eye(P)
         return ARPrior(mean=mu, precision=jnp.linalg.inv(Sigma))
 
     def sample(self, key, shape=(), jitter=1e-6):
+        P = self.mean.shape[0]
         Q = self.precision + jitter * jnp.eye(
-            self.P, dtype=self.precision.dtype
+            P, dtype=self.precision.dtype
         )
         L = jnp.linalg.cholesky(Q)
         z = jax.random.normal(
-            key, shape + (self.P,), dtype=self.precision.dtype
+            key, shape + (P,), dtype=self.precision.dtype
         )
-        y = jnp.linalg.solve_triangular(L, z.T, lower=True).T
+        z2 = z.reshape((-1, P))
+        y2 = jax.vmap(lambda v: jla.solve_triangular(L, v, lower=True))(z2)
+        y = y2.reshape(shape + (P,))
         return self.mean + y  # (*shape, P)
-
-
-@struct.dataclass
-class KrylovParams:
-    """Configuration for Krylov Mercer operator"""
-
-    nprobe: int = static_constant(16)
-    lanczos_iter: int = static_constant(32)
-
-    cg_tol: int | None = static_constant(None)
-    cg_maxiter: int = static_constant(512)
-
-    key: jnp.ndarray = jnp_default(jax.random.PRNGKey(0))
 
 
 @struct.dataclass
@@ -82,22 +72,18 @@ class Hyperparams:
     num_metrics_samples: int = static_constant(5)
 
     mercer_backend: str = static_constant(
-        "auto"
-    )  # "cholesky" (exact method), "woodbury" (exact method), "krylov" (approximate method), "auto" (auto-select based on shape of Phi)
-
-    krylov: KrylovParams = struct.field(default_factory=KrylovParams)
+        "woodbury"
+    )  # "cholesky" (exact method), "woodbury" (exact method), "auto" (auto-select based on shape of Phi)
 
 
 def random_periodic_kernel_hyperparams(
-    key, I=32, M=512, kernel_kwargs={}, hyper_kwargs={}, return_K=False
+    key, I=32, M=512, rank=8, kernel_kwargs={}, hyper_kwargs={}, return_K=False
 ) -> Hyperparams:
     """Cannot vmap this over key because the shape of Phi depends on it"""
-    noise_floor_db = kernel_kwargs.pop("noise_floor_db", -60.0)
-
     T = jnp.sort(jax.random.exponential(key, (I,)) * 10)
     K = _periodic_kernel_batch(T, M, **kernel_kwargs)  # (I, M, M)
 
-    Phi = psd_svd(K, noise_floor_db)
+    Phi, _ = psd_eigh_fixed(K, rank=rank)
 
     h = Hyperparams(Phi, **hyper_kwargs)
 
