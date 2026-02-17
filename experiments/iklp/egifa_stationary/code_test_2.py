@@ -28,7 +28,7 @@ from utils.jax import maybe32
 runs = list(get_voiced_runs(path_contains=collection))
 
 # FIXME
-runs = runs[:7]
+runs = runs[:21]
 
 print("Number of runs:", len(runs))
 fs = runs[0]["frame"]["fs"]
