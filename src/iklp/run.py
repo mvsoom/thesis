@@ -37,10 +37,9 @@ def vi_run_criterion(
         if callback:
             jax.debug.callback(callback, metrics, ordered=True)
 
-    key, k0, k1, k2 = jax.random.split(key, 4)
-    h = h.replace(krylov=h.krylov.replace(key=k0))
-    state = init_state(k1, x, h)
-    metrics = compute_metrics(k2, state)
+    key, k0, k1 = jax.random.split(key, 3)
+    state = init_state(k0, x, h)
+    metrics = compute_metrics(k1, state)
     maybe_callback(metrics)
 
     def cond(carry):

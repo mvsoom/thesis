@@ -1,6 +1,6 @@
 # %%
 collection = "vowel"
-kernel = "whitenoise"
+kernel = "periodickernel"
 seed = 54512703
 
 # %%
@@ -27,6 +27,9 @@ from utils.jax import maybe32
 
 # %%
 runs = list(get_voiced_runs(path_contains=collection))
+
+# FIXME
+runs = runs[:3]
 
 print("Number of runs:", len(runs))
 fs = runs[0]["frame"]["fs"]
@@ -169,3 +172,4 @@ for qi, i in zip(qpos, qidx):
         plot_run(runs[i], metrics_list[i], f0)
     except Exception:
         traceback.print_exc()
+# %%

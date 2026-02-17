@@ -14,11 +14,10 @@ from iklp.vi import vi_step
 
 def vi_run(key, data):
     """Do a single VI optimization with random initialization for a fixed number of iterations"""
-    key, k0, k1, k2 = jax.random.split(key, 4)
-    data = data.replace(h=data.h.replace(krylov=data.h.krylov.replace(key=k0)))
-    xi = init_variational_params(k1, data.h)
+    key, k0, k1 = jax.random.split(key, 3)
+    xi = init_variational_params(k0, data.h)
     state = VIState(data, xi)
-    metrics = compute_metrics(k2, state)
+    metrics = compute_metrics(k1, state)
 
     def body(carry, _):
         key, state, metrics = carry
