@@ -37,9 +37,7 @@ def compute_unscaled_quad0(state: VIState, aux: Auxiliaries, w=None):
     return unscaled_quad0  # ()
 
 
-def update_theta(state: VIState) -> VIState:
-    aux = compute_auxiliaries(state)
-
+def update_theta_aux(state: VIState, aux: Auxiliaries) -> VIState:
     alpha = state.data.h.alpha
     quads = (
         (1 / aux.E.nu_w_inv)
@@ -58,9 +56,12 @@ def update_theta(state: VIState) -> VIState:
     return state.replace(xi=new_xi)
 
 
-def update_nu_w(state: VIState) -> VIState:
+def update_theta(state: VIState) -> VIState:
     aux = compute_auxiliaries(state)
+    return update_theta_aux(state, aux)
 
+
+def update_nu_w_aux(state: VIState, aux: Auxiliaries) -> VIState:
     bw = state.data.h.bw
     quads = ((1 / aux.E.nu_w_inv) ** 2) * compute_unscaled_quads(state, aux)
 
@@ -75,9 +76,12 @@ def update_nu_w(state: VIState) -> VIState:
     return state.replace(xi=new_xi)
 
 
-def update_nu_e(state: VIState) -> VIState:
+def update_nu_w(state: VIState) -> VIState:
     aux = compute_auxiliaries(state)
+    return update_nu_w_aux(state, aux)
 
+
+def update_nu_e_aux(state: VIState, aux: Auxiliaries) -> VIState:
     be = state.data.h.be
     quad0 = ((1 / aux.E.nu_e_inv) ** 2) * compute_unscaled_quad0(state, aux)
 
@@ -92,9 +96,12 @@ def update_nu_e(state: VIState) -> VIState:
     return state.replace(xi=new_xi)
 
 
-def update_delta_a(state: VIState) -> VIState:
+def update_nu_e(state: VIState) -> VIState:
     aux = compute_auxiliaries(state)
+    return update_nu_e_aux(state, aux)
 
+
+def update_delta_a_aux(state: VIState, aux: Auxiliaries) -> VIState:
     # Solve normal equation with S operator, as Sigma^(-1) == S^(-1)
     new_delta_a = solve_normal_eq(aux.S, state.data.h.arprior)
 
@@ -103,6 +110,11 @@ def update_delta_a(state: VIState) -> VIState:
     )
 
     return state.replace(xi=new_xi)
+
+
+def update_delta_a(state: VIState) -> VIState:
+    aux = compute_auxiliaries(state)
+    return update_delta_a_aux(state, aux)
 
 
 def compute_elbo_bound(state: VIState):
@@ -214,7 +226,7 @@ def vi_step_test(state: VIState) -> VIState:
     return state
 
 
-def vi_step(state: VIState) -> VIState:
+def vi_step_debug(state: VIState) -> VIState:
     # NOTE: No need for donate_argnums here.
     # vi_step() runs inside a jitted lax.scan, so the scan carry (state) is already
     # input-output aliased by XLA. The .replace(...) calls in the update_*(state) functions
@@ -229,5 +241,19 @@ def vi_step(state: VIState) -> VIState:
     state = update_theta(state)
     state = update_nu_w(state)
     state = update_nu_e(state)
+
+    return state
+
+
+def vi_step(state: VIState) -> VIState:
+    aux = compute_auxiliaries(state)
+    state = update_delta_a_aux(state, aux)
+    state = update_theta_aux(state, aux)
+
+    aux = compute_auxiliaries(state)
+    state = update_nu_w_aux(state, aux)
+
+    aux = compute_auxiliaries(state)
+    state = update_nu_e_aux(state, aux)
 
     return state
