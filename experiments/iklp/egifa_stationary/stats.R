@@ -1,106 +1,68 @@
+# %%
 library(ggplot2)
-library(ggnuplot)
 library(data.table)
-library(ggrepel)
 library(plotly)
+library(GGally)
+theme_set(theme_minimal())
 
 # Get experiment dir from environment variable
-runs_file <- file.path(Sys.getenv("PROJECT_SCRAP_EXPERIMENTS_PATH"), "pack_refine/runs.csv")
+runs_file <- file.path(Sys.getenv("PROJECT_EXPERIMENTS_PATH"), "iklp/egifa_stationary/runs.csv")
 runs <- data.table(fread(runs_file))
 
-df <- runs[, .(
-    pitch,
-    kernel,
-    gauge,
-    beta,
-    refine,
-    scale_dgf_to_unit_power,
-    results.dgf_both_aligned_nrmse,
-    results.vowel,
-    results.modality, run,
-    results.elbo
-)]
+summary(runs)
 
-df[
-    ,
-    `:=`(
-        kernel = as.factor(kernel),
-        beta = factor(beta, ordered = TRUE),
-        score = sqrt(pmax(0, 1 - results.dgf_both_aligned_nrmse^2)), # cosine similarity
-        vowel = as.factor(results.vowel),
-        results.modality = as.factor(results.modality)
-    )
-]
-
-# there are only 10 nan elbos!
-# could this be due to results.posterior_pi = 0.5 initialized?
-summary(df$results.elbo)
-
-df <- df[!is.nan(results.elbo)]
-
-
-# test fx
-df[, pitch_c := pitch - mean(pitch)]
-
-model2 <- lm(
-    score ~
-        kernel * pitch_c +
-        beta +
-        gauge +
-        refine + # singular: linear combination of others
-        scale_dgf_to_unit_power +
-        results.modality,
-    data = df
+id_cols <- c(
+    "results.wav",
+    "results.frame_index",
+    "results.index",
+    "results.restart_index"
 )
 
-summary(model2)
+runs[, id := do.call(paste, c(.SD, sep = "|")), .SDcols = id_cols]
 
-coefs <- coef(summary(model2))
+df <- runs[
+    ,
+    .(
+        collection = as.factor(collection),
+        kernel = as.factor(kernel),
+        name = as.factor(results.name),
+        egifa_f0 = egifa_f0,
+        I_eff = results.I_eff,
+        SNR_db = results.SNR_db,
+        lag_est = results.lag_est,
+        oq_true = results.oq_true,
+        pitch_true = results.pitch_true,
+        pitch_wrmse = results.pitch_wrmse,
+        score = sqrt(pmax(0, 1 - results.source_aligned_nrmse^2)), # cosine similarity
+        id
+    ),
+]
 
-# beta has no effect
-# whitenoise kernel is worst
-# gauge ON worsens fit
-# kernelspack:3 dominates
-coefs[order(abs(coefs[, "t value"]), decreasing = TRUE), ]
-
-
-geom_density(aes(x = results.dgf_nrmse, fill = interaction(P, scale_dgf_to_unit_power, gauge, window_type)), alpha = 0.1) +
-    facet_grid(pitch ~ kernel, scales = "free") +
-    guides(fill = "none")
-
-
-
-
-ggplot(df) +
-    geom_density(aes(x = results.dgf_nrmse, fill = window_type), alpha = 0.3) +
-    facet_grid(pitch ~ kernel, scales = "free")
-
-
-
-ggplot(df) +
-    geom_density(aes(x = score, fill = window_type), alpha = 0.3) +
-    facet_grid(pitch ~ kernel, scales = "free")
+# FIXME: only test completed so far
+# df <- df[collection == "vowel"]
 
 
-ggplot(df[window_type == "adaptive" & gauge == FALSE]) +
-    geom_density(aes(x = score, fill = results.modality), alpha = 0.3) +
-    facet_grid(pitch ~ kernel, scales = "free")
+# %%
 
+# Plots
 
-ggplot(df[window_type == "adaptive" & gauge == FALSE & kernel %in% c("periodickernel", "spack:3")]) +
-    geom_density(aes(x = score, fill = kernel), alpha = 0.3) +
-    facet_grid(pitch ~ results.modality, scales = "free_y")
+(
+    ggplot(df) +
+        geom_density(aes(x = score, fill = kernel), alpha = 0.3)
+) |> ggplotly()
 
-# & results.modality == "whispery"] & kernel %in% c("periodickernel")
+# (score, oq_true) distribution per kernel
+# little influence
+(
+    ggplot(df) +
+        geom_point(aes(x = score, y = oq_true, color = kernel), alpha = 0.5) +
+        ggtitle("Score vs OQ_true, colored by kernel")
+) |> ggplotly()
 
-## at 100 Hz spack dominate clearly
+# Looks like bimodality might be an artifact from affine+shift equivalence
+# CONFIRMED via null score below
 
-plot <- ggplot(df[refine == FALSE & kernel %in% c("whitenoise", "periodickernel", "spack:3")]) +
-    geom_density(aes(x = score, fill = kernel), alpha = 0.3)
-
-
-ggplotly(plot)
-
+# %%
 
 ############################################################
 ## CDF-based null calibration
@@ -119,164 +81,66 @@ df[, u_cal := F0(score)]
 eps <- 1e-6
 df[, u_cal := pmin(pmax(u_cal, eps), 1 - eps)]
 
-# optional z transform (not required, but useful sometimes)
-df[, z_cal := qnorm(u_cal)]
-
-############################################################
-## Diagnostics
-############################################################
-
-# null should be uniform
-p_null <- ggplot(df[kernel == "whitenoise"]) +
-    geom_density(aes(x = u_cal), fill = "steelblue", alpha = 0.4) +
-    ggtitle("Null after calibration (should look flat/uniform-ish)")
-
-print(p_null)
-
 # compare calibrated distributions across kernels
-p_cal <- ggplot(df[refine == FALSE &
-    kernel %in% c("whitenoise", "periodickernel", "spack:3")]) +
-    geom_density(aes(x = u_cal, fill = kernel), alpha = 0.3) +
-    ggtitle("CDF-calibrated score (u-space)")
+(
+    ggplot(df) +
+        geom_density(aes(x = u_cal, fill = kernel), alpha = 0.3) +
+        ggtitle("CDF-calibrated score (u-space)")
+) |> ggplotly()
 
-print(p_cal)
+# %%
+# A p-value less than 0.05 indicates that the row kernel tends to yield a higher score than the column kernel at the 5% significance level (paired one-sided Wilcoxon signed-rank test)
+# Same comparison as in Chien+ (2017) Tables II & III
+wide <- dcast(df, id ~ kernel, value.var = "score")
 
-# interactive version
-ggplotly(p_cal)
+scores <- as.matrix(wide[, -1])
 
-############################################################
-## Simple scalar comparison (optional)
-############################################################
+kernels <- colnames(scores)
 
-# mean(u) — null expectation = 0.5
-df_summary <- df[
-    refine == FALSE &
-        kernel %in% c("whitenoise", "periodickernel", "spack:3"),
-    .(
-        mean_u = mean(u_cal),
-        tail_95 = mean(u_cal > 0.95),
-        tail_99 = mean(u_cal > 0.99)
-    ),
-    by = kernel
-]
+p_mat <- matrix(1, length(kernels), length(kernels),
+    dimnames = list(kernels, kernels)
+)
 
-print(df_summary)
+for (i in seq_along(kernels)) {
+  for (j in seq_along(kernels)) {
 
-############################################################
-## D_KL( p_model(u) || Uniform )
-## “how far is this model from null behaviour?”
-############################################################
+    if (i == j) next
 
-# helper: KL divergence using histogram estimate
-kl_to_uniform <- function(u, nbins = 50) {
-    # histogram density estimate
-    h <- hist(u, breaks = nbins, plot = FALSE)
-
-    p <- h$density
-    binwidth <- diff(h$breaks)[1]
-
-    # avoid log(0)
-    eps <- 1e-12
-    p <- p + eps
-
-    # uniform density on [0,1] is 1
-    q <- 1
-
-    # discrete approx to integral
-    sum(p * log(p / q)) * binwidth
+    p_mat[i, j] <- wilcox.test(
+        scores[, i],
+        scores[, j],
+        paired = TRUE,
+        alternative = "greater"  # A > B
+    )$p.value
+  }
 }
 
-kl_results <- df[
-    refine == FALSE &
-        kernel %in% c("whitenoise", "periodickernel", "spack:3"),
-    .(D_KL = kl_to_uniform(u_cal)),
-    by = kernel
-]
+print(round(p_mat, 3))
 
-print(kl_results)
+# %%
+# dominance curve
+# periodickernel is dominated everywhere by pack:1 and pack:2
+# pack:1 and pack:2 cross, so
+# pack:1 is more reliable overall [better typical performance]
+# pack:2 produces more extreme top performances (starting from 65% threshold) [better best-case performanceþ
+# on wilcoxon pack:1 wins because it improves more often.
+# "While pack:1 exhibits statistically stronger overall performance, pack:2 achieves superior performance in the extreme high-quality regime."
 
-############################################################
-## Pseudo likelihood ratio / energy score
-############################################################
+thresholds <- seq(0, 1, length.out = 200)
 
-df[, energy_score := -log(1 - u_cal)]
+dom <- df[, .(
+    threshold = thresholds,
+    dominance = sapply(thresholds, function(t) {
+        mean(u_cal > t)
+    })
+), by = kernel]
 
-energy_summary <- df[
-    refine == FALSE &
-        kernel %in% c("whitenoise", "periodickernel", "spack:3"),
-    .(
-        mean_energy = mean(energy_score),
-        median_energy = median(energy_score)
-    ),
-    by = kernel
-]
-
-print(energy_summary)
-
-############################################################
-## Practical equivalence scale
-############################################################
-
-# pairwise model comparison
-models <- c("periodickernel", "spack:3")
-
-df_compare <- df[
-    refine == FALSE &
-        kernel %in% models,
-    .(kernel, energy_score)
-]
-
-# compute mean and sd
-summary_stats <- df_compare[
-    ,
-    .(
-        mean_energy = mean(energy_score),
-        sd_energy = sd(energy_score)
-    ),
-    by = kernel
-]
-
-print(summary_stats)
-
-# effect size (Cohen-like)
-mean_diff <- diff(summary_stats$mean_energy)
-pooled_sd <- sqrt(mean(summary_stats$sd_energy^2))
-
-effect_size <- mean_diff / pooled_sd
-
-cat("Effect size (intrinsic units):", effect_size, "\n")
-
-############################################################
-## dominance probability
-############################################################
-
-a <- df_compare[kernel == "spack:3", energy_score]
-b <- df_compare[kernel == "periodickernel", energy_score]
-
-# Monte Carlo estimate
-n <- min(length(a), length(b))
-
-dom_prob <- mean(sample(a, n) > sample(b, n))
-
-cat("Dominance probability (spack3 > periodic):", dom_prob, "\n")
-
-
-############################################################
-## free energy gap
-############################################################
-
-free_energy <- df[
-    refine == FALSE &
-        kernel %in% c("whitenoise", "periodickernel", "spack:3"),
-    .(
-        F = -log(mean(1 - u_cal))
-    ),
-    by = kernel
-]
-
-print(free_energy)
-
-# pairwise differences
-free_energy[, F_centered := F - F[kernel == "whitenoise"]]
-
-print(free_energy)
+(
+    ggplot(dom, aes(threshold, dominance, colour = kernel)) +
+        geom_line() +
+        labs(
+            x = "u_cal threshold",
+            y = "P(u_cal > threshold)",
+            title = "Dominance curves relative to null"
+        )
+) |> ggplotly()
