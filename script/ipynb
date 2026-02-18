@@ -20,7 +20,6 @@ EXT="${SRC##*.}"
 BASE="${SRC%.*}"
 
 IPYNB="${BASE}.ipynb"
-OUT="${BASE}.executed.ipynb"
 
 # select kernel
 case "$EXT" in
@@ -33,10 +32,10 @@ case "$EXT" in
 esac
 
 echo "[1/3] Converting -> ipynb with jupytext..."
-jupytext --to notebook "$SRC"
+jupytext --to notebook "$SRC" --output "$IPYNB"
 
 echo "[2/3] Executing with papermill (kernel=$KERNEL)..."
-papermill "$IPYNB" "$OUT" -k "$KERNEL"
+papermill "$IPYNB" "$IPYNB" -k "$KERNEL"
 
 echo "[3/3] Done."
-echo "Output: $OUT"
+echo "Output: $IPYNB"

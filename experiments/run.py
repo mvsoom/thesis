@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# pip install numpy pandas papermill scrapbook jupyter-cache tqdm nbformat rich
+# pip install numpy pandas papermill scrapbook jupyter-cache tqdm nbformat rich jupytext
 """
 Usage:
   python -m experiments.run generate  <experiment-folder>
@@ -22,10 +22,8 @@ TODO:
     * still need raw jcache interface to inspect eg notebooks that errored (jcache notebook info [id])
     * [-- ...jcache-args] doesn't seem to work
   - multiple command specification: python -m experiments.run generate+execute ...
-  - `progress` command: print how many good/failed/todo with a crude ETA, and if all done print total walltime elapsed
   - commands to only update failed notebooks if many of them have succeeded
   - allow a config.csv to specify hyperparameter grid instead of config.py
-  - allow percent sign scripts
   - allow a # memoize or # dump tag which memoizes and reuses or dumps with cloudpickle
 """
 
@@ -40,6 +38,7 @@ from collections.abc import Mapping, Sequence
 from numbers import Number
 from pathlib import Path
 
+import jupytext
 import nbformat
 import numpy as np
 import pandas as pd
@@ -139,6 +138,8 @@ def prepare_from_config(exp, runs):
     runs.mkdir(exist_ok=True)
     notebooks = []
 
+    kernel_name, language = infer_runtime_from_notebook(src)
+
     for cfg_ in tqdm(cfg.configurations(), desc="prepare"):
         idx = len(notebooks) + 1
         name = cfg_.pop("name", f"{idx:06d}")
@@ -150,7 +151,8 @@ def prepare_from_config(exp, runs):
             str(out),
             parameters=stable_params(cfg_),
             prepare_only=True,
-            kernel_name=KERNEL_NAME,
+            kernel_name=kernel_name,
+            language=language,
             log_output=False,
             progress_bar=False,
         )
@@ -165,6 +167,84 @@ def prepare_from_config(exp, runs):
     append_env_cell(exp, notebooks)
     append_export_cell(notebooks)
     return notebooks
+
+
+def _normalize_language(language):
+    if not language:
+        return None
+    if str(language).lower() == "r":
+        return "R"
+    if str(language).lower() == "python":
+        return "python"
+    return str(language)
+
+
+def infer_runtime_from_notebook(src):
+    nb = nbformat.read(str(src), as_version=4)
+
+    kernelspec = nb.metadata.get("kernelspec") or {}
+    language_info = nb.metadata.get("language_info") or {}
+
+    kernel_name = kernelspec.get("name") or KERNEL_NAME
+    language = _normalize_language(
+        language_info.get("name") or kernelspec.get("language")
+    )
+
+    if not language:
+        if kernel_name == "ir":
+            language = "R"
+        else:
+            language = "python"
+
+    return kernel_name, language
+
+
+def script_runtime(src_script):
+    if src_script.suffix.lower() == ".r":
+        return "ir", "R"
+    return KERNEL_NAME, "python"
+
+
+def apply_runtime_metadata(nb, kernel_name, language):
+    kernelspec = dict(nb.metadata.get("kernelspec") or {})
+    kernelspec["name"] = kernel_name
+    kernelspec.setdefault(
+        "display_name", "R" if kernel_name == "ir" else "Python 3"
+    )
+    kernelspec["language"] = language
+    nb.metadata["kernelspec"] = kernelspec
+
+    language_info = dict(nb.metadata.get("language_info") or {})
+    language_info["name"] = language
+    nb.metadata["language_info"] = language_info
+
+
+def ensure_source_notebook(exp):
+    src_ipynb = exp / "code.ipynb"
+
+    if src_ipynb.exists():
+        return src_ipynb, False
+
+    for src_script in (exp / "code.py", exp / "code.R", exp / "code.r"):
+        if src_script.exists():
+            kernel_name, language = script_runtime(src_script)
+            print(
+                f"generate source notebook from {src_script.name} via jupytext"
+            )
+            nb = jupytext.read(str(src_script))
+            apply_runtime_metadata(nb, kernel_name, language)
+            jupytext.write(nb, str(src_ipynb))
+            return src_ipynb, True
+
+    raise FileNotFoundError(
+        "Expected source notebook at %s or source script at %s, %s, or %s"
+        % (
+            src_ipynb,
+            exp / "code.py",
+            exp / "code.R",
+            exp / "code.r",
+        )
+    )
 
 
 def append_env_cell(exp, notebooks):
@@ -289,14 +369,22 @@ def set_cache_limit(cache_dir, n_records):
 def cmd_generate(exp_dir):
     exp, runs, cache_dir = exp_paths(exp_dir)
     print("generate:", exp)
-    notebooks = prepare_from_config(exp, runs)
-    print("reset cache:", cache_dir)
-    reset_cache(cache_dir)
-    print("register project")
-    register_project(cache_dir, notebooks)
-    print("set cache limit:", len(notebooks) * 2)
-    set_cache_limit(cache_dir, len(notebooks) * 2)
-    print("done.")
+    _, cleanup_source = ensure_source_notebook(exp)
+    try:
+        notebooks = prepare_from_config(exp, runs)
+        print("reset cache:", cache_dir)
+        reset_cache(cache_dir)
+        print("register project")
+        register_project(cache_dir, notebooks)
+        print("set cache limit:", len(notebooks) * 2)
+        set_cache_limit(cache_dir, len(notebooks) * 2)
+        print("done.")
+    finally:
+        if cleanup_source:
+            src = exp / "code.ipynb"
+            if src.exists():
+                print("remove generated source notebook:", src)
+                src.unlink()
 
 
 def cmd_execute(exp_dir, passthrough, allow_tqdm=False):
