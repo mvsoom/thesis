@@ -44,7 +44,7 @@ pio.defaults.mathjax = (
 
 json_path, out, width, height = sys.argv[1:]
 
-fig = pio.from_json(open(json_path).read())
+fig = pio.from_json(open(json_path).read(), skip_invalid=True)
 
 # =========================
 # Apply Latex fix to allow "$...$" anywhere in strings
@@ -246,6 +246,10 @@ template = go.layout.Template(
 pio.templates["god_science"] = template
 
 fig.update_layout(template="god_science")
+
+for k in fig.layout:
+    if k.startswith("xaxis") or k.startswith("yaxis"):
+        fig.layout[k].update(axis_common)
 
 # =========================
 
