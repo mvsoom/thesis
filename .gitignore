@@ -17,6 +17,7 @@ data/*
 experiments/**/.jupyter_cache/
 experiments/**/runs/
 experiments/**/runs.csv
+experiments/**/eggs/
 
 **/main.pdf
 
