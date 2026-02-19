@@ -1,4 +1,4 @@
-function [uu,ar,ee,dc,w]=weightedlpc3(sp, gci, goi, fs, par)
+function [uu,ar,ee,dc,w,uu_frames,T]=weightedlpc3(sp, gci, goi, fs, par)
 
 % Copyright 2017 Yu-Ren Chien and Jon Gudnason
 %
@@ -52,3 +52,17 @@ uu=lpcifilt(sp, ar, T, dc,fade);
 
 %u = filter(1,b,uu);
 %u = adjustU(u,gci,goi);
+
+% Optional: frame-wise inverse filtered output over analysis windows T
+if nargout > 5
+    nf = size(T,1);
+    frame_lens = T(:,2) - T(:,1) + 1;  % MATLAB inclusive indices
+    max_len = max(frame_lens);
+    uu_frames = nan(nf, max_len);
+    for ii = 1:nf
+        idx = T(ii,1):T(ii,2);
+        seg = sp(idx) - dc(ii);
+        ui = filter(ar(ii,:), 1, seg);
+        uu_frames(ii,1:length(ui)) = ui(:).';
+    end
+end

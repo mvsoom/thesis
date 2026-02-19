@@ -164,9 +164,11 @@ def fit_affine_lag_nrmse(x, y, maxlag):
 
     Find min_(a, b, lag) RMSE of (a * x[t - lag] + b) and y[t]
 
-    For each lag k in [-maxlag, maxlag], we align x and y on their
+    For each lag k in [-maxlag, 0], we align x and y on their
     overlapping support, then fit an affine map a*x + b -> y
     by least squares. We compute the RMSE for that lag and pick the lag with smallest RMSE, then normalize and return normalized RMSE in [0,1].
+
+    We take only negative 'lag's because true DGF from synthesizer is always earlier. We take 'a' both positive and negative because LPC filters can flip polarity (though not super easily). We take 'b' because LPC can also cancel bias.
 
     This implements comparison on an equivalence class rather than on
     raw waveforms. Signals are considered equivalent up to an affine
@@ -184,7 +186,7 @@ def fit_affine_lag_nrmse(x, y, maxlag):
     original = None
     best = None
 
-    for k in range(-maxlag, maxlag + 1):
+    for k in range(-maxlag, 1):
         if k >= 0:
             xs, ys = x[k:], y[: n - k]
         else:

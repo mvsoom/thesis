@@ -21,10 +21,10 @@ def get_voiced_runs(
         tau = v["smooth"]["tau"].astype(dtype)
         assert len(x) == len(u) == len(du) == len(t) == len(tau)
 
-        fs_model = float(v["smooth"]["fs"])
-        fs_abs = float(v["fs"])
-        frame_len = int(frame_len_msec / 1000 * fs_model)
-        hop = int(hop_msec / 1000 * fs_model)
+        fs = float(v["fs"])
+        fs_smooth = float(v["smooth"]["fs"])
+        frame_len = int(frame_len_msec / 1000 * fs_smooth)
+        hop = int(hop_msec / 1000 * fs_smooth)
 
         if len(t) < frame_len:  # ditch voiced groups shorter than one frame
             continue
@@ -38,7 +38,7 @@ def get_voiced_runs(
         for frame_index, (t, x, u, du, tau) in enumerate(
             zip(t_frames, x_frames, u_frames, du_frames, tau_frames)
         ):
-            t_ms = 1e3 * t / fs_abs
+            t_ms = 1e3 * t / fs
 
             t_min, t_max = t[0], t[-1]
             loc = np.where((t_min <= v["gci"]) & (v["gci"] <= t_max))[0]
@@ -50,7 +50,7 @@ def get_voiced_runs(
 
             for restart_index in range(num_vi_restarts):
                 f = {
-                    "fs": fs_model,
+                    "fs": fs_smooth,
                     "t_ms": t_ms,
                     "t_samples": t,
                     "tau": tau,
@@ -175,6 +175,30 @@ def _align_true_to_inferred(true_dgf, inferred_source, fs, maxlag):
     return aligned_true_dgf, lag_est_ms
 
 
+def _aligned_pair_for_spectrum(true_dgf, inferred_signal, maxlag):
+    true_dgf = np.asarray(true_dgf, dtype=np.float64)
+    inferred_signal = np.asarray(inferred_signal, dtype=np.float64)
+    n = int(min(len(true_dgf), len(inferred_signal)))
+    true_dgf = true_dgf[:n]
+    inferred_signal = inferred_signal[:n]
+    if n == 0:
+        return np.asarray([], dtype=np.float64), np.asarray(
+            [], dtype=np.float64
+        )
+
+    try:
+        # Keep inferred signal/noise on their native scale and transform truth.
+        best, _ = fit_affine_lag_nrmse(true_dgf, inferred_signal, maxlag=maxlag)
+        aligned_true_dgf = np.asarray(best["aligned"], dtype=np.float64)
+        mask = np.isfinite(aligned_true_dgf) & np.isfinite(inferred_signal)
+        if np.any(mask):
+            return aligned_true_dgf[mask], inferred_signal[mask]
+    except Exception:
+        pass
+
+    return true_dgf, inferred_signal
+
+
 def post_process_run(run, metrics, f0):
     group = run["group"]
     frame = run["frame"]
@@ -209,18 +233,18 @@ def post_process_run(run, metrics, f0):
     maxlag = int(0.5 / pitch_true / dt)  # half a pitch period
 
     # calculate NRMSE for signal only
-    best, original = fit_affine_lag_nrmse(
+    best_signal, original_signal = fit_affine_lag_nrmse(
         inferred_signal, frame["dgf"], maxlag=maxlag
     )
-    signal_nrmse = original["nrmse"]
-    signal_aligned_nrmse = best["nrmse"]
+    signal_nrmse = original_signal["nrmse"]
+    signal_aligned_nrmse = best_signal["nrmse"]
 
     # calculate NRMSE for source (signal + noise)
-    best, original = fit_affine_lag_nrmse(
+    best_source, original_source = fit_affine_lag_nrmse(
         inferred_source, frame["dgf"], maxlag=maxlag
     )
-    source_nrmse = original["nrmse"]
-    source_aligned_nrmse = best["nrmse"]
+    source_nrmse = original_source["nrmse"]
+    source_aligned_nrmse = best_source["nrmse"]
     _, lag_est = _align_true_to_inferred(
         frame["dgf"], inferred_source, frame["fs"], maxlag
     )
@@ -241,6 +265,7 @@ def post_process_run(run, metrics, f0):
         "name": group["name"],
         "f0_hz_nominal": group["f0_hz"],
         "pressure_pa": group["pressure_pa"],
+        "voiced_group": group["group"],
         "frame_index": frame["frame_index"],
         "restart_index": frame["restart_index"],
         # vi metadata
@@ -264,6 +289,8 @@ def post_process_run(run, metrics, f0):
         "source_nrmse": source_nrmse,
         "source_aligned_nrmse": source_aligned_nrmse,
         "lag_est": lag_est,
+        "affine_lag_a": best_source["a"],
+        "affine_lag_b": best_source["b"],
         # filter
         "filter_mid_low_db": filter_mid_low_db,  # if small, AR is doing source sculpting
         "filter_mid_high_db": filter_mid_high_db,
@@ -352,13 +379,17 @@ def plot_run(run, metrics, f0):
     p_ar_db_plot = p_ar_db[mask_ar]
     centers, bandwidths = estimate_formants(f_ar, p_ar_db, peak_prominence=1.0)
 
-    f_source, p_source_db = power_spectrum_db(inferred_signal, fs_model)
+    dgf_spec, inferred_signal_spec = _aligned_pair_for_spectrum(
+        dgf, inferred_signal, maxlag
+    )
+
+    f_source, p_source_db = power_spectrum_db(inferred_signal_spec, fs_model)
     mask_source = (
         np.isfinite(f_source) & np.isfinite(p_source_db) & (f_source > 0)
     )
     f_source_plot = f_source[mask_source]
     p_source_db_plot = p_source_db[mask_source]
-    f_source_true, p_source_true_db = power_spectrum_db(dgf, fs_model)
+    f_source_true, p_source_true_db = power_spectrum_db(dgf_spec, fs_model)
     mask_source_true = (
         np.isfinite(f_source_true)
         & np.isfinite(p_source_true_db)
@@ -898,5 +929,3 @@ def plot_run(run, metrics, f0):
     )
     display(Audio(speech_full, rate=int(round(fs_file))))
     display(Audio(speech, rate=int(round(fs_model))))
-
-    return [fig]

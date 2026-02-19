@@ -373,8 +373,8 @@ def get_voiced_meta(path_contains=None, max_samples=None, **smooth_dgf_kwargs):
 
                 v["smooth"] = {}
 
-                v["smooth"]["t_samples"] = s["t_samples"]
-                v["smooth"]["tau"] = s["tau"]
+                v["smooth"]["t_samples"] = s["t_samples"]  # 0 = start of file
+                v["smooth"]["tau"] = s["tau"]  # 0 = start of voiced group
                 v["smooth"]["gf"] = s["gf"]
                 v["smooth"]["dgf"] = s["dgf"]
                 v["smooth"]["speech"] = s["speech"]
