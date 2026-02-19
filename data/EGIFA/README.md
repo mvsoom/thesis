@@ -128,6 +128,49 @@ score_vtl_continuous1('/home/marnix/pro/science/thesis/data/EGIFA/speech/res_iai
 
 Optional scoring flag: `--best_affine` applies a best affine + limited lag alignment (lag range capped by inferred F0) on the middle segment before computing the default errors.
 
+## How V/UV is handled in EGIFA (speech collection)
+
+Short answer: there is no clean voiced-only scoring mask in the default pipeline.
+
+### Inverse filtering stage
+
+- The methods are run on the full file waveform (`test_vtl3 -> inverse_filter9`), not on externally pre-segmented voiced frames.
+- CP/WCA methods use DYPSA-derived GCIs/GOIs and weighting heuristics; "unvoiced handling" is indirect through long-period heuristics in the weight function, not by a strict V/UV mask.
+- IAIF does not use GCI/GOI and has no explicit V/UV gating.
+- CCD gets VUV decisions from SRH, but then in this EGIFA wrapper they are explicitly overridden with
+  `VUVDecisions(1:end)=1`, i.e. forced fully voiced.
+
+### Scoring stage (`score_vtl_continuous1.m`)
+
+- Ground-truth DGF and estimated DGF are both compared on the same full-file timeline after fixed delay compensation (`dd = -14`) and central crop (`10%:70%` of overlap).
+- Cycle boundaries are derived from the area-function thresholds (`extractInstantsFromAreaFunction`), then errors are computed cycle-by-cycle between consecutive boundaries.
+- There is no explicit "score only voiced samples" mask.
+- Consequence:
+  - regions with no closure markers are skipped naturally,
+  - but long closure-to-closure spans can include unvoiced material and are still treated as one "cycle" for error aggregation.
+
+### Practical interpretation
+
+- For speech files, V/UV treatment is heuristic and implicit, not a strict voiced-frame evaluation protocol.
+- This matters for fairness when methods differ in delay, local smoothing, or behavior in weakly voiced/unvoiced spans.
+
+## My comments / implications for our report
+
+- Cycle-level pairing is not kosher for our main claims.
+- Affine+lag equivalence classes should be enforced at frame level (our `fit_affine_lag_nrmse()` logic), because LPC/source-filter decompositions confound gain, DC, and shift.
+- The EGIFA fixed-delay handling (`dd=-14`) is an implementation artifact; we should not bake this into the main metric.
+- EGIFA scoring is still useful as a legacy reproduction/sanity check, but not as the principal evaluation metric.
+
+## Frame-level protocol for our Python pipeline
+
+### Do these GIFs work in isolated frame contexts?
+
+- CP/WCA: mostly yes in short-time sense, but quality near frame boundaries depends on context and GCI/GOI reliability.
+- IAIF: can be run on short windows, but stability improves with surrounding context.
+- CCD: most sensitive to context because it is pitch-synchronous and depends on reliable cycle/F0 structure; tiny isolated windows are fragile.
+
+Therefore: prefer running each method with enough context (voiced group or padded chunk), then score on target frame support.
+
 ## Frame sizes and other hyperparams
 
 - Common fs: inputs resampled to 20 kHz in `inverse_filter9`; ground truth (flow/area) resampled from 44.1 kHz to 20 kHz when used (`--sg`, scoring). Outputs `uu` at 20 kHz.
