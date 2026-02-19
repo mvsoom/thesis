@@ -14,7 +14,7 @@ summary(runs)
 id_cols <- c(
     "results.wav",
     "results.frame_index",
-    "results.index",
+    "results.index", # FIXME: this should become 'voiced_group' later
     "results.restart_index"
 )
 
@@ -34,12 +34,15 @@ df <- runs[
         pitch_true = results.pitch_true,
         pitch_wrmse = results.pitch_wrmse,
         score = sqrt(pmax(0, 1 - results.source_aligned_nrmse^2)), # cosine similarity
+        utterance = results.wav,
         id
     ),
 ]
 
-# FIXME: only test completed so far
-# df <- df[collection == "vowel"]
+# %%
+
+# Select collection %in% ["vowel", "speech"]
+# df <- df[collection == "speech"]
 
 
 # %%
@@ -89,8 +92,36 @@ df[, u_cal := pmin(pmax(u_cal, eps), 1 - eps)]
 ) |> ggplotly()
 
 # %%
+# dominance curve
+# periodickernel is dominated everywhere by pack:1 and pack:2
+# pack:1 and pack:2 cross, so
+# pack:1 is more reliable overall [better typical performance]
+# pack:2 produces more extreme top performances (starting from 65% threshold) [better best-case performanceþ
+# on wilcoxon pack:1 wins because it improves more often.
+# "While pack:1 exhibits statistically stronger overall performance, pack:2 achieves superior performance in the extreme high-quality regime."
+
+thresholds <- seq(0, 1, length.out = 200)
+
+dom <- df[, .(
+    threshold = thresholds,
+    dominance = sapply(thresholds, function(t) {
+        mean(u_cal > t)
+    })
+), by = kernel]
+
+(
+    ggplot(dom, aes(threshold, dominance, colour = kernel)) +
+        geom_line() +
+        labs(
+            x = "u_cal threshold",
+            y = "P(u_cal > threshold)",
+            title = "Dominance curves relative to null"
+        )
+) |> ggplotly()
+
+# %%
 # A p-value less than 0.05 indicates that the row kernel tends to yield a higher score than the column kernel at the 5% significance level (paired one-sided Wilcoxon signed-rank test)
-# Same comparison as in Chien+ (2017) Tables II & III
+# Pair test on (frame level)
 wide <- dcast(df, id ~ kernel, value.var = "score")
 
 scores <- as.matrix(wide[, -1])
@@ -118,29 +149,43 @@ for (i in seq_along(kernels)) {
 print(round(p_mat, 3))
 
 # %%
-# dominance curve
-# periodickernel is dominated everywhere by pack:1 and pack:2
-# pack:1 and pack:2 cross, so
-# pack:1 is more reliable overall [better typical performance]
-# pack:2 produces more extreme top performances (starting from 65% threshold) [better best-case performanceþ
-# on wilcoxon pack:1 wins because it improves more often.
-# "While pack:1 exhibits statistically stronger overall performance, pack:2 achieves superior performance in the extreme high-quality regime."
+# Pair test on (median aggregate per utterance) like Chien+ (2017) Tables II & III
+agg <- df[, .(score = median(score)), by = .(kernel, utterance)]
 
-thresholds <- seq(0, 1, length.out = 200)
+agg_wide <- dcast(agg, utterance ~ kernel, value.var = "score")
 
-dom <- df[, .(
-    threshold = thresholds,
-    dominance = sapply(thresholds, function(t) {
-        mean(u_cal > t)
-    })
-), by = kernel]
+agg_scores <- as.matrix(agg_wide[, -1])
 
+kernels <- colnames(scores)
+
+agg_p_mat <- matrix(1, length(kernels), length(kernels),
+    dimnames = list(kernels, kernels)
+)
+for (i in seq_along(kernels)) {
+    for (j in seq_along(kernels)) {
+        if (i == j) next
+
+        agg_p_mat[i, j] <- wilcox.test(
+            agg_scores[, i],
+            agg_scores[, j],
+            paired = TRUE,
+            alternative = "greater" # A > B
+        )$p.value
+    }
+}
+
+print(round(agg_p_mat, 3))
+
+# %%
+# lag_est
+# Thresholding on u_cal just kills a bit of tail, but very stable
+# whitenoise and pack:0 produce the tail
+# very stable for pack:1,2,3 and periodickernel
+thresh <- 0.99
 (
-    ggplot(dom, aes(threshold, dominance, colour = kernel)) +
-        geom_line() +
-        labs(
-            x = "u_cal threshold",
-            y = "P(u_cal > threshold)",
-            title = "Dominance curves relative to null"
-        )
+    ggplot(
+        df[u_cal > thresh, .(lag_est), by = kernel]
+    ) +
+        geom_density(aes(x = lag_est, fill = kernel), alpha = 0.3) +
+        ggtitle("lag_est distribution for different kernels")
 ) |> ggplotly()
