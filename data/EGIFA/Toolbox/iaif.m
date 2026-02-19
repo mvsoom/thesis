@@ -1,4 +1,4 @@
-function [udash ar Ts u] = iaif(sp,fs,p,g,r,h)
+function [udash ar Ts u udash_frames Ts_frames] = iaif(sp,fs,p,g,r,h)
 
 %   Implementation of the Iterative Adaptive Inverse Filtering (IAIF)
 %   Algorithm for Glottal Wave Analysis
@@ -119,6 +119,24 @@ udash = spHvt2;
 
 ar=Hvt2;
 Ts = TsHvt2;
+
+% Optional: frame-wise final-stage inverse filtered output on Ts windows
+if nargout > 4
+    nf = size(TsHvt2,1);
+    frame_lens = TsHvt2(:,2) - TsHvt2(:,1) + 1;  % MATLAB inclusive indices
+    max_len = max(frame_lens);
+    udash_frames = nan(nf, max_len);
+    for ii = 1:nf
+        idx = TsHvt2(ii,1):TsHvt2(ii,2);
+        seg = spf(idx);
+        ui = filter(Hvt2(ii,:), 1, seg);
+        udash_frames(ii,1:length(ui)) = ui(:).';
+    end
+end
+
+if nargout > 5
+    Ts_frames = TsHvt2;
+end
 
 % 12. Integration
 g = filter(intb,inta,spHvt2);
