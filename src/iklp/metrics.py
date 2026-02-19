@@ -65,8 +65,15 @@ def compute_signals_and_noise_aux(
     """Sample from p({signal, noise} | x, z = E[z|xi])
 
     In other words, samples come from the Gaussian process which is conditioned on the **expectation values** of the latent variables `z` (thus the latter are not sampled themselves).
+
+    If `num_samples` is -1, just return the mean.
     """
     e = psi_matvec(state.xi.delta_a, state.data.x)  # (M,)
+
+    if num_samples == -1:
+        del key
+        signal, noise = sample_parts_given_observation(aux.Omega, e, key=None)
+        return signal[None, :], noise[None, :]  # (1, M), (1, M)
 
     keys = jax.random.split(key, num_samples)
 

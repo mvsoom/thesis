@@ -241,8 +241,17 @@ def sample(op: MercerOp, key, shape=()):
     return s + n
 
 
-def sample_parts_given_observation(op: MercerOp, x, key) -> jnp.ndarray:
-    """Given observed data x ~ MvNormal(0, op), sample (signal, noise) | (signal + noise = x)"""
+def sample_parts_given_observation(op: MercerOp, x, key=None):
+    """Given observed data x ~ MvNormal(0, op), sample (signal, noise) | (signal + noise = x)
+
+    If key is None, return the conditional mean instead of a sample.
+    """
+    if key is None:
+        c = solve(op, x)  # (S + nu I)^{-1} x
+        noise = op.nu * c  # E[noise | x]
+        signal = x - noise  # E[signal | x]
+        return signal, noise
+
     signal0, noise0 = sample_parts(op, key)
 
     residual = x - (signal0 + noise0)
@@ -253,4 +262,4 @@ def sample_parts_given_observation(op: MercerOp, x, key) -> jnp.ndarray:
 
     noise = noise0 + c_noise
     signal = x - noise
-    return signal, noise  # both are (M,)
+    return signal, noise  # both (M,)

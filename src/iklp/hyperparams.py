@@ -69,7 +69,9 @@ class Hyperparams:
     )  # Maximum number of VI iterations in case of VI criterion
 
     num_vi_restarts: int = static_constant(1)
-    num_metrics_samples: int = static_constant(5)
+    num_metrics_samples: int = static_constant(
+        5
+    )  # to disable sampling and just use the mean, set to -1
 
     mercer_backend: str = static_constant(
         "woodbury"
