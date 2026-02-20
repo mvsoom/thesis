@@ -8,9 +8,15 @@ Rank r=16 fixed: >99% energy captures of pack:0, so even better for pack:{1,2,3}
 
 pack:d kernels got loose init values for {sigma_b, sigma_c} from the lf/pack experiment
 
-FIXME: forgot to output 'results.voiced_group' so can't identify group level
+FIXED: forgot to output 'results.voiced_group' so can't identify group level
 
-FIXME: set P = 20 like all other algorithms
+FIXED: set P = 20 like all other algorithms
+
+FIXED: just sample means, no variability by setting num_metrics_samples=-1
+
+FIXED: allow only negative lags. This should have nearly zero effect as previous runs had 99%+ lags < zero
+
+FIXED: make sure to allow only positive affine rescaling (ie rescaling amplitude a can only be positive) after we saw a few negative polarity flips
 
 FIXME: window length (see below)
 
