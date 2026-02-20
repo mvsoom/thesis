@@ -155,17 +155,19 @@ def _infer_pitch_from_frame(frame):
     return 1000.0 / np.mean(periods_ms)
 
 
-def _align_true_to_inferred(true_dgf, inferred_source, fs, maxlag):
+def _align_true_to_inferred(true_dgf, inferred_excitation, fs, maxlag):
     true_dgf = np.asarray(true_dgf, dtype=np.float64)
-    inferred_source = np.asarray(inferred_source, dtype=np.float64)
-    n = int(min(len(true_dgf), len(inferred_source)))
+    inferred_excitation = np.asarray(inferred_excitation, dtype=np.float64)
+    n = int(min(len(true_dgf), len(inferred_excitation)))
     true_dgf = true_dgf[:n]
-    inferred_source = inferred_source[:n]
+    inferred_excitation = inferred_excitation[:n]
     if n == 0:
         return np.asarray([], dtype=np.float64), np.nan
 
     try:
-        best, _ = fit_affine_lag_nrmse(true_dgf, inferred_source, maxlag=maxlag)
+        best, _ = fit_affine_lag_nrmse(
+            true_dgf, inferred_excitation, maxlag=maxlag
+        )
         aligned_true_dgf = np.asarray(best["aligned"], dtype=np.float64)
         lag_est_ms = 1e3 * float(best["lag"]) / float(fs)
     except Exception:
@@ -225,7 +227,7 @@ def post_process_run(run, metrics, f0):
 
     inferred_signal = metrics.signals[0]
     inferred_noise = metrics.noise[0]
-    inferred_source = inferred_signal + inferred_noise
+    inferred_excitation = inferred_signal + inferred_noise
 
     SNR_db = 10 * np.log10(np.var(inferred_signal) / np.var(inferred_noise))
 
@@ -239,14 +241,14 @@ def post_process_run(run, metrics, f0):
     signal_nrmse = original_signal["nrmse"]
     signal_aligned_nrmse = best_signal["nrmse"]
 
-    # calculate NRMSE for source (signal + noise)
-    best_source, original_source = fit_affine_lag_nrmse(
-        inferred_source, frame["dgf"], maxlag=maxlag
+    # calculate NRMSE for excitation e(t)=s(t)+n(t)
+    best_excitation, original_excitation = fit_affine_lag_nrmse(
+        inferred_excitation, frame["dgf"], maxlag=maxlag
     )
-    source_nrmse = original_source["nrmse"]
-    source_aligned_nrmse = best_source["nrmse"]
+    excitation_nrmse = original_excitation["nrmse"]
+    excitation_aligned_nrmse = best_excitation["nrmse"]
     _, lag_est = _align_true_to_inferred(
-        frame["dgf"], inferred_source, frame["fs"], maxlag
+        frame["dgf"], inferred_excitation, frame["fs"], maxlag
     )
 
     # estimate formants
@@ -283,16 +285,16 @@ def post_process_run(run, metrics, f0):
         "pitch_wrmse": pitch_wrmse,
         "pitch_wmae": pitch_wmae,
         # fit
-        "SNR_db": SNR_db,  # if small, noise is doing source sculpting
+        "SNR_db": SNR_db,  # if small, noise is doing excitation sculpting
         "signal_nrmse": signal_nrmse,
         "signal_aligned_nrmse": signal_aligned_nrmse,
-        "source_nrmse": source_nrmse,
-        "source_aligned_nrmse": source_aligned_nrmse,
+        "excitation_nrmse": excitation_nrmse,
+        "excitation_aligned_nrmse": excitation_aligned_nrmse,
         "lag_est": lag_est,
-        "affine_lag_a": best_source["a"],
-        "affine_lag_b": best_source["b"],
+        "affine_lag_a": best_excitation["a"],
+        "affine_lag_b": best_excitation["b"],
         # filter
-        "filter_mid_low_db": filter_mid_low_db,  # if small, AR is doing source sculpting
+        "filter_mid_low_db": filter_mid_low_db,  # if small, AR is doing excitation sculpting
         "filter_mid_high_db": filter_mid_high_db,
         "filter_gain_energy": filter_gain_energy,
         "filter_stationary_score": filter_stationary_score,
@@ -336,7 +338,7 @@ def plot_run(run, metrics, f0):
 
     inferred_signal = np.asarray(metrics.signals[0], dtype=np.float64)[:n]
     inferred_noise = np.asarray(metrics.noise[0], dtype=np.float64)[:n]
-    inferred_source = inferred_signal + inferred_noise
+    inferred_excitation = inferred_signal + inferred_noise
     frame_duration_ms = 1e3 * len(speech) / fs_model
 
     true_pitch = _infer_pitch_from_frame(frame)
@@ -347,7 +349,7 @@ def plot_run(run, metrics, f0):
         maxlag = max(1, int(0.002 / dt))
 
     aligned_true_dgf, align_lag_ms = _align_true_to_inferred(
-        dgf, inferred_source, fs_model, maxlag
+        dgf, inferred_excitation, fs_model, maxlag
     )
 
     fs_file, speech_full, gf_full = _load_full_file_context(group)
@@ -383,20 +385,20 @@ def plot_run(run, metrics, f0):
         dgf, inferred_signal, maxlag
     )
 
-    f_source, p_source_db = power_spectrum_db(inferred_signal_spec, fs_model)
-    mask_source = (
-        np.isfinite(f_source) & np.isfinite(p_source_db) & (f_source > 0)
+    f_signal, p_signal_db = power_spectrum_db(inferred_signal_spec, fs_model)
+    mask_signal = (
+        np.isfinite(f_signal) & np.isfinite(p_signal_db) & (f_signal > 0)
     )
-    f_source_plot = f_source[mask_source]
-    p_source_db_plot = p_source_db[mask_source]
-    f_source_true, p_source_true_db = power_spectrum_db(dgf_spec, fs_model)
-    mask_source_true = (
-        np.isfinite(f_source_true)
-        & np.isfinite(p_source_true_db)
-        & (f_source_true > 0)
+    f_signal_plot = f_signal[mask_signal]
+    p_signal_db_plot = p_signal_db[mask_signal]
+    f_signal_true, p_signal_true_db = power_spectrum_db(dgf_spec, fs_model)
+    mask_signal_true = (
+        np.isfinite(f_signal_true)
+        & np.isfinite(p_signal_true_db)
+        & (f_signal_true > 0)
     )
-    f_source_true_plot = f_source_true[mask_source_true]
-    p_source_true_db_plot = p_source_true_db[mask_source_true]
+    f_signal_true_plot = f_signal_true[mask_signal_true]
+    p_signal_true_db_plot = p_signal_true_db[mask_signal_true]
 
     f_n, p_n_db = power_spectrum_db(inferred_noise, fs_model)
     mask_n = np.isfinite(f_n) & np.isfinite(p_n_db) & (f_n > 0)
@@ -407,11 +409,6 @@ def plot_run(run, metrics, f0):
     f0 = np.asarray(f0, dtype=np.float64)
     use_f0_axis = len(f0) == len(theta)
     pitch_x = f0 if use_f0_axis else np.arange(len(theta))
-    frame_duration_text = (
-        f"{frame_duration_ms:.1f} ms"
-        if np.isfinite(frame_duration_ms)
-        else "n/a"
-    )
     colors = qualitative.Plotly
     c_truth = colors[0]  # primary theme blue for ground truth
     c_inferred = colors[2]
@@ -427,19 +424,19 @@ def plot_run(run, metrics, f0):
     ar_xmax = max(50.0, ar_xmax)
     if ar_xmax <= 50.0:
         ar_xmax = 50.5
-    source_xmax = ar_xmax
-    if len(f_source_plot) and np.isfinite(np.max(f_source_plot)):
-        source_xmax = max(source_xmax, float(np.max(f_source_plot)))
-    if len(f_source_true_plot) and np.isfinite(np.max(f_source_true_plot)):
-        source_xmax = max(source_xmax, float(np.max(f_source_true_plot)))
-    source_xmax = max(50.5, source_xmax)
+    signal_xmax = ar_xmax
+    if len(f_signal_plot) and np.isfinite(np.max(f_signal_plot)):
+        signal_xmax = max(signal_xmax, float(np.max(f_signal_plot)))
+    if len(f_signal_true_plot) and np.isfinite(np.max(f_signal_true_plot)):
+        signal_xmax = max(signal_xmax, float(np.max(f_signal_true_plot)))
+    signal_xmax = max(50.5, signal_xmax)
     noise_xmax = (
         float(np.max(f_n_plot))
         if len(f_n_plot) and np.isfinite(np.max(f_n_plot))
         else ar_xmax
     )
     noise_xmax = max(50.5, noise_xmax)
-    env_xmax = max(ar_xmax, source_xmax, noise_xmax)
+    env_xmax = max(ar_xmax, signal_xmax, noise_xmax)
 
     harmonics = np.asarray([], dtype=np.float64)
     if np.isfinite(true_pitch) and true_pitch > 0:
@@ -451,11 +448,6 @@ def plot_run(run, metrics, f0):
                 & (harmonics >= 50.0)
                 & (harmonics <= min(5000.0, env_xmax))
             ]
-    gf_panel_title = (
-        f"Frame detail: gf (estimated lag = {align_lag_ms:+.2f} ms)"
-        if np.isfinite(align_lag_ms)
-        else "Frame detail: gf (estimated lag = n/a)"
-    )
 
     fig = make_subplots(
         rows=9,
@@ -466,23 +458,23 @@ def plot_run(run, metrics, f0):
             1.0,
             1.0,
             1.0,
-            1.3,
+            1.0,
             1.0,
             1.0,
             1.0,
             1.0,
         ],
-        vertical_spacing=0.045,
+        vertical_spacing=0.05,
         subplot_titles=[
-            "File context: speech",
-            "File context: glottal flow",
-            f"Frame detail: speech ({frame_duration_text})",
-            gf_panel_title,
-            "Frame detail: dgf (aligned true / inferred signal / inferred source)",
-            "Signal spectral envelope",
-            "Noise spectral envelope",
-            "AR spectral envelope with estimated formants",
-            "Pitch posterior",
+            r"Data $x(t)$ in file context",
+            r"True $u(t)$ in file context",
+            r"Data $x(t)$",
+            r"True $u(t)$",
+            r"Estimated signal $s(t)$ and excitation $e(t)$ vs true $u'(t)$",
+            r"Estimated signal spectral envelope $|S(f)|^2$ vs true $|U'(f)|$",
+            r"Estimated noise spectral envelope $|N(f)|^2$",
+            r"Estimated spectral envelope $|A(f)|^2$",
+            r"Estimated $F_0$ from $\mathbb{E}[\theta_i]$ vs true $F_0$",
         ],
     )
     fig.update_annotations(yshift=6)
@@ -492,7 +484,7 @@ def plot_run(run, metrics, f0):
             x=file_t_ms,
             y=speech_full,
             mode="lines",
-            name="file speech",
+            name="recording x(t)",
             line=dict(color=c_truth),
             showlegend=False,
         ),
@@ -504,7 +496,7 @@ def plot_run(run, metrics, f0):
             x=file_t_ms,
             y=gf_full,
             mode="lines",
-            name="file gf",
+            name="recording u(t)",
             line=dict(color=c_truth),
             showlegend=False,
         ),
@@ -517,7 +509,7 @@ def plot_run(run, metrics, f0):
             x=t_ms,
             y=speech,
             mode="lines",
-            name="frame speech",
+            name="frame x(t)",
             line=dict(color=c_truth),
             showlegend=False,
         ),
@@ -529,7 +521,7 @@ def plot_run(run, metrics, f0):
             x=t_ms,
             y=gf,
             mode="lines",
-            name="frame gf",
+            name="frame u(t)",
             line=dict(color=c_truth),
             showlegend=False,
         ),
@@ -541,7 +533,7 @@ def plot_run(run, metrics, f0):
             x=t_ms,
             y=aligned_true_dgf,
             mode="lines",
-            name="true dgf (aligned)",
+            name="aligned true u'(t)",
             line=dict(color=c_truth),
         ),
         row=5,
@@ -552,7 +544,7 @@ def plot_run(run, metrics, f0):
             x=t_ms,
             y=inferred_signal,
             mode="lines",
-            name="inferred signal",
+            name="inferred signal s(t)",
             line=dict(color=c_inferred),
         ),
         row=5,
@@ -561,9 +553,9 @@ def plot_run(run, metrics, f0):
     fig.add_trace(
         go.Scatter(
             x=t_ms,
-            y=inferred_source,
+            y=inferred_excitation,
             mode="lines",
-            name="inferred source = signal + noise",
+            name="inferred excitation e(t)=s(t)+n(t)",
             line=dict(color=c_noise),
             opacity=0.8,
         ),
@@ -608,7 +600,7 @@ def plot_run(run, metrics, f0):
                         size=6,
                         color=c_truth,
                     ),
-                    name="F0 harmonics up to 5 kHz",
+                    name="harmonics kF0 (up to 5 kHz)",
                     cliponaxis=False,
                     opacity=0.75,
                     showlegend=show_harmonic_legend,
@@ -639,10 +631,10 @@ def plot_run(run, metrics, f0):
 
     fig.add_trace(
         go.Scatter(
-            x=f_source_true_plot,
-            y=p_source_true_db_plot,
+            x=f_signal_true_plot,
+            y=p_signal_true_db_plot,
             mode="lines",
-            name="source spectrum (true)",
+            name="aligned true spectrum |U'(f)|^2",
             line=dict(color=c_truth),
             showlegend=False,
         ),
@@ -651,10 +643,10 @@ def plot_run(run, metrics, f0):
     )
     fig.add_trace(
         go.Scatter(
-            x=f_source_plot,
-            y=p_source_db_plot,
+            x=f_signal_plot,
+            y=p_signal_db_plot,
             mode="lines",
-            name="signal spectrum (inferred)",
+            name="inferred signal spectrum |S(f)|^2",
             line=dict(color=c_inferred),
             showlegend=False,
         ),
@@ -663,8 +655,8 @@ def plot_run(run, metrics, f0):
     )
     add_envelope_decorations(
         row=6,
-        x_max=source_xmax,
-        y_series=[p_source_db_plot, p_source_true_db_plot],
+        x_max=signal_xmax,
+        y_series=[p_signal_db_plot, p_signal_true_db_plot],
         show_harmonic_legend=True,
     )
 
@@ -673,7 +665,7 @@ def plot_run(run, metrics, f0):
             x=f_n_plot,
             y=p_n_db_plot,
             mode="lines",
-            name="noise spectrum",
+            name="inferred noise spectrum |N(f)|^2",
             line=dict(color=c_noise),
             opacity=0.8,
             showlegend=False,
@@ -693,7 +685,7 @@ def plot_run(run, metrics, f0):
             x=f_ar_plot,
             y=p_ar_db_plot,
             mode="lines",
-            name="AR spectrum",
+            name="inferred AR spectrum |A(f)|^2",
             line=dict(color=c_ar),
             showlegend=False,
         ),
@@ -752,7 +744,7 @@ def plot_run(run, metrics, f0):
             x=pitch_x,
             y=theta,
             mode="lines",
-            name="pitch posterior",
+            name="pitch posterior p(F0)",
             line=dict(color=c_pitch_posterior),
             showlegend=False,
         ),
@@ -767,7 +759,7 @@ def plot_run(run, metrics, f0):
             line_color=c_truth,
             line_dash="dash",
             opacity=0.8,
-            annotation_text="pitch_true",
+            annotation_text=r"$F_0$ true",
             annotation_position="top right",
             row=9,
             col=1,
@@ -828,14 +820,14 @@ def plot_run(run, metrics, f0):
             )
 
     fig.update_xaxes(
-        title_text="absolute time (ms): file/group context",
+        title_text=r"$t$ (ms)",
         title_standoff=2,
         automargin=True,
         row=2,
         col=1,
     )
     fig.update_xaxes(
-        title_text="absolute time (ms): frame detail",
+        title_text=r"$t$ (ms)",
         title_standoff=2,
         automargin=True,
         row=5,
@@ -858,7 +850,7 @@ def plot_run(run, metrics, f0):
         col=1,
     )
     fig.update_xaxes(
-        title_text="frequency (Hz)",
+        title_text=r"frequency $f$ (Hz)",
         type="log",
         range=[np.log10(50.0), np.log10(env_xmax)],
         title_standoff=2,
@@ -895,17 +887,33 @@ def plot_run(run, metrics, f0):
     fig.update_yaxes(title_text="power (dB)", row=8, col=1)
     fig.update_yaxes(title_text="probability", row=9, col=1)
 
+    if np.isfinite(align_lag_ms):
+        fig.add_annotation(
+            text=rf"$\Delta_{{\mathrm{{est}}}}={align_lag_ms:+.2f}\,\mathrm{{ms}}$",
+            x=1.0,
+            y=0.0,
+            xref="x4 domain",  # subplot 4 x-domain
+            yref="y4 domain",  # subplot 4 y-domain
+            xanchor="right",
+            yanchor="bottom",
+            showarrow=False,
+            font=dict(size=12),
+            bgcolor="rgba(255,255,255,0.75)",
+        )
+
+    filename = group["wav"].split("/")[-1]
+    main_title = (
+        "EGIFA | "
+        f"`{filename}` | "
+        f"`group {group['group']}` | "
+        f"`frame {frame['frame_index']}`"
+    )
+
     fig.update_layout(
         height=240 * 9,
         hovermode="x unified",
         title=dict(
-            text=(
-                "EGIFA | "
-                f"{group['name']} {group['f0_hz']} Hz | "
-                f"group {group['group']} | "
-                f"frame {frame['frame_index']} | "
-                f"restart {frame['restart_index']}"
-            ),
+            text=main_title,
             pad=dict(b=14),
         ),
         margin=dict(r=60, b=70),

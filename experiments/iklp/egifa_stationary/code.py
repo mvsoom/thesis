@@ -1,5 +1,4 @@
-# %%
-# export, parameters
+# %% tags=["parameters", "export"]
 collection = "vowel"
 kernel = "periodickernel"
 seed = 54512703
@@ -33,7 +32,6 @@ runs = [
     for r in get_voiced_runs(path_contains=collection)
     if r["group"]["f0_hz"] == egifa_f0
 ]
-
 
 print("Number of runs:", len(runs))
 fs = runs[0]["frame"]["fs"]
@@ -95,7 +93,7 @@ else:
     raise ValueError(f"Unknown kernel: {kernel}")
 
 # %%
-P = 24
+P = 20
 arprior = ARPrior.yoshii_lambda(P)
 
 beta = 0.0
@@ -113,7 +111,7 @@ h = pi_kappa_hyperparameters(
     kappa=maybe32(kappa),
     alpha=maybe32(alpha),
     arprior=arprior,
-    num_metrics_samples=1,
+    num_metrics_samples=-1,  # sample mean
     num_vi_iters=max_vi_iter,
     beta=maybe32(beta),
     mercer_backend="woodbury",
@@ -134,8 +132,7 @@ with time_this() as elapsed:
 
 metrics_list = list(unpack(metrics_tree))
 
-# %%
-# export
+# %% tags=["export"]
 time_per_iter = elapsed.walltime / metrics_tree.i.sum()
 
 results = [
@@ -154,7 +151,7 @@ dump_egg(payload, os.getenv("EXPERIMENT_NOTEBOOK_REL"))
 
 # %%
 # Plot 5 quartiles from best to worst
-scores = np.array([r["source_aligned_nrmse"] for r in results])
+scores = np.array([r["excitation_aligned_nrmse"] for r in results])
 
 valid = np.isfinite(scores)
 idx_valid = np.where(valid)[0]

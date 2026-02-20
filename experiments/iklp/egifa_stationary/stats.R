@@ -2,7 +2,6 @@
 library(ggplot2)
 library(data.table)
 library(plotly)
-library(GGally)
 theme_set(theme_minimal())
 
 # Get experiment dir from environment variable
@@ -14,7 +13,7 @@ summary(runs)
 id_cols <- c(
     "results.wav",
     "results.frame_index",
-    "results.index", # FIXME: this should become 'voiced_group' later
+    "results.voiced_group",
     "results.restart_index"
 )
 
@@ -33,7 +32,7 @@ df <- runs[
         oq_true = results.oq_true,
         pitch_true = results.pitch_true,
         pitch_wrmse = results.pitch_wrmse,
-        score = sqrt(pmax(0, 1 - results.source_aligned_nrmse^2)), # cosine similarity
+        score = sqrt(pmax(0, 1 - results.excitation_aligned_nrmse^2)), # cosine similarity
         utterance = results.wav,
         id
     ),
@@ -51,22 +50,23 @@ df <- runs[
 
 (
     ggplot(df) +
-        geom_density(aes(x = score, fill = kernel), alpha = 0.3)
+        geom_density(aes(x = score, fill = kernel), alpha = 0.3) +
+            ggtitle("Scores per kernel")
 ) |> ggplotly()
 
 # (score, oq_true) distribution per kernel
 # little influence
+df_small <- df[sample(.N, min(.N, 5000))]
+
 (
-    ggplot(df) +
-        geom_point(aes(x = score, y = oq_true, color = kernel), alpha = 0.5) +
-        ggtitle("Score vs OQ_true, colored by kernel")
+    ggplot(df_small) +
+        geom_point(aes(score, oq_true, color = kernel), alpha = 0.5) +
+        ggtitle("Score vs OQ_true (downsampled)")
 ) |> ggplotly()
 
 # Looks like bimodality might be an artifact from affine+shift equivalence
 # CONFIRMED via null score below
-
 # %%
-
 ############################################################
 ## CDF-based null calibration
 ############################################################
