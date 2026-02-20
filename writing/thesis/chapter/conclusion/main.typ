@@ -6,6 +6,9 @@
 /*
 Nice introduction to importance of clinical speech science as a whole in @Andrade-Miranda2024
 */
+
+Here is a `test of mono` fonts. `EGIFA_raw_speech_file`.
+
 A person speaks 16,000 words on average each day: glottal folds are used plenty, so disorders arise quickly when used inappropriately. @Andrade-Miranda2024
 
 Possible improvements/future directions:

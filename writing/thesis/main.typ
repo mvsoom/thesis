@@ -110,6 +110,9 @@
   ],
 )
 
+#set text(font: "Libertinus Serif", size: 12pt)
+#show raw: set text(font: "DejaVu Sans Mono", size: 9pt)
+
 #set heading(numbering: "1.1.1")
 #show heading.where(level: 1): set heading(supplement: [Chapter])
 
