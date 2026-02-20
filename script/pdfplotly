@@ -47,29 +47,70 @@ json_path, out, width, height = sys.argv[1:]
 fig = pio.from_json(open(json_path).read(), skip_invalid=True)
 
 # =========================
-# Apply Latex fix to allow "$...$" anywhere in strings
-# not just if the whole string is math.
+# Text preprocessing
+# - inline `code` → Libertinus Mono span
+# - mixed text + $math$ handling
 # =========================
 
 import re
 
-# matches $...$ but ignores escaped \$ 
+# match inline math $...$
 _math_re = re.compile(r'(?<!\\)\$(.+?)(?<!\\)\$')
 
+# match inline code `...`
+_code_re = re.compile(r'`([^`]+)`')
+
+
 def _escape_text_for_tex(s):
-    # minimal escaping for \text{}
     return (
         s.replace("\\", r"\\")
          .replace("{", r"\{")
          .replace("}", r"\}")
     )
 
+
+def inject_mono_span(s):
+    """Convert `code` → mono font span, but leave LaTeX untouched."""
+    if "`" not in s:
+        return s
+
+    # split around math blocks so we never inject HTML inside $...$
+    parts = []
+    last = 0
+
+    for m in _math_re.finditer(s):
+        start, end = m.span()
+
+        # normal text before math → apply code replacement
+        if start > last:
+            chunk = s[last:start]
+            chunk = _code_re.sub(
+                r'<span style="font-family: DejaVu Sans Mono; font-size:0.75em;">\1</span>',
+                chunk,
+            )
+            parts.append(chunk)
+
+        # keep math block untouched
+        parts.append(s[start:end])
+        last = end
+
+    # trailing text
+    if last < len(s):
+        chunk = s[last:]
+        chunk = _code_re.sub(
+            r'<span style="font-family: DejaVu Sans Mono; font-size:0.75em;">\1</span>',
+            chunk,
+        )
+        parts.append(chunk)
+
+    return "".join(parts)
+
+
 def latexify_string(s):
     if "$" not in s:
         return s
 
-    # skip hovertemplate style strings
-    # these often contain $ but are not math
+    # skip hovertemplate-like content
     if "%{" in s:
         return s
 
@@ -77,7 +118,7 @@ def latexify_string(s):
     if not matches:
         return s
 
-    # if whole string already single math block -> leave untouched
+    # single pure math block → leave untouched
     if len(matches) == 1 and matches[0].span() == (0, len(s)):
         return s
 
@@ -87,18 +128,14 @@ def latexify_string(s):
     for m in matches:
         start, end = m.span()
 
-        # preceding plain text
         if start > last:
             txt = s[last:start]
             if txt:
                 parts.append(r"\text{" + _escape_text_for_tex(txt) + "}")
 
-        # math body (without $)
         parts.append(m.group(1))
-
         last = end
 
-    # trailing text
     if last < len(s):
         txt = s[last:]
         parts.append(r"\text{" + _escape_text_for_tex(txt) + "}")
@@ -107,10 +144,10 @@ def latexify_string(s):
 
 
 def walk_and_fix(obj, parent_key=None):
+
     if isinstance(obj, dict):
         new = {}
         for k, v in obj.items():
-            # skip hovertemplate completely
             if k == "hovertemplate":
                 new[k] = v
             else:
@@ -121,10 +158,13 @@ def walk_and_fix(obj, parent_key=None):
         return [walk_and_fix(v, parent_key) for v in obj]
 
     elif isinstance(obj, str):
-        return latexify_string(obj)
+        obj = inject_mono_span(obj)
+        obj = latexify_string(obj)
+        return obj
 
     else:
         return obj
+
 
 fig_dict = fig.to_plotly_json()
 fig_dict = walk_and_fix(fig_dict)
@@ -194,10 +234,12 @@ template = go.layout.Template(
         title=dict(
             x=0.03,
             xanchor="left",
-            y=0.995,
+
+            y=0.9975,
             yanchor="top",
-            pad=dict(b=16),
-            font=dict(size=20),
+
+            pad=dict(b=0, t=0),
+            font=dict(size=19),
         ),
 
         legend=dict(
