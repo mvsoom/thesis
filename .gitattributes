@@ -1,3 +1,1 @@
-*.ipynb filter=ipynbclean
-*.ipynb	diff=jupyternotebook
-*.ipynb	merge=jupyternotebook
+*.html binary
