@@ -301,5 +301,11 @@ if width:
 if height:
     kwargs["height"] = int(height)
 
-fig.write_image(out, **kwargs)
+fig.write_image(out + ".pdf", **kwargs)
+fig.write_html(
+    out + ".html",
+    include_plotlyjs="https://cdn.plot.ly/plotly-3.3.0.min.js",
+    include_mathjax="cdn",
+    full_html=True,
+)
 PY
