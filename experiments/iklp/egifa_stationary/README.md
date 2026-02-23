@@ -2,8 +2,6 @@
 
 Test run for stationary SqExpKernel on EGIFA
 
-Each iteration takes ~3 hrs
-
 Rank r=16 fixed: >99% energy captures of pack:0, so even better for pack:{1,2,3} and periodickernel
 
 pack:d kernels got loose init values for {sigma_b, sigma_c} from the lf/pack experiment
@@ -14,13 +12,13 @@ FIXED: set P = 20 like all other algorithms
 
 FIXED: just sample means, no variability by setting num_metrics_samples=-1
 
-FIXED: allow only negative lags. This should have nearly zero effect as previous runs had 99%+ lags < zero
-
-FIXED: make sure to allow only positive affine rescaling (ie rescaling amplitude a can only be positive) after we saw a few negative polarity flips
+FIXED: allow only positive lags. This should have nearly zero effect as previous runs had 99%+ lags < zero.
 
 FIXME: window length (see below)
 
-Total time: 1650 min = 27 hr
+TODO: separate vowel and speech: bimodality likely due to lower scores on speech due to (long windows AND strict periodicity)
+
+Total time: 1550 min = 25 hr
 
 ## Important notes
 
