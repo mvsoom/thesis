@@ -159,44 +159,70 @@ def compute_aligned_origins_from_dgf(dgf, fs, true_pitch):
 
 
 
-def fit_affine_lag_nrmse(x, y, maxlag):
-    """Find best affine+lag fit of inferred signal x to ground truth y
+import numpy as np
 
-    Find min_(a, b, lag) RMSE of (a * x[t - lag] + b) and y[t]
 
-    For each lag k in [-maxlag, 0], we align x and y on their
-    overlapping support, then fit an affine map a*x + b -> y
-    by least squares. We compute the RMSE for that lag and pick the lag with smallest RMSE, then normalize and return normalized RMSE in [0,1].
-
-    We take only negative 'lag's because true DGF from synthesizer is always earlier. We take 'a' both positive and negative because LPC filters can flip polarity (though not super easily). We take 'b' because LPC can also cancel bias.
-
-    This implements comparison on an equivalence class rather than on
-    raw waveforms. Signals are considered equivalent up to an affine
-    amplitude transform and a constant time shift, i.e. x(t) ~ a*x(t - tau) + b.
-    Absolute gain and bias are not identifiable in source-filter models,
-    and constant delay between signals can arise from propagation,
-    inverse filtering, or group delay effects rather than modeling error.
-    By optimizing over (a, b, tau) before scoring, the metric evaluates
-    similarity only in the identifiable subspace and avoids penalizing
-    physically meaningless differences in scale or alignment.
+def fit_affine_lag_nrmse(truth, estimate, maxlag):
     """
-    x = np.asarray(x)
-    y = np.asarray(y)
-    n = len(x)
-    original = None
-    best = None
+    Fit an affine map and a nonnegative time shift so that the ESTIMATE is shifted LEFT
+    (earlier in time) to best match TRUTH on their overlapping support.
 
-    for k in range(-maxlag, 1):
-        if k >= 0:
-            xs, ys = x[k:], y[: n - k]
-        else:
-            xs, ys = x[: n + k], y[-k:]
+    Model (discrete time, 0-indexed):
+        estimate_shifted[t] = a * estimate[t + lag] + b
+        truth[t]            ≈ estimate_shifted[t]
+    where lag is an integer in {0, 1, ..., maxlag}.
+
+    Interpretation:
+        lag > 0 means we drop the first 'lag' samples of the estimate and compare
+        estimate[lag:] against truth[:n-lag]. In other words, we shift the estimate
+        left by 'lag' samples.
+
+        This is the convention used here: positive lag shifts ESTIMATE earlier.
+
+    Per lag:
+        1) Form the overlapping segments:
+               xs = estimate[lag:]
+               ys = truth[:n-lag]
+        2) Solve least squares for a, b in:
+               ys ≈ a * xs + b
+           with:
+               a = cov(xs, ys) / var(xs)   (or 0 if var(xs)=0)
+               b = mean(ys) - a * mean(xs)
+        3) Compute:
+               rmse  = sqrt(mean((ys - (a*xs + b))^2))
+               nrmse = rmse / std(ys)     (std over the overlapping ys)
+           returning nrmse in [0, +inf), with nrmse=inf if std(ys)=0.
+
+    Returns:
+        best: dict for the lag with smallest nrmse.
+        original: dict for lag == 0 (no shift), useful for diagnostics.
+
+    Notes:
+        - Allowing (a, b) makes the score invariant to global gain and bias differences
+          that are not identifiable (or not meaningful) in source filter settings.
+        - If you need the opposite convention (shift TRUTH instead, or allow both
+          directions), change the overlap construction and lag domain accordingly.
+    """
+    truth = np.asarray(truth)
+    estimate = np.asarray(estimate)
+
+    n = len(truth)
+    if len(estimate) != n:
+        raise ValueError("truth and estimate must have the same length")
+    if maxlag <= 0:
+        raise ValueError(f"maxlag must be positive, got {maxlag}")
+
+    recs = []
+    for k in range(0, maxlag + 1):
+        xs = estimate[k:]
+        ys = truth[: n - k]
         m = len(xs)
         if m == 0:
             continue
 
         xm, ym = xs.mean(), ys.mean()
         xc, yc = xs - xm, ys - ym
+
         varx = np.dot(xc, xc) / m
         covxy = np.dot(xc, yc) / m
         a = 0.0 if varx == 0.0 else covxy / varx
@@ -205,23 +231,32 @@ def fit_affine_lag_nrmse(x, y, maxlag):
         err = ys - (a * xs + b)
         rmse = np.sqrt(np.dot(err, err) / m)
 
-        sy = np.sqrt(np.dot(yc, yc) / m)  # std of overlapping y
+        sy = np.sqrt(np.dot(yc, yc) / m)
         nrmse = np.inf if sy == 0.0 else rmse / sy
 
-        if k == 0:
-            original = dict(
-                lag=k, a=a, b=b, rmse=rmse, nrmse=nrmse, aligned=aligned
-            )
+        aligned = np.full(n, np.nan)
+        aligned[: n - k] = a * estimate[k:] + b
 
-        if (best is None) or (nrmse < best["nrmse"]):
-            aligned = np.full(n, np.nan)
-            if k >= 0:
-                aligned[: n - k] = a * x[k:] + b
-            else:
-                aligned[-k:] = a * x[: n + k] + b
-            best = dict(
-                lag=k, a=a, b=b, rmse=rmse, nrmse=nrmse, aligned=aligned
+        recs.append(
+            dict(
+                lag=k,
+                a=a,
+                b=b,
+                rmse=rmse,
+                nrmse=nrmse,
+                aligned=aligned,
+                m=m,
             )
+        )
+
+    if not recs:
+        raise ValueError("no valid overlaps; check maxlag and signal lengths")
+
+    original = next((r for r in recs if r["lag"] == 0), None)
+    if original is None:
+        raise ValueError("internal error: missing lag==0 record")
+
+    best = min(recs, key=lambda r: r["nrmse"])
     return best, original
 
 

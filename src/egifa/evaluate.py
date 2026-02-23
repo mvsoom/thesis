@@ -1,4 +1,6 @@
 # %%
+import warnings
+
 import numpy as np
 
 from egifa.data import get_voiced_meta
@@ -147,60 +149,6 @@ def _load_full_file_context(group):
     return fs, speech, gf
 
 
-def _infer_pitch_from_frame(frame):
-    periods_ms = np.asarray(frame.get("periods_ms", []), dtype=np.float64)
-    periods_ms = periods_ms[np.isfinite(periods_ms) & (periods_ms > 0)]
-    if len(periods_ms) == 0:
-        return np.nan
-    return 1000.0 / np.mean(periods_ms)
-
-
-def _align_true_to_inferred(true_dgf, inferred_excitation, fs, maxlag):
-    true_dgf = np.asarray(true_dgf, dtype=np.float64)
-    inferred_excitation = np.asarray(inferred_excitation, dtype=np.float64)
-    n = int(min(len(true_dgf), len(inferred_excitation)))
-    true_dgf = true_dgf[:n]
-    inferred_excitation = inferred_excitation[:n]
-    if n == 0:
-        return np.asarray([], dtype=np.float64), np.nan
-
-    try:
-        best, _ = fit_affine_lag_nrmse(
-            true_dgf, inferred_excitation, maxlag=maxlag
-        )
-        aligned_true_dgf = np.asarray(best["aligned"], dtype=np.float64)
-        lag_est_ms = 1e3 * float(best["lag"]) / float(fs)
-    except Exception:
-        aligned_true_dgf = np.full_like(true_dgf, np.nan)
-        lag_est_ms = np.nan
-
-    return aligned_true_dgf, lag_est_ms
-
-
-def _aligned_pair_for_spectrum(true_dgf, inferred_signal, maxlag):
-    true_dgf = np.asarray(true_dgf, dtype=np.float64)
-    inferred_signal = np.asarray(inferred_signal, dtype=np.float64)
-    n = int(min(len(true_dgf), len(inferred_signal)))
-    true_dgf = true_dgf[:n]
-    inferred_signal = inferred_signal[:n]
-    if n == 0:
-        return np.asarray([], dtype=np.float64), np.asarray(
-            [], dtype=np.float64
-        )
-
-    try:
-        # Keep inferred signal/noise on their native scale and transform truth.
-        best, _ = fit_affine_lag_nrmse(true_dgf, inferred_signal, maxlag=maxlag)
-        aligned_true_dgf = np.asarray(best["aligned"], dtype=np.float64)
-        mask = np.isfinite(aligned_true_dgf) & np.isfinite(inferred_signal)
-        if np.any(mask):
-            return aligned_true_dgf[mask], inferred_signal[mask]
-    except Exception:
-        pass
-
-    return true_dgf, inferred_signal
-
-
 def post_process_run(run, metrics, f0):
     group = run["group"]
     frame = run["frame"]
@@ -221,9 +169,10 @@ def post_process_run(run, metrics, f0):
     )
 
     # FIXME: there could be multiple samples
-    assert metrics.signals.shape[0] == 1, (
-        "Multiple samples not supported in post-processing yet"
-    )
+    if metrics.signals.shape[0] > 1:
+        warnings.warn(
+            f"Multiple samples (shape={metrics.signals.shape}) not supported in post-processing yet, using first sample only"
+        )
 
     inferred_signal = metrics.signals[0]
     inferred_noise = metrics.noise[0]
@@ -236,20 +185,19 @@ def post_process_run(run, metrics, f0):
 
     # calculate NRMSE for signal only
     best_signal, original_signal = fit_affine_lag_nrmse(
-        inferred_signal, frame["dgf"], maxlag=maxlag
+        frame["dgf"], inferred_signal, maxlag=maxlag
     )
     signal_nrmse = original_signal["nrmse"]
     signal_aligned_nrmse = best_signal["nrmse"]
 
     # calculate NRMSE for excitation e(t)=s(t)+n(t)
     best_excitation, original_excitation = fit_affine_lag_nrmse(
-        inferred_excitation, frame["dgf"], maxlag=maxlag
+        frame["dgf"], inferred_excitation, maxlag=maxlag
     )
     excitation_nrmse = original_excitation["nrmse"]
     excitation_aligned_nrmse = best_excitation["nrmse"]
-    _, lag_est = _align_true_to_inferred(
-        frame["dgf"], inferred_excitation, frame["fs"], maxlag
-    )
+
+    lag_est = 1e3 * best_excitation["lag"] / frame["fs"]
 
     # estimate formants
     f, P = ar_power_spectrum(metrics.a, frame["fs"], db=False)
@@ -293,6 +241,7 @@ def post_process_run(run, metrics, f0):
         "lag_est": lag_est,
         "affine_lag_a": best_excitation["a"],
         "affine_lag_b": best_excitation["b"],
+        "affine_lag": best_excitation["lag"],
         # filter
         "filter_mid_low_db": filter_mid_low_db,  # if small, AR is doing excitation sculpting
         "filter_mid_high_db": filter_mid_high_db,
@@ -310,7 +259,7 @@ def post_process_run(run, metrics, f0):
     }
 
 
-def plot_run(run, metrics, f0):
+def plot_run(result, run, metrics, f0):
     group = run["group"]
     frame = run["frame"]
 
@@ -341,16 +290,30 @@ def plot_run(run, metrics, f0):
     inferred_excitation = inferred_signal + inferred_noise
     frame_duration_ms = 1e3 * len(speech) / fs_model
 
-    true_pitch = _infer_pitch_from_frame(frame)
-    dt = 1.0 / fs_model
-    if np.isfinite(true_pitch) and true_pitch > 0:
-        maxlag = max(1, int(0.5 / true_pitch / dt))  # half pitch period
-    else:
-        maxlag = max(1, int(0.002 / dt))
+    true_pitch = float(result["pitch_true"])
+    lag_samples = int(result["affine_lag"])
+    affine_a = float(result["affine_lag_a"])
+    affine_b = float(result["affine_lag_b"])
+    align_lag_ms = float(result.get("lag_est", np.nan))
+    if lag_samples < 0:
+        warnings.warn(
+            f"Expected nonnegative affine_lag, got {lag_samples}; clamping to 0 for plotting."
+        )
+        lag_samples = 0
+    if not np.isfinite(align_lag_ms):
+        align_lag_ms = 1e3 * lag_samples / fs_model
 
-    aligned_true_dgf, align_lag_ms = _align_true_to_inferred(
-        dgf, inferred_excitation, fs_model, maxlag
-    )
+    # Align ground truth to the estimated excitation using stored affine+lag fit.
+    # Convention for plotting here: shift ground truth right by lag_samples.
+    aligned_true_dgf = np.full(n, np.nan, dtype=np.float64)
+    if np.isfinite(affine_a) and abs(affine_a) > 1e-12 and lag_samples < n:
+        aligned_true_dgf[lag_samples:] = (1 / affine_a) * (
+            dgf[: n - lag_samples] - affine_b
+        )
+    elif lag_samples < n:
+        warnings.warn(
+            f"Cannot align ground truth: affine_lag_a={affine_a} is not usable."
+        )
 
     fs_file, speech_full, gf_full = _load_full_file_context(group)
     file_t_ms = _as_ms(np.arange(len(speech_full)), fs_file)
@@ -379,26 +342,47 @@ def plot_run(run, metrics, f0):
     mask_ar = np.isfinite(f_ar) & np.isfinite(p_ar_db) & (f_ar > 0)
     f_ar_plot = f_ar[mask_ar]
     p_ar_db_plot = p_ar_db[mask_ar]
-    centers, bandwidths = estimate_formants(f_ar, p_ar_db, peak_prominence=1.0)
-
-    dgf_spec, inferred_signal_spec = _aligned_pair_for_spectrum(
-        dgf, inferred_signal, maxlag
+    centers = np.asarray(
+        [
+            result["f1_est"],
+            result["f2_est"],
+            result["f3_est"],
+            result["f4_est"],
+        ],
+        dtype=np.float64,
+    )
+    bandwidths = np.asarray(
+        [
+            result["b1_est"],
+            result["b2_est"],
+            result["b3_est"],
+            result["b4_est"],
+        ],
+        dtype=np.float64,
     )
 
-    f_signal, p_signal_db = power_spectrum_db(inferred_signal_spec, fs_model)
+    # Spectra: estimated signal/noise are shown as-is.
+    # Ground truth uses the aligned (shifted+affine) DGF, without NaN-padded prefix.
+    dgf_spec = aligned_true_dgf[np.isfinite(aligned_true_dgf)]
+
+    f_signal, p_signal_db = power_spectrum_db(inferred_signal, fs_model)
     mask_signal = (
         np.isfinite(f_signal) & np.isfinite(p_signal_db) & (f_signal > 0)
     )
     f_signal_plot = f_signal[mask_signal]
     p_signal_db_plot = p_signal_db[mask_signal]
-    f_signal_true, p_signal_true_db = power_spectrum_db(dgf_spec, fs_model)
-    mask_signal_true = (
-        np.isfinite(f_signal_true)
-        & np.isfinite(p_signal_true_db)
-        & (f_signal_true > 0)
-    )
-    f_signal_true_plot = f_signal_true[mask_signal_true]
-    p_signal_true_db_plot = p_signal_true_db[mask_signal_true]
+    if len(dgf_spec) > 0:
+        f_signal_true, p_signal_true_db = power_spectrum_db(dgf_spec, fs_model)
+        mask_signal_true = (
+            np.isfinite(f_signal_true)
+            & np.isfinite(p_signal_true_db)
+            & (f_signal_true > 0)
+        )
+        f_signal_true_plot = f_signal_true[mask_signal_true]
+        p_signal_true_db_plot = p_signal_true_db[mask_signal_true]
+    else:
+        f_signal_true_plot = np.asarray([], dtype=np.float64)
+        p_signal_true_db_plot = np.asarray([], dtype=np.float64)
 
     f_n, p_n_db = power_spectrum_db(inferred_noise, fs_model)
     mask_n = np.isfinite(f_n) & np.isfinite(p_n_db) & (f_n > 0)
@@ -409,6 +393,7 @@ def plot_run(run, metrics, f0):
     f0 = np.asarray(f0, dtype=np.float64)
     use_f0_axis = len(f0) == len(theta)
     pitch_x = f0 if use_f0_axis else np.arange(len(theta))
+
     colors = qualitative.Plotly
     c_truth = colors[0]  # primary theme blue for ground truth
     c_inferred = colors[2]
@@ -889,7 +874,7 @@ def plot_run(run, metrics, f0):
 
     if np.isfinite(align_lag_ms):
         fig.add_annotation(
-            text=rf"$\Delta_{{\mathrm{{est}}}}={align_lag_ms:+.2f}\,\mathrm{{ms}}$",
+            text=rf"$\mathrm{{lag}}\approx{align_lag_ms:.2f}\,\mathrm{{ms}}$",
             x=1.0,
             y=0.0,
             xref="x4 domain",  # subplot 4 x-domain
@@ -901,12 +886,12 @@ def plot_run(run, metrics, f0):
             bgcolor="rgba(255,255,255,0.75)",
         )
 
-    filename = group["wav"].split("/")[-1]
+    filename = result["wav"].split("/")[-1]
     main_title = (
         "EGIFA | "
         f"`{filename}` | "
-        f"`group {group['group']}` | "
-        f"`frame {frame['frame_index']}`"
+        f"`group {result['voiced_group']}` | "
+        f"`frame {result['frame_index']}`"
     )
 
     fig.update_layout(

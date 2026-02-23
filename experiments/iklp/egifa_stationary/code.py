@@ -170,6 +170,6 @@ for qi, i in zip(qpos, qidx):
     print(f"VI iters : {metrics_list[i].i}")
 
     try:
-        plot_run(runs[i], metrics_list[i], f0)
+        plot_run(results[i], runs[i], metrics_list[i], f0)
     except Exception:
         traceback.print_exc()
