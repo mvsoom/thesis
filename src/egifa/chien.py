@@ -11,7 +11,7 @@ from plotly.colors import qualitative
 from plotly.subplots import make_subplots
 from scipy.signal import resample_poly
 
-from egifa.data import get_meta_grouped, get_voiced_meta
+from egifa.data import get_meta_grouped
 from utils import __datadir__
 from utils.audio import fit_affine_lag_nrmse, power_spectrum_db
 from utils.matlab import (
@@ -106,6 +106,10 @@ def estimate_dgf_file(speech, fs, gci, goi, method="cp"):
     goi = np.asarray(goi, dtype=np.int64).reshape(-1)
     n = len(speech)
 
+    if method == "null":
+        rng = np.random.default_rng(0)
+        return rng.standard_normal(n).astype(np.float64)
+
     if method == "iaif":
         try:
             uu = MATLAB.iaif(
@@ -157,7 +161,7 @@ def _analysis_window_bounds(method, n_samples, fs):
     n = int(n_samples)
     fs = float(fs)
 
-    if method == "iaif":
+    if method in ("iaif", "null"):
         win = int(np.floor(0.032 * fs))
         hop = int(np.floor(0.016 * fs))
         if n < win:
@@ -245,6 +249,13 @@ def estimate_dgf_file_analysis_frames(speech, fs, gci, goi, method="cp"):
     goi = np.asarray(goi, dtype=np.int64).reshape(-1)
     n = len(speech)
 
+    if method == "null":
+        rng = np.random.default_rng(0)
+        uu = rng.standard_normal(n).astype(np.float64)
+        starts, stops = _analysis_window_bounds(method, n, fs)
+        frames = _frames_from_analysis_windows(method, fs, starts, stops, uu)
+        return uu, frames
+
     try:
         if method == "iaif":
             uu, _, Ts = MATLAB.iaif(
@@ -323,7 +334,7 @@ def native_frame_bounds(method, n_samples, fs=20000):
     n = int(n_samples)
     fs = float(fs)
 
-    if method == "iaif":
+    if method in ("iaif", "null"):
         win = int(np.floor(0.032 * fs))
         hop = int(np.floor(0.016 * fs))
         if n < win:
@@ -465,7 +476,7 @@ def _interp_group_field(v, key, t_frame, dtype):
     return np.interp(t_frame, t_group, y_group).astype(dtype)
 
 
-def _make_run_frame(v, mf, method, fs_src, fs_frame, dtype, restart_index):
+def _make_run_frame(v, mf, method, fs_src, fs_frame, dtype):
     t = _frame_t_samples_src(mf, fs_src=fs_src, fs_frame=fs_frame).astype(dtype)
 
     speech = _interp_group_field(v, "speech", t, dtype=dtype)
@@ -498,31 +509,23 @@ def _make_run_frame(v, mf, method, fs_src, fs_frame, dtype, restart_index):
         "oq": oq,
         "periods_ms": periods_ms,
         "frame_index": int(mf["frame_index"]),
-        "restart_index": int(restart_index),
         "method": method,
     }
 
 
 def get_voiced_runs_matlab(
-    method="cp",
-    path_contains=None,
+    groups,
+    method,  # one of "null", "iaif", "cp", "wca1", "wca2"
     fs_target=20000,
     speech_scale=1.0,
-    num_vi_restarts=1,
     dtype=np.float64,
-    **smooth_dgf_kwargs,
 ):
-    groups = list(
-        get_voiced_meta(path_contains=path_contains, **smooth_dgf_kwargs)
-    )
     groups_by_wav = defaultdict(list)
     for v in groups:
         groups_by_wav[v["wav"]].append(v)
 
     meta = get_meta_grouped()
     for m in meta:
-        if path_contains is not None and path_contains not in m["wav"]:
-            continue
         if m["wav"] not in groups_by_wav:
             continue
 
@@ -551,17 +554,15 @@ def get_voiced_runs_matlab(
                 if not _frame_inside_group(t_frame, t_group):
                     continue
 
-                for restart_index in range(num_vi_restarts):
-                    f = _make_run_frame(
-                        v,
-                        mf,
-                        method=method,
-                        fs_src=fs_src,
-                        fs_frame=fs_frame,
-                        dtype=dtype,
-                        restart_index=restart_index,
-                    )
-                    yield {"group": v, "frame": f}
+                f = _make_run_frame(
+                    v,
+                    mf,
+                    method=method,
+                    fs_src=fs_src,
+                    fs_frame=fs_frame,
+                    dtype=dtype,
+                )
+                yield {"group": v, "frame": f}
 
 
 def _as_ms(sample_idx, fs):
@@ -593,17 +594,19 @@ def _infer_pitch_from_frame(frame):
     return 1000.0 / np.mean(periods_ms)
 
 
-def _align_true_to_inferred(true_dgf, inferred_source, fs, maxlag):
+def _align_true_to_inferred(true_dgf, inferred_excitation, fs, maxlag):
     true_dgf = np.asarray(true_dgf, dtype=np.float64)
-    inferred_source = np.asarray(inferred_source, dtype=np.float64)
-    n = int(min(len(true_dgf), len(inferred_source)))
+    inferred_excitation = np.asarray(inferred_excitation, dtype=np.float64)
+    n = int(min(len(true_dgf), len(inferred_excitation)))
     true_dgf = true_dgf[:n]
-    inferred_source = inferred_source[:n]
+    inferred_excitation = inferred_excitation[:n]
     if n == 0:
         return np.asarray([], dtype=np.float64), np.nan
 
     try:
-        best, _ = fit_affine_lag_nrmse(true_dgf, inferred_source, maxlag=maxlag)
+        best, _ = fit_affine_lag_nrmse(
+            true_dgf, inferred_excitation, maxlag=maxlag
+        )
         aligned_true_dgf = np.asarray(best["aligned"], dtype=np.float64)
         lag_est_ms = 1e3 * float(best["lag"]) / float(fs)
     except Exception:
@@ -661,9 +664,9 @@ def post_process_run(run):
 
     try:
         best, _ = fit_affine_lag_nrmse(inferred_signal, true_dgf, maxlag=maxlag)
-        source_aligned_nrmse = float(best["nrmse"])
+        excitation_aligned_nrmse = float(best["nrmse"])
     except Exception:
-        source_aligned_nrmse = np.nan
+        excitation_aligned_nrmse = np.nan
 
     _, lag_est = _align_true_to_inferred(true_dgf, inferred_signal, fs, maxlag)
 
@@ -676,7 +679,7 @@ def post_process_run(run):
         "frame_index": frame["frame_index"],
         "oq_true": oq_true,
         "pitch_true": pitch_true,
-        "source_aligned_nrmse": source_aligned_nrmse,
+        "excitation_aligned_nrmse": excitation_aligned_nrmse,
         "lag_est": lag_est,
         "affine_lag_a": best["a"],
         "affine_lag_b": best["b"],
@@ -741,31 +744,31 @@ def plot_run(run):
         dgf, inferred_signal, maxlag
     )
 
-    f_source, p_source_db = power_spectrum_db(inferred_signal_spec, fs_model)
-    mask_source = (
-        np.isfinite(f_source) & np.isfinite(p_source_db) & (f_source > 0)
+    f_signal, p_signal_db = power_spectrum_db(inferred_signal_spec, fs_model)
+    mask_signal = (
+        np.isfinite(f_signal) & np.isfinite(p_signal_db) & (f_signal > 0)
     )
-    f_source_plot = f_source[mask_source]
-    p_source_db_plot = p_source_db[mask_source]
-    f_source_true, p_source_true_db = power_spectrum_db(dgf_spec, fs_model)
-    mask_source_true = (
-        np.isfinite(f_source_true)
-        & np.isfinite(p_source_true_db)
-        & (f_source_true > 0)
+    f_signal_plot = f_signal[mask_signal]
+    p_signal_db_plot = p_signal_db[mask_signal]
+    f_signal_true, p_signal_true_db = power_spectrum_db(dgf_spec, fs_model)
+    mask_signal_true = (
+        np.isfinite(f_signal_true)
+        & np.isfinite(p_signal_true_db)
+        & (f_signal_true > 0)
     )
-    f_source_true_plot = f_source_true[mask_source_true]
-    p_source_true_db_plot = p_source_true_db[mask_source_true]
+    f_signal_true_plot = f_signal_true[mask_signal_true]
+    p_signal_true_db_plot = p_signal_true_db[mask_signal_true]
 
     colors = qualitative.Plotly
     c_truth = colors[0]  # primary theme blue for ground truth
     c_inferred = colors[2]
 
-    source_xmax = 5000.0
-    if len(f_source_plot) and np.isfinite(np.max(f_source_plot)):
-        source_xmax = max(source_xmax, float(np.max(f_source_plot)))
-    if len(f_source_true_plot) and np.isfinite(np.max(f_source_true_plot)):
-        source_xmax = max(source_xmax, float(np.max(f_source_true_plot)))
-    source_xmax = max(50.5, source_xmax)
+    signal_xmax = 5000.0
+    if len(f_signal_plot) and np.isfinite(np.max(f_signal_plot)):
+        signal_xmax = max(signal_xmax, float(np.max(f_signal_plot)))
+    if len(f_signal_true_plot) and np.isfinite(np.max(f_signal_true_plot)):
+        signal_xmax = max(signal_xmax, float(np.max(f_signal_true_plot)))
+    signal_xmax = max(50.5, signal_xmax)
 
     harmonics = np.asarray([], dtype=np.float64)
     if np.isfinite(true_pitch) and true_pitch > 0:
@@ -775,41 +778,24 @@ def plot_run(run):
             harmonics = harmonics[
                 np.isfinite(harmonics)
                 & (harmonics >= 50.0)
-                & (harmonics <= min(5000.0, source_xmax))
+                & (harmonics <= min(5000.0, signal_xmax))
             ]
 
-    gf_panel_title = (
-        f"Frame detail: gf (estimated lag = {align_lag_ms:+.2f} ms)"
-        if np.isfinite(align_lag_ms)
-        else "Frame detail: gf (estimated lag = n/a)"
-    )
-    frame_duration_text = (
-        f"{frame_duration_ms:.2f} ms"
-        if np.isfinite(frame_duration_ms)
-        else "n/a"
-    )
-
     n_rows = 6
-    # Match OG plot_run() effective inter-row gap in pixels:
-    # OG uses 9 rows with vertical_spacing=0.045.
-    vertical_spacing = 0.045 * (9.0 / n_rows)
-    # Match OG legend-to-plot separation for fewer rows.
-    legend_y = -0.035 * (9.0 / n_rows)
-    margin_b = int(round(70 * (9.0 / n_rows)))
 
     fig = make_subplots(
         rows=n_rows,
         cols=1,
         shared_xaxes=False,
-        row_heights=[1.0, 1.0, 1.0, 1.0, 1.3, 1.0],
-        vertical_spacing=vertical_spacing,
+        row_heights=[1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+        vertical_spacing=0.05,
         subplot_titles=[
-            "File context: speech",
-            "File context: glottal flow",
-            f"Frame detail: speech ({frame_duration_text})",
-            gf_panel_title,
-            "Frame detail: dgf (aligned true / inferred signal)",
-            "Signal spectral envelope",
+            r"Data $x(t)$ in file context",
+            r"True $u(t)$ in file context",
+            r"Data $x(t)$",
+            r"True $u(t)$",
+            r"Estimated signal $s(t)$ vs true $u'(t)$",
+            r"Estimated signal spectral envelope $|S(f)|^2$ vs true $|U'(f)|$",
         ],
     )
     fig.update_annotations(yshift=6)
@@ -819,7 +805,7 @@ def plot_run(run):
             x=file_t_ms,
             y=speech_full,
             mode="lines",
-            name="file speech",
+            name="recording x(t)",
             line=dict(color=c_truth),
             showlegend=False,
         ),
@@ -831,7 +817,7 @@ def plot_run(run):
             x=file_t_ms,
             y=gf_full,
             mode="lines",
-            name="file gf",
+            name="recording u(t)",
             line=dict(color=c_truth),
             showlegend=False,
         ),
@@ -844,7 +830,7 @@ def plot_run(run):
             x=t_ms,
             y=speech,
             mode="lines",
-            name="frame speech",
+            name="frame x(t)",
             line=dict(color=c_truth),
             showlegend=False,
         ),
@@ -856,7 +842,7 @@ def plot_run(run):
             x=t_ms,
             y=gf,
             mode="lines",
-            name="frame gf",
+            name="frame u(t)",
             line=dict(color=c_truth),
             showlegend=False,
         ),
@@ -868,7 +854,7 @@ def plot_run(run):
             x=t_ms,
             y=aligned_true_dgf,
             mode="lines",
-            name="true dgf (aligned)",
+            name="aligned true u'(t)",
             line=dict(color=c_truth),
         ),
         row=5,
@@ -879,7 +865,7 @@ def plot_run(run):
             x=t_ms,
             y=inferred_signal,
             mode="lines",
-            name="inferred signal",
+            name="inferred signal s(t)",
             line=dict(color=c_inferred),
         ),
         row=5,
@@ -923,7 +909,7 @@ def plot_run(run):
                         size=6,
                         color=c_truth,
                     ),
-                    name="F0 harmonics up to 5 kHz",
+                    name="harmonics kF0 (up to 5 kHz)",
                     cliponaxis=False,
                     opacity=0.75,
                     showlegend=show_harmonic_legend,
@@ -954,10 +940,10 @@ def plot_run(run):
 
     fig.add_trace(
         go.Scatter(
-            x=f_source_true_plot,
-            y=p_source_true_db_plot,
+            x=f_signal_true_plot,
+            y=p_signal_true_db_plot,
             mode="lines",
-            name="source spectrum (true)",
+            name="aligned true spectrum |U'(f)|^2",
             line=dict(color=c_truth),
             showlegend=False,
         ),
@@ -966,10 +952,10 @@ def plot_run(run):
     )
     fig.add_trace(
         go.Scatter(
-            x=f_source_plot,
-            y=p_source_db_plot,
+            x=f_signal_plot,
+            y=p_signal_db_plot,
             mode="lines",
-            name="signal spectrum (inferred)",
+            name="inferred signal spectrum |S(f)|^2",
             line=dict(color=c_inferred),
             showlegend=False,
         ),
@@ -978,8 +964,8 @@ def plot_run(run):
     )
     add_envelope_decorations(
         row=6,
-        x_max=source_xmax,
-        y_series=[p_source_db_plot, p_source_true_db_plot],
+        x_max=signal_xmax,
+        y_series=[p_signal_db_plot, p_signal_true_db_plot],
         show_harmonic_legend=True,
     )
 
@@ -1036,23 +1022,23 @@ def plot_run(run):
             )
 
     fig.update_xaxes(
-        title_text="absolute time (ms): file/group context",
+        title_text=r"$t$ (ms)",
         title_standoff=2,
         automargin=True,
         row=2,
         col=1,
     )
     fig.update_xaxes(
-        title_text="absolute time (ms): frame detail",
+        title_text=r"$t$ (ms)",
         title_standoff=2,
         automargin=True,
         row=5,
         col=1,
     )
     fig.update_xaxes(
-        title_text="frequency (Hz)",
+        title_text=r"frequency $f$ (Hz)",
         type="log",
-        range=[np.log10(50.0), np.log10(source_xmax)],
+        range=[np.log10(50.0), np.log10(signal_xmax)],
         title_standoff=2,
         automargin=True,
         row=6,
@@ -1066,23 +1052,40 @@ def plot_run(run):
     fig.update_yaxes(title_text="amplitude", row=5, col=1)
     fig.update_yaxes(title_text="power (dB)", row=6, col=1)
 
+    if np.isfinite(align_lag_ms):
+        fig.add_annotation(
+            text=rf"$\Delta_{{\mathrm{{est}}}}={align_lag_ms:+.2f}\,\mathrm{{ms}}$",
+            x=1.0,
+            y=0.0,
+            xref="x4 domain",  # subplot 4 x-domain
+            yref="y4 domain",  # subplot 4 y-domain
+            xanchor="right",
+            yanchor="bottom",
+            showarrow=False,
+            font=dict(size=12),
+            bgcolor="rgba(255,255,255,0.75)",
+        )
+
+    filename = group["wav"].split("/")[-1]
+    main_title = (
+        "EGIFA | "
+        f"`{filename}` | "
+        f"`group {group['group']}` | "
+        f"`frame {frame['frame_index']}`"
+    )
+
     fig.update_layout(
         height=240 * n_rows,
         hovermode="x unified",
         title=dict(
-            text=(
-                "EGIFA | "
-                f"{group['name']} {group['f0_hz']} Hz | "
-                f"group {group['group']} | "
-                f"frame {frame['frame_index']}"
-            ),
+            text=main_title,
             pad=dict(b=14),
         ),
-        margin=dict(r=60, b=margin_b),
+        margin=dict(r=60, b=70),
         legend=dict(
             orientation="h",
             x=0.5,
-            y=legend_y,
+            y=-0.035,
             xanchor="center",
             yanchor="top",
             bgcolor="rgba(255,255,255,0.75)",
