@@ -20,6 +20,11 @@ TODO: separate vowel and speech: bimodality likely due to lower scores on speech
 
 Total time: 1550 min = 25 hr
 
+## Replication fuck up
+
+We had a bug in affine+lag alignment code: scoring and plotting called function with arguments reversed which was exposed when only allowing positive lags (GF must come before speech signal).
+This is now fixed. Investigation confirmed that current results are not dependent on: (P=24 or 20, sampling=Thompson or mean, lags=positive or negative)
+
 ## Important notes
 
 Chien+ (2017) use pair tests on (file level) and aggregate from cycles to file via median. Seems wasteful.
@@ -34,6 +39,19 @@ Our window size is quite too long for stable LPC coeffs, so need to check that t
 We can bootstrap lag_est: very stable distribution around -0.60 with 3sigma = 1 msec span; trimodal
 
 ## Results
+
+- Our PERFECTLY PERIODIC kernels with HIPSHOT MANUALLY SET HYPERPARAMS score very well on `vowel` dataset
+  * Even periodickernel does a great job
+  * All performances with smoothness >= pack:1 are very similar
+  * SOTA
+
+- They perform badly (worse than SOTA) on `speech`dataset because
+  * Long window => needs quasiperiodicity at least
+  * Long window => harder to track LP coeffs
+  * SOTA uses 32 msec windows
+  * Very low rank is used
+
+- Bimodality MAINLY comes from `vowel` vs `speech` performance
 
 - ECDF view shows absolute performance against a null
   * and neutralizes effects from the equivalence class: bimodality disappears

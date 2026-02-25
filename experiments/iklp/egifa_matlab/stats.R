@@ -50,6 +50,18 @@ df <- runs[
         ggtitle("Scores per method")
 ) |> ggplotly()
 
+# %%
+# vowel vs speech
+(
+    ggplot(df) +
+        geom_density(aes(x = score, fill = collection), alpha = 0.3) +
+        facet_wrap(~method) +
+        ggtitle("Scores per collection")
+) |> ggplotly()
+
+
+# %%
+
 # (score, oq_true) distribution per method
 # Strong influence compared to egifa_stationary kernels!
 df_small <- df[sample(.N, min(.N, 5000))]

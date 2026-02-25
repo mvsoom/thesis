@@ -54,6 +54,18 @@ df <- runs[
             ggtitle("Scores per kernel")
 ) |> ggplotly()
 
+# %%
+# vowel vs speech
+(
+    ggplot(df) +
+        geom_density(aes(x = score, fill = collection), alpha = 0.3) +
+        facet_wrap(~kernel) +
+        ggtitle("Scores per collection")
+) |> ggplotly()
+
+
+# %%
+
 # (score, oq_true) distribution per kernel
 # little influence
 df_small <- df[sample(.N, min(.N, 5000))]
