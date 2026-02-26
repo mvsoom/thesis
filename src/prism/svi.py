@@ -11,7 +11,6 @@ from scipy.stats import ecdf
 from tqdm import tqdm
 
 from prism.pack import NormalizedPACK
-from prism.t_svi import t_batch_collapsed_elbo_masked
 from utils.jax import nocheck, safe_cholesky
 
 
@@ -59,6 +58,28 @@ def init_Z_inverse_ecdf(key, M, X):
     return jnp.interp(u, res.cdf.probabilities, res.cdf.quantiles)[:, None]
 
 
+def num_inducing(q):
+    return q.num_inducing
+
+
+def compute_Kzz(q):
+    if hasattr(q, "compute_Kuu"):  # interdomain
+        return q.compute_Kuu()
+    else:  # standard
+        Z = q.inducing_inputs
+        Kzz = q.posterior.prior.kernel.gram(Z).to_dense()
+        return Kzz
+
+
+def compute_Kzx(q, x):
+    if hasattr(q, "compute_Kuf"):  # interdomain
+        return q.compute_Kuf(x)
+    else:  # standard
+        Z = q.inducing_inputs
+        Kzx = q.posterior.prior.kernel.cross_covariance(Z, x)
+        return Kzx
+
+
 def collapsed_elbo_masked(q, t, y):
     """
     Collapsed Titsias (2009) ELBO for a single waveform (t, y) with NaN-masked padding.
@@ -91,15 +112,11 @@ def collapsed_elbo_masked(q, t, y):
 
     # Model
     kernel = q.posterior.prior.kernel
-    Z = q.inducing_inputs
     sigma2 = q.posterior.likelihood.obs_stddev**2
 
-    M = Z.shape[0]
-
     # Kernel matrices
-    Kzz = kernel.gram(Z).to_dense()
-
-    Kzx = kernel.cross_covariance(Z, t)  # [M,W]
+    Kzz = compute_Kzz(q)
+    Kzx = compute_Kzx(q, t)  # [M,W]
     Kxx_diag = jax.vmap(kernel, in_axes=(0, 0))(t, t)  # [W]
 
     # Apply mask
@@ -114,7 +131,7 @@ def collapsed_elbo_masked(q, t, y):
     )  # [M,W]
 
     AAT = A @ A.T
-    B = jnp.eye(M) + AAT
+    B = jnp.eye(num_inducing(q)) + AAT
     L = safe_cholesky(B, jitter=jitter)
 
     log_det_B = 2.0 * jnp.sum(jnp.log(jnp.diagonal(L)))
@@ -215,6 +232,7 @@ def optimize(key, model, dataset, lr, batch_size, num_iters, **fit_kwargs):
         if not hasattr(q, "nu"):
             return -batch_collapsed_elbo_masked(q, d, N)  # PRISM
         else:
+            from prism.t_svi import t_batch_collapsed_elbo_masked
             return -t_batch_collapsed_elbo_masked(q, d, N)  # t-PRISM
 
     fitted, cost_history = gpx.fit(
@@ -291,18 +309,15 @@ def infer_eps_posterior_single(q, t_row, y_row):
     y = jnp.where(mask_w[:, None], y, 0.0)
 
     # Model
-    kernel = q.posterior.prior.kernel
-    Z = q.inducing_inputs
     sigma2 = q.posterior.likelihood.obs_stddev**2
-
-    M = Z.shape[0]
+    M = num_inducing(q)
 
     # Psi(t)
-    Kzz = kernel.gram(Z).to_dense()
+    Kzz = compute_Kzz(q)
     Kzz = Kzz + jitter * jnp.eye(M)
     Lzz = safe_cholesky(Kzz, jitter=jitter)
 
-    Kzx = kernel.cross_covariance(Z, t)  # [M,W]
+    Kzx = compute_Kzx(q, t)  # [M,W]
     Kzx = Kzx * mask_w[None, :]  # drop padded points
 
     Psi = jsp.linalg.solve_triangular(Lzz, Kzx, lower=True).T  # [W,M]
@@ -367,11 +382,9 @@ def gp_posterior_mean_from_eps(q, t_star, mu_eps):
     mu_eps : [M]
     """
     jitter = q.jitter
-    kernel = q.posterior.prior.kernel
-    Z = q.inducing_inputs
 
     # Kzz and its Cholesky
-    Kzz = kernel.gram(Z).to_dense()
+    Kzz = compute_Kzz(q)
     Lzz = safe_cholesky(Kzz, jitter=jitter)
 
     # E[u | y]
@@ -379,7 +392,7 @@ def gp_posterior_mean_from_eps(q, t_star, mu_eps):
 
     # K_{t*Z}
     t_star = t_star[:, None]
-    KtZ = kernel.cross_covariance(t_star, Z)  # [T,M]
+    KtZ = compute_Kzx(q, t_star).T  # [T,M]
 
     # posterior mean
     f_mean = KtZ @ jsp.linalg.solve(Kzz, u_mean)
@@ -388,16 +401,13 @@ def gp_posterior_mean_from_eps(q, t_star, mu_eps):
 
 
 def svi_basis(q, t):
-    kernel = q.posterior.prior.kernel
-    Z = q.inducing_inputs.value
-
-    Kmm = kernel.gram(Z).to_dense()
-    Lzz = safe_cholesky(Kmm)  # Kmm = Lzz @ Lzz.T
+    Kzz = compute_Kzz(q)
+    Lzz = safe_cholesky(Kzz)  # Kmm = Lzz @ Lzz.T
 
     x = jnp.asarray(t).reshape(1, -1)
-    Kxz = kernel.cross_covariance(x, Z)
+    Kzx = compute_Kzx(q, x)
     return jax.scipy.linalg.solve_triangular(
-        Lzz, Kxz.T, lower=True
+        Lzz, Kzx, lower=True
     ).squeeze()  # psi = Lzz^{-1} Kzx
 
 # %%

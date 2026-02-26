@@ -3,6 +3,8 @@ import jax.numpy as jnp
 import jax.scipy as jsp
 from gpjax.variational_families import CollapsedVariationalGaussian
 
+from prism.spectral import SGMCollapsedVariationalGaussian
+from prism.svi import compute_Kzx, compute_Kzz, num_inducing
 from utils.jax import safe_cholesky
 
 
@@ -53,14 +55,11 @@ def _collapsed_gaussian_stats(q, t, y, w):
     w = jnp.where(mask, w, 0.0)
 
     kernel = q.posterior.prior.kernel
-    Z = q.inducing_inputs
     sigma2 = q.posterior.likelihood.obs_stddev**2
 
-    M = Z.shape[0]
-
     # Kernel blocks
-    Kzz = kernel.gram(Z).to_dense()
-    Kzx = kernel.cross_covariance(Z, t)
+    Kzz = compute_Kzz(q)  # [M,M]
+    Kzx = compute_Kzx(q, t)  # [M,W]
     Kxx_diag = jax.vmap(kernel, in_axes=(0, 0))(t, t)
 
     Kzx = Kzx * mask_w[None, :]
@@ -75,7 +74,7 @@ def _collapsed_gaussian_stats(q, t, y, w):
     A = (Psi * sw.T) / jnp.sqrt(sigma2)  # [M,W]
 
     AAT = A @ A.T
-    B = jnp.eye(M) + AAT
+    B = jnp.eye(num_inducing(q)) + AAT
     L = safe_cholesky(B, jitter=jitter)
 
     # Posterior mean of eps
@@ -86,7 +85,7 @@ def _collapsed_gaussian_stats(q, t, y, w):
     )
 
     # Posterior covariance of eps
-    Sigma_eps = jsp.linalg.cho_solve((L, True), jnp.eye(M))
+    Sigma_eps = jsp.linalg.cho_solve((L, True), jnp.eye(num_inducing(q)))
 
     # Posterior moments of f
     m = Psi.T @ mu_eps  # [W,1]
@@ -154,6 +153,12 @@ class t_CollapsedVariationalGaussian(CollapsedVariationalGaussian):
 
         self.num_inner = num_inner  # static
         self.nu = nu  # static (for now)
+
+
+class t_SGMCollapsedVariationalGaussian(
+    SGMCollapsedVariationalGaussian, t_CollapsedVariationalGaussian
+):
+    pass
 
 
 def t_collapsed_elbo_masked(q: t_CollapsedVariationalGaussian, t, y):
