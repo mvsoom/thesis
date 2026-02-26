@@ -134,25 +134,43 @@
   // Bibliography is not optional even though it is `none` here. See the comment
   // below.
   bibliography: none,
+  algorithms-overview: none,
+  algorithms: none,
   appendices: none,
   body,
 ) = {
   set document(title: title, author: author)
   set page(width: 8.5in, height: 11in, number-align: right)
   set text(font: "Libertinus Serif", size: 12pt)
+  set math.equation(numbering: "(1)", supplement: none)
   show heading.where(level: 1): it => {
     pagebreak(weak: true)
     it
   }
   // See https://stackoverflow.com/a/79734315/17729094
   show ref: it => {
+    if it.element != none and it.element.func() == math.equation {
+      return link(it.target)[(#it)]
+    }
+
     let el = it.element
-    if el == none or el.func() != heading or el.level != 2 or el.supplement != [Appendix] {
+    if el == none or el.func() != heading or el.level != 2 {
       return it
     }
-    let lvl = counter(heading).at(el.location()).at(1)
-    let body = el.supplement + numbering(" A", lvl)
-    link(el.location(), body)
+
+    if el.supplement == [Appendix] {
+      let lvl = counter(heading).at(el.location()).at(1)
+      let body = el.supplement + numbering(" A", lvl)
+      return link(el.location(), body)
+    }
+
+    if el.supplement == [Algorithm] {
+      let lvl = counter(heading).at(el.location()).at(1)
+      let body = el.supplement + numbering(" 1", lvl)
+      return link(el.location(), body)
+    }
+
+    it
   }
 
   title-page(
@@ -244,6 +262,64 @@
   set heading(numbering: "1.")
   body
 
+  if algorithms != none and algorithms != [] {
+    heading("Algorithms", numbering: none)
+
+    if algorithms-overview != none and algorithms-overview != [] {
+      [
+        #set heading(
+          // Allow users to write an overview as a level 1 heading, but then
+          // treat it as level 2 under the "Algorithms" heading without
+          // algorithm numbering.
+          offset: 1,
+          numbering: none,
+          supplement: none,
+        )
+        #algorithms-overview
+      ]
+    }
+
+    // Given that the algorithms heading has no numbering, the following
+    // algorithms will inherit the subsection counter from the previous section.
+    // Reset after the optional overview so Algorithm numbering always starts at 1.
+    counter(heading).update(0)
+
+    let numbering_format = "1.1."
+
+    [
+      #set heading(
+        // Allow users to write each algorithm as a level 1 heading, but then
+        // treat them magically as level 2 under the "Algorithms" (level 1)
+        // heading.
+        offset: 1,
+        // See https://stackoverflow.com/a/79734315/17729094
+        numbering: (_, ..rest) => numbering(numbering_format, ..rest),
+        supplement: [Algorithm],
+      )
+      // Each algorithm should start on a new page, but the first one should not
+      // start with a pagebreak i.e. it should be right after the "Algorithms"
+      // heading. If an overview exists, then Algorithm 1 starts on a new page.
+      #let has-overview = algorithms-overview != none and algorithms-overview != []
+      #let s = state("after-first-algorithm", has-overview)
+      #show heading.where(level: 2): it => {
+        if it.supplement != [Algorithm] {
+          return it
+        }
+
+        if s.get() {
+          pagebreak(weak: true)
+        }
+        context {
+          let level = counter(heading).get().at(1)
+          [Algorithm #numbering(numbering_format, level) #it.body]
+        }
+        s.update(true)
+      }
+
+      #algorithms
+    ]
+  }
+
   // The bibliography is not optional, but using the same pattern as the other
   // non-optional sections (default to random refs to make users aware) would
   // require me to add an empty `refs.bib` file to the template, which I don't
@@ -273,7 +349,7 @@
     // Each appendix should start on a new page, but the first one should not
     // start with a pagebreak i.e. it should be right after the "Appendices"
     // heading.
-    let s = state("after-first", false)
+    let s = state("after-first-appendix", false)
     show heading.where(level: 2): it => {
       if s.get() {
         pagebreak(weak: true)

@@ -95,6 +95,11 @@
   acknowledgments: include "./meta/acknowledgments.typ",
   dedication: none,
   bibliography: bibliography("library.bib", style: "apa"),
+  algorithms: [
+    #include "./algorithm/prism.typ"
+    #include "./algorithm/prism-rff.typ"
+    #include "./algorithm/t-prism.typ"
+  ],
   // Also optional. If you don't have any appendices, you can delete this.
   // Same as all other sections, you can just include the content here from a
   // separate file.
@@ -105,8 +110,6 @@
     #include "./appendix/nonparametric-gfm.typ"
     #include "./appendix/gps.typ"
     #include "./appendix/related-contributions.typ"
-    #include "./appendix/prism.typ"
-    #include "./appendix/t-prism.typ"
   ],
 )
 
@@ -120,15 +123,6 @@
   numbering: "(1)",
   supplement: none,
 )
-#show ref: it => {
-  // provide custom reference for equations
-  if it.element != none and it.element.func() == math.equation {
-    // optional: wrap inside link, so whole label is linked
-    link(it.target)[(#it)]
-  } else {
-    it
-  }
-}
 
 #show figure.caption: set align(left)
 

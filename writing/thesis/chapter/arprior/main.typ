@@ -8,355 +8,207 @@
 = Priors for autoregressive filters
 <chapter:arprior>
 
-/*
-Before writing, see obsidian://open?vault=vault&file=projects%2Fthesis%2FAR%2Fregularization
-*/
+The vocal tract filter is modeled throughout this thesis as an AR($P$) process: a rational all-pole transfer function whose $P$ coefficients $bm(a) = (a_1, dots, a_P)^top$ encode the resonant structure of the vocal tract.
+Estimating $bm(a)$ from speech data is done traditionally by LPC methods, or in our case, by IKLP.
+Like any Bayesian model, IKLP requires a prior $p(bm(a))$, and throughout their paper #pcite(<Yoshii2013>) use a simple isotropic Gaussian $bm(a) ~ mono("Normal")(bm(0), lambda bm(I)_P)$ with $lambda = 0.1$.
+This choice is openly acknowledged to be a regularizer rather than an informative prior: its job is to prevent the normal matrix from becoming singular, not to encode anything about the vocal tract.
 
-IKLP requires a Gaussian prior $p(bm(a))$.
-We've shown in IKLP that setting priors can greatly damage or enhance VI runs.
+Two things about this are unsatisfying.
+First, an isotropic Gaussian with $lambda = 0.1$ means $sigma_a^2 = 10$, a standard deviation of about $3.16$ per coefficient — a very loose prior under which the AR filter will almost surely be unstable.
+Second, we actually know a great deal about vocal tract filters: their resonances are spaced roughly $500$~Hz apart, their spectral rolloff is controlled by a handful of dominant poles, and the filter bm(mu)st be causal and passive.
+None of this is encoded in $mono("Normal")(bm(0), 0.1 bm(I)_P)$.
 
-Can we do better than the standard $bm(I)_P$ isotropic Gaussian?
-Some lore around which ones to use.
+This chapter develops two priors that attempt to do better.
+The first, the _Monahan prior_, is the closest Gaussian to the uniform distribution over stable AR coefficient vectors; it is derived by moment matching and gives a principled explanation of the empirical $sigma_a^2 prop 1/P$ lore.
+The second, the _soft spectral shaping prior_, is a new construction that encodes arbitrary spectral features — resonances, rolloff, formant locations — directly into the prior mean and covariance through a closed-form projection.
+Both priors remain Gaussian and are therefore conjugate with IKLP's variational inference without modification.
 
-In _general context_ we find that quite often this leads to unstable filters.
-- We show that this problem can be reduced greatly by fitting Monohan map
+== The isotropic prior
 
-In _speech context_ we have plenty of information about the vocal-tract filter, such as resonances spaced about 500 Hz apart
-- We introduce a general framework to "expect" arbitrary spectral features
+=== A problem: power blows up linearly in $P$
 
-Both contexts can be combined into the prior for the AR model of the vocal tract filter.
-
-We also do a study of spectral rolloff for the first time and find that this is consistent with being flat. // old thesis: spectral rolloff measurement from database
-
-== Problems with standard isotropic priors
-
-Stability
-
-Lore and heuristics
-
-/*
-Next subsection is copy pasted from scrap/pacf.typ
-*/
-
-== Stable Gaussian Priors for AR($P$) Coefficients
-<stable-gaussian-priors-for-arp-coefficients>
-via Moment Matching of a Uniform PACF Law
-
-=== Abstract
-<abstract>
-Sampling the partial–autocorrelation function (PACF) uniformly on
-$(- 1 , 1)^P$ generates only covariance–stationary autoregressive (AR)
-coefficient vectors. We derive the #emph[unique] Gaussian distribution
-$p (a divides mu , Sigma) = cal(N) (a divides mu , Sigma)$ that
-minimises the Kullback–Leibler divergence
-$D_(upright(K L)) #scale(x: 120%, y: 120%)[\(] q thin parallel thin p #scale(x: 120%, y: 120%)[\)]$,
-where $q$ is the PACF push–forward law. The optimum has $mu^star.op = 0$
-by symmetry and $Sigma^star.op = bb(E)_q [a thin a^tack.b]$, the second
-moment of $q$. Because the optimisation is convex, $Sigma^star.op$ is
-the global solution. We also discuss Monte–Carlo estimation of
-$Sigma^star.op$ and how the resulting covariance clarifies empirical
-shrinkage rules such as $lambda prop 1 \/ P$ in isotropic priors.
-
-=== Background: stability and the Monahan map
-<background-stability-and-the-monahan-map>
-For an AR($P$) process
-
-$ x_t = sum_(p = 1)^P a_p thin x_(t - p) + epsilon_t , #h(2em) epsilon_t tilde.op cal(N) (0 , sigma^2) , $
-
-covariance stationarity holds iff the roots of
-$1 - sum_(p = 1)^P a_p z^p$ lie inside the unit disk. The recursion of #pcite(<Monahan1984>) provides a smooth bijection
-
-$ T : (- 1 , 1)^P #h(0em) arrow.r #h(0em) cal(A)_P subset bb(R)^P , #h(2em) a = T (phi.alt) , $
-
-where $phi.alt = (phi.alt_1 , dots.h , phi.alt_P)$ are PACF parameters
-and $cal(A)_P$ is the stability region. Drawing
-$phi.alt_i tilde.op^(upright("iid")) upright(U n i f) [- 1 , 1]$
-therefore yields only admissible $a$.
-
-=== KL objective and global optimum
-<kl-objective-and-global-optimum>
-Let $q$ be the density of $a = T (phi.alt)$ under the uniform PACF draw.
-We minimise
-
-$ D_"KL"(q thin parallel thin p_(mu , Sigma) ) = bb(E)_q #scale(x: 120%, y: 120%)[\[] log q (a) - log p_(mu , Sigma) (a) #scale(x: 120%, y: 120%)[\]] , #h(2em) p_(mu , Sigma) (a) = cal(N) (a divides mu , Sigma) . $
-
-Terms involving $log q$ do not depend on $(mu , Sigma)$. Writing the
-second moment $S_q := bb(E)_q [a thin a^tack.b]$ and expanding
-$log p_(mu , Sigma)$ gives the objective
-
+To understand why $lambda = 0.1$ is potentially dangerous, consider what an isotropic Gaussian prior does to the expected output power of the AR system.
+For an AR($P$) filter driven by unit-power white noise, the output power is determined by the frequency response $H(e^(i omega)) = 1 \/ A(e^(i omega))$ where $A(z) = 1 - sum_(p=1)^P a_p z^(-p)$.
+For small $|a_p|$, a Taylor expansion of $|H(e^(j omega))|^2$ around the zero-coefficient filter gives
 $
-  F(mu,Sigma)= 1/2
-    (
-      "logdet" Sigma
-      + tr Sigma^(-1) S_q
-      +(mu-bb(E)_q[a])^top Sigma^(-1)(mu- bb(E)_q[a]))
-    + "const."
+  |H(e^(j omega))|^2 approx 1 + 2 sum_(p=1)^P a_p cos(p omega) + sum_(p=1)^P sum_(ell=1)^P a_p a_ell cos(p omega) cos(ell omega) + dots
 $
-
-==== Optimal mean
-<optimal-mean>
-Uniformity of $phi.alt$ is sign–symmetric and the Monahan map is odd in
-each coordinate, hence $bb(E)_q [a] = 0$; the quadratic term is
-minimised by
-
-$ mu^star.op = 0 . $
-
-==== Optimal covariance
-<optimal-covariance>
-Setting $mu = 0$, differentiate $F$ with respect to $Sigma$:
-
-$ nabla_Sigma F = 1 / 2 Sigma^(- 1) S_q Sigma^(- 1) - 1 / 2 Sigma^(- 1) = 0 #h(0em) #h(0em) arrow.r.double #h(0em) #h(0em) Sigma^star.op = S_q . $
-
-==== Global optimality
-<global-optimality>
-Parameterise by the precision $Lambda = Sigma^(- 1)$. Then
-
+Taking the expectation over the prior $bm(a) ~ mono("Normal")(bm(0), sigma_a^2 bm(I))$ and using $bb(E)[a_p] = 0$, the cross-terms vanish and the expected spectral power becomes
 $
-  bb(E)\q [log p_(0,Lambda^(-1))(a)]
-  =-1/2 "tr" (Lambda S_q)+ 1/2 "logdet" Lambda + "const."
+  bb(E)_bm(a) [|H(e^(j omega))|^2] approx 1 + sigma_a^2 sum_(p=1)^P cos^2(p omega).
 $
+Integrating over frequency and applying Parseval's identity gives the expected output variance
+$
+  bb(E)["var"(x)] approx 1 + P/2 sigma_a^2.
+$ <eq:power-blowup>
+With $P = 30$ and $sigma_a^2 = 10$ as in #pcite(<Yoshii2013>), this gives an expected variance of $1 + 150 = 151$: the prior is blowing up the expected power by two orders of magnitude.
+Even a seemingly modest loosening to $sigma_a^2 = 0.05$ gives $bb(E)["var"(x)] = 1.75$, a 75% inflation.
+The lesson from @eq:power-blowup is direct: to keep power approximately controlled under an isotropic prior, one needs $sigma_a^2 prop 1/P$.
+This is the principled origin of the empirical "$lambda prop P$" or "$sigma_a^2 prop 1/P$" lore that one can see from time to time in the signal processing literature.
 
-The trace term is linear in $Lambda$ and $log det Lambda$ is concave, so
-the objective is concave in $Lambda$. Maximising a concave function over
-$Lambda succ 0$ is a convex problem, hence the stationary point
-$Sigma^star.op$ is the #emph[global] minimiser of the KL divergence.
+=== Stability
 
-=== Monte–Carlo estimation of $Sigma^star.op$
-<montecarlo-estimation-of-sigmastar>
-Generate $N$ draws
-$phi.alt^((n)) tilde.op^(upright("iid")) upright(U n i f) [- 1 , 1]^P$
-and let $a^((n)) = T (phi.alt^((n)))$. The unbiased estimator
+Beyond power, there is a more fundamental problem: a generic isotropic Gaussian places most of its mass outside the stability region $cal(A)_P subset bb(R)^P$, which is the set of coefficient vectors for which all roots of $A(z) = 1 - sum_p a_p z^(-p)$ lie strictly inside the unit disk.
+For $P = 1$ the stability region is the interval $(-1, 1)$, and a unit Gaussian already places about 32% of its mass outside.
+For larger $P$ the stability region is a complicated polytope and the fraction of unstable draws grows rapidly.
+The posterior from IKLP is a regularized normal equation, so it can still produce stable estimates from stable data, but a prior that actively prefers unstable filters is working against the inference from the start and makes optimization fragile.
 
-$ hat(Sigma) = 1 / N sum_(n = 1)^N a^((n)) a^((n) tack.b) $
+== The Monahan prior
+<sec:monahan-prior>
 
-converges at the usual $cal(O) (N^(- 1 \/ 2))$ rate. Variance may be
-reduced further by quasi–Monte Carlo (Sobol/Halton), Latin–hypercube
-sampling, or simple control variates.
+=== The Monahan map
 
-=== Implications for popular shrinkage rules
-<implications-for-popular-shrinkage-rules>
+A classical result from time series analysis @Monahan1984 is that the partial autocorrelation function (PACF) parameters $bm(phi) = (phi_1, dots, phi_P)^top$ provide a smooth bijection between the hypercube $(-1, 1)^P$ and the stability region $cal(A)_P$:
+$
+  T : (-1, 1)^P -> cal(A)_P, quad bm(a) = T(bm(phi)).
+$
+Drawing $phi_p ~^("iid") mono("Uniform")[-1, 1]$ therefore produces only stable AR coefficient vectors.
+The push-forward of this uniform PACF draw defines a distribution $q$ on $cal(A)_P$ that is the natural "uniform over stable filters" measure.
 
-// Note: I cant find any references to "1/P" folklore in chatgpt history so we have to do a new lit search with gpt
-A common heuristic prior is isotropic
+=== Moment matching as KL minimization
 
-$ p (a) = cal(N) ( a divides 0 , lambda I_P ) $
+We want the best Gaussian approximation to $q$.
+Minimizing $D_"KL" (q || p_(bm(mu), bm(Sigma)))$ over all $mono("Normal")(bm(mu), bm(Sigma))$ is a convex problem in the precision $bm(Sigma)^(-1)$, and the unique global minimizer is the moment-matched Gaussian:
+$
+  bm(mu)^* = bb(E)_q [bm(a)] = bm(0), quad bm(Sigma)^* = bb(E)_q [bm(a) bm(a)^top] =: bm(S)_q.
+$ <eq:monahan-prior>
+The mean is zero by the sign-symmetry of the uniform PACF law and the fact that the Monahan map is odd in each coordinate.
+The covariance $bm(S)_q$ is the second moment of the push-forward distribution and captures the full geometry of the stability region within Gaussian capacity.
 
-with $lambda prop 1 \/ P$ or, in some empirical Bayes treatments,
-$lambda prop 1 \/ P^2$. Moment matching provides the (seemingly) first
-principled derivation of #emph[why] such scalings arise:
+=== Computing $bm(S)_q$ and its structure
 
-- For large $P$, the diagonal of $Sigma^star.op$ shrinks roughly like
-  $1 \/ P$ because each coordinate $a_p$ is a bounded random transform
-  of a uniform PACF parameter.
-- Off–diagonal (lag–to–lag) correlations in $Sigma^star.op$ concentrate
-  additional mass inside the stability region, explaining why the naive
-  isotropic prior must shrink even harder (occasionally down to
-  $1 \/ P^2$) to avoid unstable draws.
+$bm(S)_q$ has no closed form but is easy to estimate by Monte Carlo: draw $N$ samples $bm(phi)^((n)) ~^("iid") mono("Uniform")[-1,1]^P$, compute $bm(a)^((n)) = T(bm(phi)^((n)))$, and average the outer products,
+$
+  hat(bm(S))_q = 1/N sum_(n=1)^N bm(a)^((n)) bm(a)^((n) top).
+$
+This converges at $cal(O)(N^(-1\/2))$ and can be precomputed for any desired $P$ and tabulated.#footnote[Variance reduction via quasi-Monte Carlo (Sobol or Halton sequences) or Latin hypercube sampling is straightforward and reduces the required $N$ by an order of magnitude in practice.]
 
-Hence $Sigma^star.op$ not only recovers the familiar $1 \/ P$ law but
-also quantifies the #emph[full] covariance structure that the heuristic
-ignores.
+Plotting the diagonal of $bm(S)_q$ reveals a clean decay: higher-lag coefficients $a_p$ are increasingly shrunk toward zero.
+This is physically sensible — the stability region genuinely constrains high-order coefficients more tightly than low-order ones — and it is the feature that purely isotropic priors miss entirely.
+The diagonal of $bm(S)_q$ also decays roughly as $1/p$, recovering the $1/P$ variance scaling as an average over lags rather than a single global shrinkage.
 
-Another reason for $1\/P$ covariance matrix scaling is because power roughly goes as $1 + P/2 sigma^2$, so to keep that constant we need $sigma^2 prop 1/P$; this is derived in Obsidian notes: /* obsidian://open?vault=vault&file=projects%2Fthesis%2FAR%2Fregularization */
+=== A note on the Padé tension
+<sec:pade-tension>
 
-=== Decay behavior: dampening
-<decay-behavior-dampening>
-Plotting $"diag" (Sigma^(\*))$ reveals non-trivial structure, but with a
-clear decay as $p$ grows. Thus for any $P$ higher order AR coefficients
-are dampened.
+The Monahan prior rests on the assumption that $A(z)$ is a genuine causal stable filter.
+In the source-filter model of speech this is physically motivated: the vocal tract is a passive acoustic resonator and its transfer function bm(mu)st have poles inside the unit disk.
+From this viewpoint, the Monahan prior is exactly right.
 
-=== Discussion on PACF prior
-<discussion-on-pacf-prior>
-A prior is proposed that captures stationarity optimally within Gaussian
-capacities. Moment matching yields a closed form that captures all
-second–order geometry of the stability region and the solution is a
-simple Monte Carlo integral which can be tabulated for all $P$.
-Pleasantly, the prior exhibits much-needed damping of higher order $a_p$
-coefficients. The connection to shrinkage rules is yet to be
-investigated.
+There is a worthy competing viewpoint, however.
+The AR polynomial $A(z)$ of order $P$ can also be read as a classical Padé approximation to whatever the true underlying transfer function happens to be — a rational expansion that is only approximately physical and whose poles are not expected a priori to coincide with the true formants one-to-one @Stevens2000.
+Under this reading, enforcing strict stability through the prior imposes a constraint that is an artifact of the approximation order rather than a physical necessity, and one might prefer to keep the coefficient space as free as possible.
 
-=== Bring in the spectral features: Constrained KL optimisation with linear moment conditions
-<bring-in-the-spectral-features-constrained-kl-optimisation-with-linear-moment-conditions>
-#strong[#emph[Joint optimization with soft divisibility constraints is
-also possible:];]
+We take no strong position here, since both views have merit and the right choice likely depends on the pitch and phonation type of the frame being analyzed.
+What we can say is that for the soft spectral shaping prior developed in the next section, the two views are not in conflict: the spectral shaping construction is purely about the prior mean and leaves the covariance free to be either $bm(S)_q$ (from Monahan) or $sigma_a^2 bm(I)_P$ (isotropic), depending on which philosophical stance one takes.
 
-So far we minimised \
-$ D_(upright(K L)) #h(-1em) #scale(x: 120%, y: 120%)[\(] q thin parallel thin cal(N) (mu , Sigma) #scale(x: 120%, y: 120%)[\)] $
-\
-without additional restrictions. Suppose instead we require the
-#emph[approximating Gaussian] itself to satisfy a linear moment
-condition \
-$ bb(E)_p [f (a)] = 0 , #h(2em) f (a) = C a + d , $ \
-that is, \
-$ C mu + d = 0 . $
+== Soft spectral shaping priors
+<sec:soft-spectral-shaping>
 
-==== Solution form
-<solution-form>
-Let $S := bb(E)_q [a thin a^tack.b]$ with $bb(E)_q [a] = 0$. The
-constrained optimum has:
+Suppose we want the prior to encode the expectation that the AR filter has a resonance near $500$~Hz, or that its spectrum rolls off at a particular rate, or that it has a formant structure typical of a particular vowel.
+None of these beliefs fit naturally into a Gaussian prior $mono("Normal")(bm(0), bm(Sigma))$ with any standard choice of $bm(Sigma)$.
+The soft spectral shaping prior is a construction that embeds exactly these beliefs — encoded as desired root locations of $A(z)$ — into the prior mean through a closed-form linear projection.
 
-- #strong[Mean:] \
-  $ mu^star.op = arg min_(C mu = - d) #h(0em) mu^tack.b S^(- 1) mu = - thin S thin C^tack.b #scale(x: 120%, y: 120%)[\(] C S C^tack.b #scale(x: 120%, y: 120%)[\)]^(- 1) d , $
-  assuming $C S C^tack.b$ is invertible. Otherwise use a pseudoinverse
-  and take the minimum–$S^(- 1)$–norm feasible $mu$.
+=== Spectral features as divisibility conditions
 
-- #strong[Covariance:] \
-  $ Sigma^star.op = S + mu^star.op mu^star.op^tack.b . $
-
-==== Derivation sketch
-<derivation-sketch>
-For fixed $mu$, the KL objective in $Sigma$ is minimised by
-$Sigma = S + mu mu^tack.b$. Using the determinant lemma and
-Sherman–Morrison identity, \
-$ "tr" (Sigma^(- 1) S) + mu^tack.b Sigma^(- 1) mu = P , $ \
-so the objective reduces to \
-$ 1 / 2 log det (S) + 1 / 2 log #h(-1em) #scale(x: 120%, y: 120%)[\(] 1 + mu^tack.b S^(- 1) mu #scale(x: 120%, y: 120%)[\)] + upright("const") . $
-\
-Hence one only needs to minimise $mu^tack.b S^(- 1) mu$ under
-$C mu = - d$, giving the expression above.
-
-==== Remarks
-<remarks>
-- If $d = 0$ (homogeneous constraint) then $mu^star.op = 0$,
-  $Sigma^star.op = S$, i.e.~the original unconstrained solution. \
-- The covariance is always a rank–1 inflation of $S$, reflecting the
-  fact that enforcing a nonzero mean requires additional spread in the
-  Gaussian. \
-- The KL penalty for enforcing the constraint is \
-  $ 1 / 2 log #h(-1em) #scale(x: 120%, y: 120%)[\(] 1 + mu^(star.op tack.b) S^(- 1) mu^star.op #scale(x: 120%, y: 120%)[\)] . $
-
-The constraint is enforced exactly: the approximating Gaussian $p$ must
-satisfy $bb(E)_p [f (a)] = 0$. The optimisation then chooses
-$(mu , Sigma)$ that lie in the feasible set and minimise divergence from
-$q$. Hence the "compromise" is only on matching $q$: the mean is shifted
-and the covariance inflated so that the constraint holds, while support
-for $q$ is preserved as well as possible. The KL objective quantifies
-the price of that compromise.
+The spectral envelope of the AR filter is $S(omega) prop 1 \/ |A(e^(-i omega))|^2$.
+The poles of the envelope are the zeros of $A(z)$.
+Requiring $A(z)$ to have a root at $z = rho e^(i omega_0)$ (a resonance near frequency $omega_0$ with damping $1 - rho$) is therefore equivalent to requiring that the quadratic factor
+$
+  Q(z) = 1 - 2 rho cos(omega_0) z + rho^2 z^2
+$
+divides $A(z)$.
+More generally, any desired spectral feature — a resonance, a rolloff pole, a seasonal unit root — can be expressed as a monic polynomial $Q(z)$ whose roots encode the feature, with the requirement that $Q(z) divides A(z)$.
 
 /*
-Next subsection is copy pasted from soft-divisibility.typ
+
+/* TODO: table of spectral features */
+
+Several spectral features and their corresponding $Q$ polynomials are listed in @table:spectral-features.
+Multiple features $Q_1, dots, Q_K$ combine by taking their least common bm(mu)ltiple $M(z) = "lcm"{Q_1(z), dots, Q_K(z)}$, since $Q_k divides A$ for all $k$ if and only if $M divides A$.
+Over $bb(C)$, this just means collecting the union of desired roots with their maxibm(mu)m bm(mu)ltiplicities, so the effective degree of the combined constraint is $L_"eff" = deg M$.
+
 */
 
-== Maximum-entropy (I-projection) updates for AR coefficient priors with soft divisibility features
-<maximum-entropy-i-projection-updates-for-ar-coefficient-priors-with-soft-divisibility-features>
+=== Divisibility in the frequency domain
 
-=== AR context and notation
-<ar-context-and-notation>
-We model an AR(P) via
-$ A (z) = 1 + a_1 z + dots.h.c + a_P z^P , #h(2em) a = (a_1 , dots.h , a_P)^tack.b . $
-The (unnormalized) spectrum is
-$ S (omega) prop frac(1, \| A (e^(- i omega)) \|^2) . $ Thus zeros of
-$A (z)$ near the unit circle become spectral poles; multiplicity
-controls local slope/peakedness. Stability/causality requirements
-translate to constraints on the root locations of $A$ (sign convention
-dependent).
+Before developing the prior, it is worth pausing on what divisibility means spectrally.
+If $A(z) = M(z) R(z)$ exactly, then on the unit circle
+$
+  A(e^(i omega)) = M(e^(i omega)) R(e^(i omega)),
+  quad
+  |A(e^(i omega))|^2 = |M(e^(i omega))|^2 |R(e^(i omega))|^2,
+$
+so the spectral envelope factors as
+$
+  S(omega) prop 1/(|M(e^(i omega))|^2 |R(e^(i omega))|^2).
+$
+The spectral shape of $M$ is therefore a *guaranteed factor* of the envelope: wherever $M$ has a pole near the unit circle, $S(omega)$ bm(mu)st have a peak, and wherever $M$ has a zero, $S(omega)$ bm(mu)st have a trough.
+The remaining polynomial $R(z)$ is free to fill in whatever the data requires.
+In the soft version developed below, divisibility becomes an *expected* rather than guaranteed condition, and the prior is nudged toward envelopes whose spectral shape contains the features encoded in $M$, while leaving the data free to adjust $R(z)$ in any direction.
+This is why literally any spectral feature that can be expressed as a root structure can be embedded by this mechanism: formants, antiformants, rolloff poles, seasonal components — all reduce to a choice of $M(z)$.
 
-=== Collapse multiple features to one effective divisor
-<collapse-multiple-features-to-one-effective-divisor>
-Given monic feature polynomials
-$Q_k (z) = 1 + q_(k , 1) z + dots.h.c + q_(k , L_k) z^(L_k)$ (possibly
-of different degrees), define
-$ M (z) = upright(l c m) { Q_1 (z) , dots.h , Q_K (z) } , #h(2em) L_(upright(e f f)) = deg M . $
-Then $Q_k divides A med forall k$ iff $M divides A$. All independent
-constraints come from $M$.
+=== Divisibility as linear constraints on $bm(a)$
 
-#strong[Interpretation.] Over $bb(C)$, if
-$Q_k (z) = product_r (1 - rho_r z)^(m_r^((k)))$, then
-$ M (z) = product_r (1 - rho_r z)^(m_r) , quad m_r = max_k m_r^((k)) , quad L_(upright(e f f)) = sum_r m_r . $
-So $M$ collects the union of desired roots with their maximum
-multiplicities across features.
+Whether $M(z) divides A(z)$ is a purely algebraic condition, and it is linear in the coefficients of $A$.
+To see this, note that $M divides A$ if and only if the remainder of the polynomial division $A mod M$ is zero.
+This remainder can be computed by the Sylvester or convolution matrix of $M$: there exists a matrix $bm(F) in bb(R)^(L_"eff" times P)$ and a vector $bm(c) in bb(R)^(L_"eff")$ (determined by the monic leading term $a_0 = 1$) such that
+$
+  bm(f)(bm(a); M) := bm(F) bm(a) + bm(c) = bm(0) quad arrow.l.r.double quad M divides A.
+$ <eq:divisibility-constraint>
+Exact divisibility is $bm(f)(bm(a); M) = bm(0)$; soft divisibility in the prior sense means asking that $bb(E)_p [bm(f)(bm(a); M)] = bm(0)$, i.e., $bm(F) bm(mu) + bm(c) = bm(0)$.
 
-=== Linear remainder constraints
-<linear-remainder-constraints>
-Let $[1 ; a] in bb(R)^(P + 1)$ be the full coefficient vector. Build any
-left–null basis $N (M) in bb(R)^(L_(upright(e f f)) times (P + 1))$ for
-the convolution/Sylvester matrix of $M$ so that
-$ N (M) thin [1 ; a] = 0 med arrow.l.r.double med M divides A . $ Write
-$N (M) = [thin c med med F thin]$ with $c in bb(R)^(L_(upright(e f f)))$
-(acts on the fixed $a_0 = 1$) and
-$F in bb(R)^(L_(upright(e f f)) times P)$. The $L_(upright(e f f))$
-linear statistics are
-$ f (a ; M) = F a + c in bb(R)^(L_(upright(e f f))) . $ Exact
-divisibility is $f (a ; M) = 0$.
+=== Projection onto the soft constraint set
 
-=== Gaussian base prior
-<gaussian-base-prior>
-$ a tilde.op cal(N) (mu , Sigma) , #h(2em) Sigma succ 0 . $
+Given a base Gaussian prior $bm(a) ~ mono("Normal")(bm(mu), bm(Sigma))$ — which could be the Monahan prior $mono("Normal")(bm(0), bm(S)_q)$ or the isotropic prior $mono("Normal")(bm(0), sigma_a^2 bm(I))$ — we seek the closest Gaussian $mono("Normal")(bm(m)^*, bm(S)^*)$ that satisfies the soft constraint $bm(F) bm(m)^* + bm(c) = bm(0)$.
+Minimizing $D_"KL" (mono("Normal")(bm(m), bm(S)) || mono("Normal")(bm(mu), bm(Sigma)))$ subject to $bm(F) bm(m) + bm(c) = bm(0)$ is an I-projection onto a linear affine constraint on the mean.
+Since the constraint touches only the mean and not the covariance, the solution has $bm(S)^* = bm(Sigma)$ unchanged, while the mean is shifted by the $bm(Sigma)^(-1)$-orthogonal projection:
+$
+  bm(m)^* = bm(mu) - bm(Sigma) bm(F)^top (bm(F) bm(Sigma) bm(F)^top)^(-1) (bm(F) bm(mu) + bm(c)).
+$ <eq:soft-spectral-shaping>
+If the base prior already satisfies the constraint ($bm(F) bm(mu) + bm(c) = bm(0)$) then $bm(m)^* = bm(mu)$ and the prior is unchanged.
+Otherwise, the mean is shifted by the minibm(mu)m amount (in the $bm(Sigma)^(-1)$ metric) necessary to bring the expected $bm(f)(bm(a); M)$ to zero.
+The cost of this shift is quantifiable as the KL penalty
+$
+  1/2 log(1 + bm(m)^(*top) bm(S)_q^(-1) bm(m)^*),
+$
+which grows with how incompatible the base prior is with the desired spectral features.
 
-=== Soft divisibility via I-projection (moment constraints)
-<soft-divisibility-via-i-projection-moment-constraints>
-Impose only expectations $ bb(E) [f (a ; M)] = F mu + c = 0 . $ Find
-$cal(N) (m , S)$ minimizing
-$D_(upright(K L)) (cal(N) (m , S) thin parallel thin cal(N) (mu , Sigma))$
-subject to $F m + c = 0$. Because constraints touch the mean only,
-covariance is unchanged and the mean is the $Sigma^(- 1)$-orthogonal
-projection onto the affine set:
-$ S^star.op = Sigma , #h(2em) m^star.op = mu - Sigma F^tack.b (F Sigma F^tack.b)^(- 1) thin (F mu + c) . $
-If rows of $F$ are redundant, replace $(F Sigma F^tack.b)^(- 1)$ by the
-Moore–Penrose pseudoinverse.
+Equation @eq:soft-spectral-shaping is the soft spectral shaping prior.
+It is closed form, requires no sampling or numerical optimization beyond a matrix solve of size $L_"eff"$, and is directly usable as the Gaussian prior in IKLP without any modification to the inference algorithm.
 
-=== Hard divisibility (conditioning)
-<hard-divisibility-conditioning>
-If you want $f (a ; M) = 0$ almost surely,
-$ m_(upright(c o n d)) & = mu - Sigma F^tack.b (F Sigma F^tack.b)^(- 1) (F mu + c) ,\
-S_(upright(c o n d)) & = Sigma - Sigma F^tack.b (F Sigma F^tack.b)^(- 1) F Sigma . $
-Same mean shift; variance along constrained directions is removed.
+If one prefers to enforce divisibility exactly rather than in expectation — for instance if a particular formant structure is known with certainty — the conditioning forbm(mu)la gives the hard version: same mean shift, but the covariance is additionally deflated along the constrained directions,
+$
+  bm(S)_"hard" = bm(Sigma) - bm(Sigma) bm(F)^top (bm(F) bm(Sigma) bm(F)^top)^(-1) bm(F) bm(Sigma).
+$
+This is the Gaussian posterior after observing $bm(f)(bm(a); M) = bm(0)$ exactly, and it removes all prior uncertainty along those directions.
 
-=== What kinds of AR features can $Q$ encode?
-<what-kinds-of-ar-features-can-q-encode>
-Each factor in $M$ prescribes root structure for $A$, hence spectral
-behavior:
+=== What spectral features can be encoded
 
-- Unit roots (trend/seasonality)
-  - $Q (z) = 1 - z$: root at $z = 1$ → DC pole in $S (omega)$
-    (nonstationary drift).
-  - $Q (z) = 1 + z$: root at $z = - 1$ → Nyquist pole (alternating
-    component).
-  - $Q (z) = 1 - z^s$: $s$-seasonal unit roots (econometric
-    seasonality).
-- Damped resonances (complex conjugate pairs)
-  - $Q (z) = 1 - 2 r cos omega thin z + r^2 z^2$ gives roots
-    $(1 \/ r) e^(plus.minus i omega)$ → spectral poles near $omega$ with
-    bandwidth controlled by $1 - r$.
-  - Repetition $(1 - 2 r cos omega thin z + r^2 z^2)^m$ sharpens the
-    peak (higher effective slope).
-- Real poles (spectral tilt/rolloff)
-  - $Q (z) = 1 - rho z$ with $rho in (- 1 , 1)$ biases
-    low/high-frequency tilt (sign-convention dependent).
-  - Repeated $(1 - rho z)^m$ steepens the rolloff by roughly $6 m$
-    dB/octave locally.
-- Compositions
-  - Multiply quadratics for multiple formants (speech).
-  - Mix seasonal/unit-root factors with resonant/tilt factors.
-  - The net constraint set always reduces to the $L_(upright(e f f))$
-    statistics from $M$.
+The construction places no restriction on the choice of $M(z)$ beyond its degree satisfying $L_"eff" <= P$.
+Any spectral feature expressible as a root structure of $A(z)$ can therefore be embedded.
+A few examples that are directly relevant to vocal tract modeling:
 
-#strong[Stationarity note.] Exact unit roots make the AR nonstationary;
-use soft constraints (I-projection) or choose $rho$ just inside the unit
-circle to encode "almost-unit-root" behavior while staying stable.
+A _damped resonance_ near frequency $omega_0$ with bandwidth controlled by $1 - rho$ corresponds to the quadratic $Q(z) = 1 - 2 rho cos(omega_0) z + rho^2 z^2$, with $rho < 1$ for stability.
+Repeating this factor raises the local spectral slope around $omega_0$ by $12$~dB/octave per repetition.
+For a full vowel formant structure, one would take the product of two or three such quadratics at the expected first, second, and third formant frequencies.
 
-=== Degrees of freedom and feasibility
-<degrees-of-freedom-and-feasibility>
-- Soft constraints are always feasible (you can always shift the mean).
-- For exact divisibility by all $Q_k$, you need
-  $P gt.eq L_(upright(e f f))$, in which case $A (z) = M (z) R (z)$ with
-  monic $R$ of degree $P - L_(upright(e f f))$. Solutions form an affine
-  space of dimension $P - L_(upright(e f f))$ (unique only when
-  $P = L_(upright(e f f))$).
+A _spectral rolloff_ at rate $6m$~dB/octave is encoded by the $m$-fold repeated real pole $(1 - rho z)^m$ for some $rho$ close to but inside the unit disk.
+This is directly related to the "pre-emphasis" step common in speech processing, but now encoded as a prior belief rather than a hard preprocessing step.
 
-=== Practical recipe
-<practical-recipe>
-+ Build $M = upright(l c m) (Q_1 , dots.h , Q_K)$, set
-  $L_(upright(e f f)) = deg M$.
-+ Form a left–null basis $N (M) = [c med F]$ for the convolution matrix
-  of $M$.
-+ Soft update:
-  $ m^star.op = mu - Sigma F^tack.b (F Sigma F^tack.b)^(- 1) (F mu + c) , quad S^star.op = Sigma . $
-+ If needed, hard-enforce divisibility via
-  $(m_(upright(c o n d)) , S_(upright(c o n d)))$.
+A _DC notch_ or _Nyquist notch_, corresponding to $Q(z) = 1 - z$ or $Q(z) = 1 + z$, removes prior probability mass from filters with runaway low or high-frequency response.
 
-#strong[Takeaway.] Divisibility-by-${ Q_k }$ is a linear,
-polynomially-structured feature map on AR coefficients. I-projection
-preserves Gaussianity, leaves uncertainty intact, and injects exactly
-the desired spectral biases (trends, seasonality, resonances, tilt)
-through a single closed-form mean shift.
+Multiple features combine bm(mu)ltiplicatively: a prior that sibm(mu)ltaneously expects a first formant near $700$~Hz, a second near $1200$~Hz, and a $6$~dB/octave overall rolloff uses $M(z) = Q_"F1"(z) dot Q_"F2"(z) dot Q_"rolloff"(z)$, with $L_"eff" = deg M = 5$.
+
+== Summary
+
+The standard isotropic prior used in IKLP is a regularizer, not a model.
+It is too loose by a factor of $P/2$ in its effect on output power, and it is indifferent to the stability constraint that any physical vocal tract filter bm(mu)st satisfy.
+
+The Monahan prior corrects the stability problem by moment-matching to the push-forward of a uniform PACF draw, yielding the optimal Gaussian approximation to the uniform distribution over stable AR filters.
+Its covariance $bm(S)_q$ captures the geometry of the stability region and recovers the $sigma_a^2 prop 1/P$ scaling law as a consequence rather than a heuristic.
+Whether to use it in practice depends on how one thinks about the AR model: as a physical transfer function (where stability is a hard constraint and Monahan is the right prior) or as a Padé approximation (where the coefficient space should remain free, and Monahan's constraint may be too strong).
+
+The soft spectral shaping prior addresses a different and arguably more practically useful question: not stability, but rather spectral content.
+By encoding desired spectral features — formants, rolloff, notches — as divisibility conditions on $A(z)$, and then I-projecting the base Gaussian prior onto the resulting linear affine constraint on the mean, one obtains a closed-form Gaussian prior that actively expects the vocal tract filter to look like voiced speech.
+The Fourier interpretation is clean: divisibility in the coefficient domain corresponds to guaranteed spectral factors in the envelope, so the soft version tilts the prior toward envelopes that carry the desired spectral shape while leaving all remaining degrees of freedom to the data.
+Both priors are Gaussian and slot directly into IKLP without modifying the inference algorithm.

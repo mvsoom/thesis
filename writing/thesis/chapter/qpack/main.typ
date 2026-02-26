@@ -247,6 +247,12 @@ This framework yields falsifiable predictions linking observed jitter statistics
 
 == Learning with t-PRISM
 
+/*
+IMPORTANT
+
+Scoring on test set when learning pitch track models is written down in writing/thesis/scrap/test-set-scoring.typ
+*/
+
 Tricks we use:
 - Normalize data to (0,1): this means we freeze mean to 0 *and* kernel variance to 1.
 - Lengthscale in ballpark order: 10. This is simply to cut number of iterations, the model does find lengthscales ~ 15 if initialized from 1, but takes much longer.
