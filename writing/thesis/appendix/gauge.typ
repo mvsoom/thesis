@@ -42,12 +42,12 @@ Absolute source amplitude is therefore not recoverable from acoustics alone; it 
 The second is _time-translation_: for any constant delay $tau$, the pair $(u'(t - tau), h(t + tau))$ again produces the same convolution.
 The two transformations together form a gauge group acting on $(u', h)$: the observable signal depends only on the equivalence class
 $
-  [(u', h)] = {(alpha thin u'(t - tau),; h(t + tau) \/ alpha) mid alpha in bb(R) without {0}, thin tau in bb(R)}.
+  [(u', h)] = {(alpha thin u'(t - tau),; h(t + tau) \/ alpha) divides alpha in bb(R) without {0}, thin tau in bb(R)}.
 $
 Inverse filtering does not recover a unique $(u', h)$ pair.
 It selects one representative from this class.
 
-==== The implication for evaluation
+=== The implication for evaluation
 is immediate: different algorithms can legitimately choose different representatives while producing identical acoustic reconstructions.
 An evaluation that compares representatives directly — rather than comparing the equivalence classes they represent — is measuring gauge choice, not signal quality.
 This is not a hypothetical concern.
@@ -104,7 +104,7 @@ $
 defined on the overlap $[:n - tau^*]$.
 Performance is then measured by centered cosine similarity between $tilde(bm(y))_"est"$ and $bm(y)_"true"[:n-tau^*]$:
 $
-  "score" = chevron.l tilde(bm(y))_"est" - overline(tilde(bm(y))_"est"), thin bm(y)_"true" - overline(bm(y))_"true" chevron.r /
+  "score" = (chevron.l tilde(bm(y))_"est" - overline(tilde(bm(y))_"est"), thin bm(y)_"true" - overline(bm(y))_"true" chevron.r) /
   (|| tilde(bm(y))_"est" - overline(tilde(bm(y))_"est") || thin || bm(y)_"true" - overline(bm(y))_"true" ||).
 $ <eq:cosine-score>
 Centering before taking the inner product removes the $b$ degree of freedom redundantly, making the score invariant to the bias correction.
