@@ -4,14 +4,35 @@ from typing import Optional, Sequence
 import gpjax as gpx
 import jax.numpy as jnp
 import jax.scipy as jsp
+from gpjax.kernels import RBF
 from gpjax.kernels.computations import DenseKernelComputation
 from gpjax.parameters import PositiveReal
 
+from prism.spectral import SGMKernel
 
+
+class SGMRBF(SGMKernel, RBF):
+    def compute_sgm(self):
+        # RBF kernel: k(r) = sigma2 * exp(-r^2 / (2 ell^2))
+        # Under our Fourier convention, one valid spectral form is:
+        #   S(xi) = (2pi) * sigma2 * N(xi | 0, 1/ell^2)
+        sigma2 = self.variance
+        ell = self.lengthscale
+
+        A = jnp.array([2.0 * jnp.pi * sigma2])
+        mu = jnp.array([0.0])
+        v = jnp.array([1.0 / (ell * ell)])
+
+        A = A / 2  # avoid double counting as this is centered on zero
+
+        return A, mu, v
+
+
+# %%
 def _glaguerre_gw(J, alpha):
-    n = jnp.arange(J, dtype=jnp.float32)
+    n = jnp.arange(J)
     diag = 2.0 * n + 1.0 + alpha
-    k = jnp.arange(1, J, dtype=jnp.float32)
+    k = jnp.arange(1, J)
     off = jnp.sqrt(k * (k + alpha))
 
     A = jnp.diag(diag) + jnp.diag(off, 1) + jnp.diag(off, -1)
@@ -22,32 +43,33 @@ def _glaguerre_gw(J, alpha):
     return z, w
 
 
-class gpxMaternSEMixture(gpx.kernels.AbstractKernel):
+class SGMMatern(SGMKernel):
     """
     Matérn kernel via squared exponential mixture (Tronarp+ 2018).
 
     Static:
         J   number of mixture components
+        nu  smoothness
 
     Learnable:
-        nu
         scale
         lengthscale
+        (nu) <=== can be optimized in principle
     """
 
     J: int
+    nu: int
 
-    nu: PositiveReal
-    scale: PositiveReal
     lengthscale: PositiveReal
+    variance: PositiveReal
 
     def __init__(
         self,
         *,
-        J: int = 16,
         nu: float = 1.5,
-        scale: float = 1.0,
         lengthscale: float = 1.0,
+        variance: float = 1.0,
+        J: int = 16,
         active_dims: Optional[Sequence[int]] = None,
         n_dims: Optional[int] = None,
     ):
@@ -55,19 +77,25 @@ class gpxMaternSEMixture(gpx.kernels.AbstractKernel):
 
         self.J = J
 
-        self.nu = PositiveReal(jnp.array(nu))
-        self.scale = PositiveReal(jnp.array(scale))
+        # we can optimize over this in principle, but eigh() in _glaguerre_gw() can become expensive...
+        self.nu = float(nu)
+        # ... and now we can let JAX amortize this call
+        z, w = _glaguerre_gw(J, nu - 1.0)
+        self.z = z
+        self.w = w
+
+        self.variance = PositiveReal(jnp.array(variance))
         self.lengthscale = PositiveReal(jnp.array(lengthscale))
 
     def _mixture_params(self):
         nu = self.nu
         rho = self.lengthscale
 
-        alpha = nu - 1.0
-        z, w = _glaguerre_gw(self.J, alpha)
+        z = self.z
+        w = self.w
 
         ell2 = z * (rho**2) / nu
-        sig2 = (self.scale**2) * w / jnp.exp(jsp.special.gammaln(nu))
+        sig2 = self.variance * w / jnp.exp(jsp.special.gammaln(nu))
 
         return ell2, sig2
 
@@ -80,6 +108,24 @@ class gpxMaternSEMixture(gpx.kernels.AbstractKernel):
         ell2, sig2 = self._mixture_params()
 
         return jnp.sum(sig2 * jnp.exp(-0.5 * tau2 / ell2))
+
+    def compute_sgm(self):
+        nu = self.nu
+        rho = self.lengthscale
+        sigma2 = self.variance
+
+        # mixture parameters
+        ell2 = self.z * (rho * rho) / nu
+        sig2 = sigma2 * self.w / jnp.exp(jsp.special.gammaln(nu))
+
+        # spectral Gaussian parameters
+        A = 2.0 * jnp.pi * sig2
+        mu = jnp.zeros_like(A)
+        v = 1.0 / ell2
+
+        A = A / 2  # avoid double counting as this is centered on zero
+
+        return A, mu, v
 
 
 if __name__ == "__main__":
@@ -95,24 +141,29 @@ if __name__ == "__main__":
     def test_accuracy():
         taus = np.linspace(1e-4, 5.0, 400)
 
+        rho = 2.4
+        var = 1.3
+        sigma = np.sqrt(var)
+
         for nu in [1.5, 2.5, 4.0]:
             print(f"\nnu = {nu}")
-            exact = exact_matern_np(taus, 1.0, 1.0, nu)
+            exact = exact_matern_np(taus, rho, sigma, nu)
 
             for J in [4, 8, 16, 32]:
-                k = gpxMaternSEMixture(J=J, nu=nu, scale=1.0, lengthscale=1.0)
+                k = SGMMatern(J=J, nu=nu, variance=var, lengthscale=rho)
 
                 approx = np.array(
                     [float(k(jnp.array([t]), jnp.array([0.0]))) for t in taus]
                 )
 
-                rel = np.max(np.abs(approx - exact) / np.maximum(exact, 1e-12))
+                rel = np.max(
+                    np.abs(approx - exact) / np.maximum(np.abs(exact), 1e-12)
+                )
                 rms = np.sqrt(np.mean((approx - exact) ** 2))
 
                 print(f"  J={J:2d}   max rel err = {rel:.2e}   RMS = {rms:.2e}")
 
     test_accuracy()
-
 
 # %%
 if __name__ == "__main__":
@@ -125,9 +176,9 @@ if __name__ == "__main__":
     J = 16
 
     kernels = [
-        gpxMaternSEMixture(J=J, nu=0.5),
-        gpxMaternSEMixture(J=J, nu=2.5),
-        gpxMaternSEMixture(J=J, nu=4.0),
+        SGMMatern(J=J, nu=0.5),
+        SGMMatern(J=J, nu=2.5),
+        SGMMatern(J=J, nu=4.0),
     ]
 
     t = jnp.linspace(-3.0, 3.0, 1024)
@@ -142,5 +193,3 @@ if __name__ == "__main__":
         ax.set_title(f"SE-mixture Matérn ν={float(k.nu):.2f}")
 
     plt.show()
-
-# %%
