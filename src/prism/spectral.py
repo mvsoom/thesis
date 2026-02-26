@@ -2,7 +2,7 @@
 import gpjax as gpx
 import jax
 import jax.numpy as jnp
-from gpjax.parameters import NonNegativeReal
+from gpjax.parameters import PositiveReal
 from gpjax.variational_families import CollapsedVariationalGaussian
 
 from prism.svi import init_Z_grid
@@ -36,8 +36,12 @@ def _sgm_symm_Kuu_complex(A, mu, v, omega, sigma_w):
 
     with Gaussian window density w(t) = N(t | 0, sigma_w^2).
 
-    Uses symmetric spectrum:
+    NOTE: we have a even window and even spectrum:
+
         S(xi) = sum_q A_q [N(xi | +mu_q,v_q) + N(xi | -mu_q,v_q)]
+
+    so this function actually returns real Kuu.
+    We keep it complex if these conditions change later.
 
     Parameters
     ----------
@@ -145,15 +149,83 @@ def _sgm_symm_Kuf_complex(A, mu, v, omega, tau, sigma_w):
 
 
 def complex_to_real_Kuu(K):
+    """
+    Convert complex Hermitian Kuu (with omega[0]=0)
+    into real block form with DC handled separately.
+
+    Input:
+        K : (Mtot, Mtot) complex Hermitian
+            where Mtot = M + 1
+            index 0 = DC frequency
+
+    Output:
+        K_real : (1 + 2M, 1 + 2M) real symmetric
+    """
+
+    Mtot = K.shape[0]
+    assert Mtot >= 1
+
+    M = Mtot - 1  # number of nonzero freqs
+
     Re = jnp.real(K)
     Im = jnp.imag(K)
-    top = jnp.concatenate([Re, -Im], axis=1)
-    bottom = jnp.concatenate([Im, Re], axis=1)
-    return jnp.concatenate([top, bottom], axis=0)
 
+    K_dc = Re[0:1, 0:1]  # (1,1)
+
+    Re_rest = Re[1:, 1:]  # (M,M)
+    Im_rest = Im[1:, 1:]  # (M,M)
+
+    # Real block for nonzero freqs
+    K_rest = jnp.block(
+        [
+            [Re_rest, -Im_rest],
+            [Im_rest, Re_rest],
+        ]
+    )  # (2M, 2M)
+
+    # Cross term (DC x others)
+    Re_cross = Re[1:, 0:1]
+    Im_cross = Im[1:, 0:1]
+
+    K_cross_top = jnp.concatenate([Re_cross.T, Im_cross.T], axis=1)
+
+    K_cross = jnp.concatenate([Re_cross, Im_cross], axis=0)
+
+    K_real = jnp.block(
+        [
+            [K_dc, K_cross_top],
+            [K_cross, K_rest],
+        ]
+    )
+
+    return K_real
 
 def complex_to_real_Kuf(K):
-    return jnp.concatenate([jnp.real(K), jnp.imag(K)], axis=0)
+    """
+    Convert complex Kuf (with omega[0]=0)
+    into real block form.
+
+    Input:
+        K : (Mtot, N) complex
+            Mtot = M + 1
+
+    Output:
+        K_real : (1 + 2M, N) real
+    """
+
+    Mtot, N = K.shape
+    M = Mtot - 1
+
+    K_dc = jnp.real(K[0:1, :])  # (1, N)
+
+    K_rest = K[1:, :]  # (M, N)
+
+    Re = jnp.real(K_rest)
+    Im = jnp.imag(K_rest)
+
+    K_real = jnp.concatenate([K_dc, Re, Im], axis=0)
+
+    return K_real
 
 
 class SGMCollapsedVariationalGaussian(CollapsedVariationalGaussian):
@@ -171,38 +243,43 @@ class SGMCollapsedVariationalGaussian(CollapsedVariationalGaussian):
         super().__init__(*args, **kwargs)
         self.sigma_w = float(sigma_w)
 
-        self.inducing_inputs = NonNegativeReal(self.inducing_inputs.value)
+        # inducing_inputs are frequencies (cycles per unit tau)
+        self.inducing_inputs = PositiveReal(self.inducing_inputs.value)
 
     def compute_Kuu(self):
-        # inducing_inputs are frequencies (cycles per unit tau)
-        omega = (2.0 * jnp.pi) * self.inducing_inputs.squeeze()
         kernel = self.posterior.prior.kernel
         A, mu, v = kernel.compute_sgm()
 
         # kernel returns only mu_q >= 0, these formulas enforce symmetry
         Kuu_complex = _sgm_symm_Kuu_complex(
-            A=A, mu=mu, v=v, omega=omega, sigma_w=self.sigma_w
+            A=A, mu=mu, v=v, omega=self.omega, sigma_w=self.sigma_w
         )
         Kuu = complex_to_real_Kuu(Kuu_complex)
         return Kuu
 
     def compute_Kuf(self, t):
-        omega = (2.0 * jnp.pi) * self.inducing_inputs.squeeze()
         kernel = self.posterior.prior.kernel
         A, mu, v = kernel.compute_sgm()
 
         # t are tau locations
         Kuf_complex = _sgm_symm_Kuf_complex(
-            A=A, mu=mu, v=v, omega=omega, tau=t, sigma_w=self.sigma_w
+            A=A, mu=mu, v=v, omega=self.omega, tau=t, sigma_w=self.sigma_w
         )
         Kuf = complex_to_real_Kuf(Kuf_complex)
         return Kuf
 
     @property
+    def omega(self):
+        freq = jnp.concatenate(
+            [jnp.array([0.0]), self.inducing_inputs.squeeze()]
+        )  # explicit DC
+        return (2.0 * jnp.pi) * freq
+
+    @property
     def num_inducing(self):
         return (
-            self.inducing_inputs.shape[0] * 2
-        )  # account for real/imaginary split
+            self.inducing_inputs.shape[0] * 2 + 1
+        )  # account for real/imaginary split + DC
 
 
 def init_Z_inverse_ecdf_from_psd(key, M, freqs, Pxx):
@@ -210,7 +287,7 @@ def init_Z_inverse_ecdf_from_psd(key, M, freqs, Pxx):
     w = jnp.asarray(Pxx + 1e-12)  # avoid zeros
     w = w / jnp.sum(w)
     cdf = jnp.cumsum(w)
-    u = init_Z_grid(key, M).reshape(-1)
+    u = init_Z_grid(key, M)
     Z = jnp.interp(u, cdf, f)
     return Z[:, None]
 
