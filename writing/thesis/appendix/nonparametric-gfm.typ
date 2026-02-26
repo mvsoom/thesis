@@ -1,5 +1,6 @@
 = More comments on the nonparametric glottal flow model
 <chapter:nonparametric-gfm>
+
 /*
 #figure(
   image("/figures/svg/20251008144755528.svg"),
@@ -7,26 +8,28 @@
 ) <fig:steep>
 */
 
-Some aspects of the nonparametric glottal flow model (GFM) derived in @chapter:gfm are discussed in more detail in what follows.
-
-/*
-==== What happened?
-It is worth pausing to ask what really happened here.
-At first sight, taking $H -> oo$ might seem like an act of reckless generalization: we blow up the number of parameters without bound, yet somehow end up with something *simpler*—a single Gaussian process with a fixed kernel. Conditional on the random features, the model was already Gaussian, so the only effect of the limit is that the *random design itself* stops being random. The empirical kernel freezes to its mean, and with it the whole architecture of the network becomes a static, deterministic map from inputs to covariances.
-
-This is the peculiar balance of the Gaussian process limit. The randomness of finite networks (the accident of which features you drew) disappears, while the *expressive field* of possible functions becomes infinite. What looks like a loss of freedom in one space is a gain of freedom in another. You trade a random, high-dimensional parameterization for a deterministic law over an infinite-dimensional function space. The model collapses in its parameter dimension but expands in its functional reach. That is the sense in which the GP limit achieves “infinite resolution”: it no longer needs to enumerate features to approximate every smooth behavior the kernel supports. The prior already spans that continuum.
-*/
+Some aspects of the nonparametric GFM derived in @chapter:gfm are discussed in more detail here.
 
 === Infinite precision?
-In this view, increasing $H$ increases the _Monte Carlo resolution_ with which the regression model samples its feature space.
-The nonparametric limit replaces explicit random changepoints with their continuous Gaussian measure, yielding a Gaussian process prior over $u'(t)$ whose covariance is the arc-cosine kernel restricted to the open phase of the glottal cycle.
+In the GP view, increasing $H$ increases the _Monte Carlo resolution_ with which the finite neural network model samples the arc cosine kernel — the deviation from the limiting kernel vanishes as $cal(O)(1\/sqrt(H))$ by @eq:dev86.
+The nonparametric limit replaces explicit random changepoints with their continuous Gaussian measure, and the prior over $u'(t)$ becomes a GP whose covariance is the arc cosine kernel restricted to the open phase.
 
-There is a caveat however; we got "infinite" precision (meaning full rank), but smoother functions.
-This is the analogue of the amplitude prior of footnote 17 which constrains the ellipsoid.
+There is a caveat though.
+We gained full rank — the prior now has support over an infinite-dimensional function space — but we lost the ability to represent true discontinuities.
+Arc cosine GP sample paths are continuous; they cannot jump.#footnote[
+  Specifically, sample paths of a GP with a kernel of degree $d$ are $d$-times continuously differentiable with probability one @Rasmussen2006.
+  For $d = 0$ this gives continuous but nowhere-differentiable paths; for $d >= 1$, paths are smoother still.
+  In either case there are no jumps.
+]
+This is the analogue of the amplitude prior constraining the ellipsoid in the finite-$H$ case (footnote~17 of @chapter:gfm): there we traded a large discrete family of possible changepoint configurations for a continuous Gaussian prior that concentrates mass inside a smooth ellipsoid; here we trade a distribution over Poisson-style jump processes for a Gaussian prior that concentrates mass on smooth function classes.
+The best the arc cosine GP can do is approximate a sharp GCI with a steep ramp. /*(see @fig:steep)*/
 
+Whether this is a problem in practice is an empirical question.
+The closed-phase GCI is physiologically sharp but not infinitely so, and the DGF data from VocalTractLab are sampled at finite rate, so the distinction between "true jump" and "ramp steep enough that it spans one sample" may not be detectable.
 
-/* main point here: YES, we compromised; we got fast inference, but also diminshed support for true O(1) amount of jumps like a Levy process would. This is a practical question -- need to find out by running nested sampling and see how much support for these jumps is really there -- just calculate! */
+/* main point here: YES, we compromised; we got fast inference, but also diminished support for true O(1) amount of jumps like a Levy process would. This is a practical question -- need to find out by running nested sampling and see how much support for these jumps is really there -- just calculate! */
 
+=== Why this matters for the choice of modeled signal
 /* This means we should model u(t), not du(t)!
 
 u(t) ~ arccos: arccos is always continuous -- we cant do real jumps
@@ -48,12 +51,33 @@ LPC just proclaims s(t) = e(t) * h(t) and shoves radiation into the source such 
 since differentiation is ~ i2pi x => zero, not a pole
 so we are generalizing LPC, so also choose e(t) => u(t) * r(t)
 */
+The continuity constraint has a direct implication for which signal we should model with the arc cosine GP.
+We model $u'(t)$ — the DGF — because the GCI appears as a sharp negative peak there, which is easier to detect and align than the integral $u(t)$.
+But if the arc cosine GP is continuous, then $u'(t)$ is smooth, which means $u(t)$ is differentiable — and real glottal flow does not have a differentiable closure.
+
+One way around this is to model $u(t)$ directly with the arc cosine GP instead of $u'(t)$.
+Then the GP sample paths are continuous (which $u(t)$ should be) and discontinuities can be pushed into the _derivative_ implicitly via the radiation factor: the combined vocal tract and radiation impulse response is modeled as the AR filter, and the combined source signal becomes $u(t) * r(t)$ rather than $u'(t)$ alone.
+This is, at bottom, what classical LPC does — it posits $s(t) = e(t) * h(t)$ and allows $h(t)$ to absorb the radiation effect $r(t)$, since differentiation corresponds to a zero in the transfer function, not a pole, so $h(t)$ can remain all-pole.
+From this viewpoint the present approach generalizes LPC in exactly that way.
+
+The alternative of obtaining $u'(t)$ implicitly — from the spectral domain or from the AR pole structure — is also possible and may allow the sharp-closure structure to be recovered without committing the GP to model it directly.
 
 === Why not go infinite depth?
-Different character from increasing width; effective depth of deep GPs. If stable limit, it becomes independent of inputs @Diaconis1999. Seen often in DGPs as input independency, "forgetting inputs". Though one might counteract that going to infinite width also has similar "unfortunate" consequences (MacKay's baby with the bath water): "features are not learned", basis functions are fixed. This shows that kernel hyperparameters must encode (most of) features. We do this via sparse multiple kernel learning; ie static kernels on the Yoshii-grid mechanism; our hyperparams are $(T, tau, "OQ")$, ie 3 dim grid.
+Increasing depth has a different character from increasing width.
+For a deep GP with Gaussian kernels at each layer, letting the depth diverge drives the process toward one that is independent of its inputs @Diaconis1999 — a known pathology in practice, where deep GPs tend to "forget" their inputs and produce nearly constant sample paths.
+Finite but large depth mitigates this, but one might note that infinite width carries a vaguely analogous cost: in the GP limit, the basis functions are frozen at their prior expectation and no longer adapt to the data as drawn features.
+What is learned is entirely encoded in the kernel hyperparameters.
+This makes kernel learning — and in particular the multiple-kernel structure of IKLP — the mechanism through which the model does acquire data-driven spectral features, rather than learning them through random feature adaptation.
 
 === Why not spline models?
-Piecewise spline models are well-known and effective in low-dimensional nonparametric regression. Why not use them? Because they depend on the resolution. As Gaussian process priors, spline kernels produce posterior means that are splines with knots (hingepoints in some derivative) fixed at the observed inputs and nowhere else @MacKay1998[p. 6]. In contrast, the $arccos(n)$ kernel will learn the effective number of hingepoints from the data, which may happily remain $O(1)$ while the amount of datapoints grows indefinitely. Translated to our problem, we want the number of effective change points to be resolution-independent (independent of the sampling frequency) and not confined to the observation locations.
+Piecewise spline models are well-studied and effective in low-dimensional nonparametric regression.
+The issue here is resolution dependence.
+As GP priors, spline kernels produce posterior means that are splines with knots fixed at the observed input locations @MacKay1998[p.~6]: add more data, add more knots.
+The arc cosine kernel, by contrast, learns the effective number of hingepoints from the data through its hyperparameters, and this number can remain $cal(O)(1)$ even as the number of observations grows.
+For glottal flow this matters: a DGF waveform sampled at $16$~kHz and one sampled at $44$~kHz should both require $cal(O)(1)$ effective changepoints to describe the open phase, not a number proportional to the sampling rate.
 
 === Why not Lévy processes?
-These encode Poisson-style jumps $O(1)$ in number in time. But inference in these is always $O("# of jumps")$. So can't really marginalize out these jump points, and we want to avoid MCMC. We want to stack everything in the amplitude marginalization. But, actual discontinuities require Lévy processes; the arc cosine GP alone can only fake it with steep ramps /*(see @fig:steep)*/.
+These encode Poisson-style jumps, $cal(O)(1)$ in number, which is exactly the right prior for a signal with a small number of hard discontinuities.
+The problem is inference: the posterior over a Lévy process is indexed by the jump locations, and marginalizing those out requires MCMC or particle methods that scale with the number of jumps.
+The GP approach achieves fast closed-form posterior inference precisely because everything — changepoints, amplitudes, timing — has been absorbed into the kernel.
+Trading exact jumps for steep smooth ramps is the price of that tractability.

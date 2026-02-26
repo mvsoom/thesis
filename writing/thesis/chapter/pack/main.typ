@@ -49,10 +49,10 @@ Writeup
 
 @chapter:gfm established parametric and nonparametric glottal flow models for a _single period_ of the glottal cycle.
 In this chapter and the next, our goal is to extend this basic building block to _multiple periods_.
-Recordings of voiced speech often visually exhibit self-similarity on timescales of $O(10 "msec")$ because in normal speech the glottal cycle often reaches steady-state, and a clear pitch is perceived as a consequence.#footnote[
-Results from clinical trials @Little2007 indicate that normal (non-pathological) voices are usually something called Type I @Titze1995; that is, phonation results in nearly periodic sounds, which supports the notion that uttered vowels /*(which make up the majority of voiced speech)*/ in normal speech typically reach a steady-state before "moving on".
-Thus when a vowel is perceived with a clear and constant pitch, it is reasonable to assume that the vowel attained steady-state at some point (though perceptual effects forbid a one-to-one correspondence).
-In practice, steady-state vowels are identified simply by looking for such quasiperiodic strings, which typically consist of about 3 to 5 pitch periods @Rabiner2007.
+Recordings of voiced speech often visually exhibit self-similarity on timescales of $cal(O)(10 "msec")$ because in normal speech the glottal cycle often reaches steady-state, and a clear pitch is perceived as a consequence.#footnote[
+  Results from clinical trials @Little2007 indicate that normal (non-pathological) voices are usually something called Type I @Titze1995; that is, phonation results in nearly periodic sounds, which supports the notion that uttered vowels /*(which make up the majority of voiced speech)*/ in normal speech typically reach a steady-state before "moving on".
+  Thus when a vowel is perceived with a clear and constant pitch, it is reasonable to assume that the vowel attained steady-state at some point (though perceptual effects forbid a one-to-one correspondence).
+  In practice, steady-state vowels are identified simply by looking for such quasiperiodic strings, which typically consist of about 3 to 5 pitch periods @Rabiner2007.
 ]
 An illustrative example for the case of steady-state vowels is given in @fig:quasi-periodicity.
 
@@ -310,7 +310,7 @@ $
 
 /*
 
-We can absorb $sigma_a$ into $Sigma$, as $arccos$ is homogenous for global rescaling, which is equivalent to rescaling $Sigma -> alpha Sigma$. What is excellent: we managed to push one layer of hyperparameters into the amplitudes! Since we marginalized them away, we end up with a nonparametric polynomial DGF model. We have only three hyperparameters: $sigma$, $sigma_1$, $sigma_2$ instead of $O(H)$ amount. This is the key to fast multiple kernel learning.
+We can absorb $sigma_a$ into $Sigma$, as $arccos$ is homogenous for global rescaling, which is equivalent to rescaling $Sigma -> alpha Sigma$. What is excellent: we managed to push one layer of hyperparameters into the amplitudes! Since we marginalized them away, we end up with a nonparametric polynomial DGF model. We have only three hyperparameters: $sigma$, $sigma_1$, $sigma_2$ instead of $cal(O)(H)$ amount. This is the key to fast multiple kernel learning.
 
 But we can allow $bm(Sigma) = mat(sigma_b^2, 0; 0, sigma_t^2)$ as this is important to model behavior of kernel. Introducing a third parameter $rho$ (correlation in $Sigma$) breaks our FT derivation (the $tan "/" arctan$ trick), which assumes no correlation between bias and $t$. So individual rescaling is as far as we can go and probably more than enough. So we can proceed with the $N(0,I)$ case as in @Cho2009. // https://chatgpt.com/s/t_68dfa3181bf88191a3183a8138bf2969
 
@@ -382,7 +382,7 @@ Convergence is extremely fast, can get away with $M <= 30$ terms for $d = 0$ and
 This is the harmonic expansion of a zonal kernel: a discrete Fourier series, not infinite Fourier transform, because we are on $S^1$.
 
 ==== Harmonic expansion for $d = 0$
-Slowest convergence at $O(m^(-2))$
+Slowest convergence at $cal(O)(m^(-2))$
 
 
 
@@ -395,7 +395,7 @@ $
   &quad quad quad [integral_(t_1)^(t_2) (1+t'^2)^(d/2) exp{-i m psi_t'} exp{i 2pi f' t'} dif t'] \
   &= sum_(m in bb(Z)) c_m^((d)) thin H_m^((d))(f) thin overline(H_m^((d))(f'))
 $
-This is a _Mercer expansion_ of the $tilde(k)^((d)) (f,f'; C)$ kernel; an inverse Fourier transform of this expression yields a direct Mercer expansion of the original kernel, which allows $O(N)$ inference.
+This is a _Mercer expansion_ of the $tilde(k)^((d)) (f,f'; C)$ kernel; an inverse Fourier transform of this expression yields a direct Mercer expansion of the original kernel, which allows $cal(O)(N)$ inference.
 
 The calculation has been simplified to evaluating
 $
@@ -533,7 +533,7 @@ $
 == Learning Fourier features
 
 Eigenfunctions do not depend on hyperparameters, only the expansion coefficients, as in Hilbert-GP
-- In fact we can do $O(N log N)$ learning due to regular grid
+- In fact we can do $cal(O)(N log N)$ learning due to regular grid
 
 ==== Steps of inference producedure
 TLDR; first ALIGN inductive bias (on the hyperparam level), then REFINE inductive bias (on the coefficient/GP level).

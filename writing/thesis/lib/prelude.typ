@@ -19,4 +19,4 @@
 #let argmax = $op("argmax", limits: #true)$
 #let argmin = $op("argmin", limits: #true)$
 
-#let expval(x) = $lr(angle.l #x angle.r)$
+#let expval(x) = $lr(chevron.l #x chevron.r)$

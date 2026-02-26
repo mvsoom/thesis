@@ -76,7 +76,7 @@ $
   = bb(E)_(q_i) [log p(bm(y)_i | f_i)] - D_"KL" (q_i (bm(u)_i) || p(bm(u)_i)).
 $
 In the present setting, examples are independent GPs sharing $(bm(Z), theta)$.
-Following this route directly, we must store and optimize variational parameters $(bm(m)_i, bm(S)_i)$ for every waveform $i$ — a storage cost of $O(I M^2)$ in the covariances alone.
+Following this route directly, we must store and optimize variational parameters $(bm(m)_i, bm(S)_i)$ for every waveform $i$ — a storage cost of $cal(O)(I M^2)$ in the covariances alone.
 More fundamentally, the local parameters would need to be maintained and warm-started across minibatches during stochastic optimization, requiring a large synchronized state that makes proper minibatching over waveforms awkward.
 
 === Titsias collapse
@@ -99,7 +99,7 @@ $ <eq:collapsed-elbo>
 The first term is the log marginal likelihood under the low-rank approximation; the second penalizes the approximation error.
 
 === Evaluating the bound
-Both terms are computed efficiently from $bm(A)_i$, $bm(B)_i$, and $bm(v)_i$, so the cost per waveform scales as $O(M^2 N_i)$ and the $N_i times N_i$ matrix $bm(Q)_(i i) + sigma^2 bm(I)$ is never formed.
+Both terms are computed efficiently from $bm(A)_i$, $bm(B)_i$, and $bm(v)_i$, so the cost per waveform scales as $cal(O)(M^2 N_i)$ and the $N_i times N_i$ matrix $bm(Q)_(i i) + sigma^2 bm(I)$ is never formed.
 
 For the log marginal term, write $bm(Q)_(i i) + sigma^2 bm(I) = sigma^2 (bm(I) + bm(A)_i^top bm(A)_i)$.
 By the matrix determinant lemma, $det(bm(I)_(N_i) + bm(A)_i^top bm(A)_i) = det(bm(B)_i)$, so

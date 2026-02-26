@@ -99,6 +99,7 @@
     #include "./algorithm/prism.typ"
     #include "./algorithm/prism-rff.typ"
     #include "./algorithm/t-prism.typ"
+    #include "./algorithm/lbgid.typ"
   ],
   // Also optional. If you don't have any appendices, you can delete this.
   // Same as all other sections, you can just include the content here from a
@@ -108,7 +109,8 @@
     #include "./appendix/parametric.typ"
     #include "./appendix/jaxlf.typ"
     #include "./appendix/nonparametric-gfm.typ"
-    #include "./appendix/gps.typ"
+    #include "./appendix/gauge.typ"
+    //  #include "./appendix/gps.typ"
     #include "./appendix/related-contributions.typ"
   ],
 )
@@ -139,7 +141,5 @@
 #include "./chapter/qpack/main.typ"
 
 #include "./chapter/bngif/main.typ"
-
-#include "./chapter/evaluation/main.typ"
 
 #include "./chapter/conclusion/main.typ"

@@ -117,7 +117,7 @@ whereas linear methods are more reasonable when combining complex Gaussian kerne
 What's more: there is a superposition/blurring principle at play: clusters of "nearby kernels" that are a posteriori active define a single  "interpolated" kernel
 */
 
-Infinite because expected amount of nonzero kernels stays $O(1)$ as $I -> oo$.
+Infinite because expected amount of nonzero kernels stays $cal(O)(1)$ as $I -> oo$.
 
 == Inference
 

@@ -814,7 +814,7 @@ which elementwise decomposes as a sum of $H$ i.i.d. terms:
 $
   [bm(Q)]_(n m) = sigma_a^2 sum_(h=1)^H phi.alt_h (t_n) phi.alt_h (t_m).
 $ <eq:bmq83>
-This sum tends to grow as $O(H)$, since from @eq:Ktack
+This sum tends to grow as $cal(O)(H)$, since from @eq:Ktack
 $
   bb(E)_(bm(b),bm(c))[bm(Q)] = bm(C) prop H.
 $ <eq:scales-as-H>
@@ -830,7 +830,7 @@ Therefore, by the strong law of large numbers we conclude that
 $
   [1/H sum_(h=1)^H phi.alt_h (t_n) phi.alt_h (t_m)] &--> bb(E)_(b,c) [phi.alt(t\; b, c) phi.alt(t'\; b, c)] quad quad &"as" H -> oo, 
 $ <eq:dev86>
-with deviations vanishing as $O(1\/sqrt(H))$.
+with deviations vanishing as $cal(O)(1\/sqrt(H))$.
 Therefore from @eq:tack-e
 $
   [bm(Q)]_(n m) &--> sigma_a^2 thin k^((d))_bm(Sigma) (t_n, t_m) quad quad &"as" H -> oo.
@@ -850,7 +850,7 @@ $
 $ <eq:derive-K>
 
 In other words, the marginal $p(bm(u'))$ converges entirely to a Gaussian and the first and second moments in @eq:firstandsecondmoments become _sufficient statistics_ @Jaynes2003.
-All higher central moments vanish as $O(1\/sqrt(H))$ because the covariance fluctuations in @eq:dev86 themselves decay at that rate.
+All higher central moments vanish as $cal(O)(1\/sqrt(H))$ because the covariance fluctuations in @eq:dev86 themselves decay at that rate.
 Since this argument holds for any finite collection of times $bold(t) = {t_n}_(n=1)^N$, the limiting process is indeed officially a Gaussian process:
 $
   u'_"NN" (t) ~ mono("GaussianProcess")(0, sigma_a^2 thin k^((d))_bm(Sigma) (t, t')).
