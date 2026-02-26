@@ -32,6 +32,8 @@ Results are very well behaved
 
 Note: Rational Quadratic kernel at `experiments/svi/aplawd_rational_quadratic` does not perform better than rbf
 
+Note: Tronarp Matern-nu model at `experiments/svi/aplawd_nu` also does not perform better than rbf
+
 ### Averaging rationale
 
 We estimate model performance as the expected test log likelihood for a random draw from the test distribution. Each training seed produces an estimate of this quantity based on a finite test set, so uncertainty arises from both optimization randomness (between seeds) and finite test sampling (within seed variability). The total uncertainty of the reported mean performance is therefore obtained by combining the variance of seed level means with the average within test set variance scaled by the test set size. This yields a standard error that provides a natural scale for judging whether differences between models are likely to reflect genuine performance differences rather than stochastic variation.

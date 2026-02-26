@@ -58,7 +58,7 @@ class SGMMatern(SGMKernel):
     """
 
     J: int
-    nu: int
+    nu: PositiveReal
 
     lengthscale: PositiveReal
     variance: PositiveReal
@@ -77,13 +77,7 @@ class SGMMatern(SGMKernel):
 
         self.J = J
 
-        # we can optimize over this in principle, but eigh() in _glaguerre_gw() can become expensive...
-        self.nu = float(nu)
-        # ... and now we can let JAX amortize this call
-        z, w = _glaguerre_gw(J, nu - 1.0)
-        self.z = z
-        self.w = w
-
+        self.nu = PositiveReal(jnp.array(nu))
         self.variance = PositiveReal(jnp.array(variance))
         self.lengthscale = PositiveReal(jnp.array(lengthscale))
 
@@ -91,8 +85,7 @@ class SGMMatern(SGMKernel):
         nu = self.nu
         rho = self.lengthscale
 
-        z = self.z
-        w = self.w
+        z, w = _glaguerre_gw(self.J, nu - 1.0)
 
         ell2 = z * (rho**2) / nu
         sig2 = self.variance * w / jnp.exp(jsp.special.gammaln(nu))
@@ -114,9 +107,11 @@ class SGMMatern(SGMKernel):
         rho = self.lengthscale
         sigma2 = self.variance
 
+        z, w = _glaguerre_gw(self.J, nu - 1.0)
+
         # mixture parameters
-        ell2 = self.z * (rho * rho) / nu
-        sig2 = sigma2 * self.w / jnp.exp(jsp.special.gammaln(nu))
+        ell2 = z * (rho * rho) / nu
+        sig2 = sigma2 * w / jnp.exp(jsp.special.gammaln(nu))
 
         # spectral Gaussian parameters
         A = 2.0 * jnp.pi * sig2
