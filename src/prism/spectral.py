@@ -1,14 +1,14 @@
 # %%
-import gpjax as gpx
 import jax
 import jax.numpy as jnp
+from gpjax.kernels import AbstractKernel
 from gpjax.parameters import PositiveReal
 from gpjax.variational_families import CollapsedVariationalGaussian
 
 from prism.svi import init_Z_grid
 
 
-class SGMKernel(gpx.kernels.AbstractKernel):
+class SGMKernel(AbstractKernel):
     """Spectral Gaussian Mixture kernel in 1D
 
     Fourier convention:
@@ -212,7 +212,6 @@ def complex_to_real_Kuf(K):
     Output:
         K_real : (1 + 2M, N) real
     """
-
     Mtot, N = K.shape
     M = Mtot - 1
 

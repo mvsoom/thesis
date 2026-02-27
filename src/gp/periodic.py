@@ -13,13 +13,13 @@ tfmath = tfp.math
 
 def periodic_se_series_coeffs(ell: JAXArray, J: int):
     """
-    Compute q_j for j = 0..J for the periodic SE kernel
+    Compute q_j for j = 0..J for the unit variance periodic SE kernel
 
-        k(t, t') = sigma^2 * exp(-2 sin^2(pi (t - t') / T) / ell^2).
+        k(t, t') = exp(-2 sin^2(pi (t - t') / T) / ell^2).
 
     We use the cosine expansion
 
-        k(t, t') = sigma^2 * sum_{j>=0} qtilde_j^2 cos(j * omega0 * (t - t'))
+        k(t, t') = sum_{j>=0} qtilde_j^2 cos(j * omega0 * (t - t'))
 
     with omega0 = 2 pi / T, and truncate at j = 0..J.
 
@@ -36,10 +36,8 @@ def periodic_se_series_coeffs(ell: JAXArray, J: int):
 
     Returns
     -------
-    q : (J+1,)
-        Square roots of qtilde_j^2 (no sigma yet).
     q2 : (J+1,)
-        qtilde_j^2, same as above but not square-rooted.
+        qtilde_j^2
     """
     z = 1.0 / (ell * ell)
     js = jnp.arange(J + 1, dtype=z.dtype)
@@ -48,9 +46,7 @@ def periodic_se_series_coeffs(ell: JAXArray, J: int):
 
     q2 = 2.0 * ive
     q2 = q2.at[0].set(ive[0])  # j = 0
-
-    q = jnp.sqrt(q2)
-    return q, q2
+    return q2
 
 
 class PeriodicSE(Mercer):
@@ -100,10 +96,11 @@ class PeriodicSE(Mercer):
 
         so that cos_j and sin_j share the same weight.
         """
-        q, q2 = periodic_se_series_coeffs(self.ell, self.J)  # (J+1,)
+        q2 = periodic_se_series_coeffs(self.ell, self.J)  # (J+1,)
 
         # cos(0..J): q_0..q_J
         # sin(1..J): q_1..q_J
+        q = jnp.sqrt(q2)
         diag_L = jnp.concatenate([q, q[1:]], axis=0)  # (2J+1,)
 
         return jnp.diag(diag_L)
