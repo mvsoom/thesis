@@ -12,7 +12,6 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from scipy.stats import chi2, spearmanr
 
-from lvm.qgpvlm import sample_qgpvlm
 from prism.svi import (
     latent_pair_density,
 )
@@ -426,50 +425,114 @@ def plot_cluster_means_in_data_space(qgp, tau_test):
 
     return fig
 
-def plot_cluster_samples_in_data_space(key, gqp, tau_test, nsamples=6):
-    K = gqp.gmm.K
+def plot_cluster_samples_in_data_space(key, qgp, tau_test, nsamples=3):
+    K = qgp.gmm.K
 
-    samples = sample_qgpvlm(key, gqp, tau_test, nsamples)  # (nsamples, Ntest)
+    Psi = jax.vmap(qgp.psi)(tau_test)  # (T, M)
+    Psi_T = np.array(Psi).T  # (M, T)
 
-    ncols = math.ceil(math.sqrt(nsamples))
-    nrows = math.ceil(nsamples / ncols)
+    ncols = math.ceil(math.sqrt(K))
+    nrows = math.ceil(K / ncols)
+
+    # Small-K layouts need more breathing room; otherwise titles/annotations crowd.
+    if K <= 2:
+        panel_width = 380
+        panel_height = 330
+        horizontal_spacing = 0.10
+        vertical_spacing = 0.12
+        margin_top = 90
+    else:
+        panel_width = 320
+        panel_height = 260
+        horizontal_spacing = 0.05
+        vertical_spacing = 0.08
+        margin_top = 70
+
+    margin_left = 70
+    margin_right = 30
+    margin_bottom = 70
+
+    pis = np.array(qgp.pi)
+    order = np.argsort(-pis)
 
     fig = make_subplots(
         rows=nrows,
         cols=ncols,
         shared_xaxes=True,
         shared_yaxes=True,
-        horizontal_spacing=0.05,
-        vertical_spacing=0.05,
+        horizontal_spacing=horizontal_spacing,
+        vertical_spacing=vertical_spacing,
+        subplot_titles=[f"cluster {k+1}" for k in order],
     )
 
     x = np.array(tau_test)
+    sample_colors = pc.qualitative.Set1
+    cluster_seeds = jax.random.split(key, K)
 
-    for i in range(nsamples):
-        f_sample = np.array(samples[i])
+    for panel_idx, k in enumerate(order):
+        mu_k = qgp.mu[k]
+        cov_k = qgp.cov[k]
+        cluster_keys = jax.random.split(cluster_seeds[panel_idx], nsamples)
 
-        r = i // ncols + 1
-        c = i % ncols + 1
+        eps_samples = jax.vmap(
+            lambda subkey: jax.random.multivariate_normal(
+                subkey, mu_k, cov_k, method="svd"
+            )
+        )(cluster_keys)
+        f_samples = np.array(eps_samples) @ Psi_T
 
-        fig.add_trace(
-            go.Scattergl(
-                x=x,
-                y=f_sample,
-                mode="lines",
-                line=dict(width=1),
-                showlegend=False,
-            ),
-            row=r,
-            col=c,
-        )
+        r = panel_idx // ncols + 1
+        c = panel_idx % ncols + 1
+        for sample_idx, f_sample in enumerate(f_samples):
+            color = sample_colors[sample_idx % len(sample_colors)]
+            fig.add_trace(
+                go.Scattergl(
+                    x=x,
+                    y=f_sample,
+                    mode="lines",
+                    line=dict(width=1, color=color),
+                    opacity=0.8,
+                    showlegend=False,
+                ),
+                row=r,
+                col=c,
+            )
+
+    weights_text = "<br>".join(
+        [f"cluster {k}: pi={float(pis[k]):.3f}" for k in order]
+    )
+    fig.add_annotation(
+        text=weights_text,
+        x=0.995,
+        y=0.005,
+        xref="paper",
+        yref="paper",
+        xanchor="right",
+        yanchor="bottom",
+        showarrow=False,
+        align="right",
+        font=dict(size=10),
+        bgcolor="rgba(255,255,255,0.8)",
+        bordercolor="rgba(0,0,0,0.2)",
+        borderwidth=1,
+        borderpad=4,
+    )
 
     fig.update_layout(
-        title=f"[K={K}] Samples from qGPLVM",
+        title=(
+            f"[K={K}] {nsamples} waveform samples per cluster "
+            f"({K * nsamples} total)"
+        ),
         xaxis_title="tau",
         yaxis_title="u'(t)",
-        margin=dict(l=0, r=0, b=0, t=30),
-        height=250 * nrows,
-        width=300 * ncols,
+        margin=dict(
+            l=margin_left,
+            r=margin_right,
+            b=margin_bottom,
+            t=margin_top,
+        ),
+        height=panel_height * nrows + margin_top + margin_bottom,
+        width=panel_width * ncols + margin_left + margin_right,
     )
 
     return fig
