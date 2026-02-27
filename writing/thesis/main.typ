@@ -97,7 +97,7 @@
   bibliography: bibliography("library.bib", style: "apa"),
   algorithms: [
     #include "./algorithm/prism.typ"
-    #include "./algorithm/prism-rff.typ"
+    #include "./algorithm/prism-vff.typ"
     #include "./algorithm/t-prism.typ"
     #include "./algorithm/lbgid.typ"
   ],
@@ -138,7 +138,7 @@
 
 #include "./chapter/pack/main.typ"
 
-#include "./chapter/qpack/main.typ"
+#include "./chapter/lvm/main.typ"
 
 #include "./chapter/bngif/main.typ"
 

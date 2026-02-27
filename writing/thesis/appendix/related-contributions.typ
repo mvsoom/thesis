@@ -16,7 +16,7 @@ account automatically.
 === #pcite(<VanSoom2020>)
 Same as the above, but now using robust nested sampling inference
 instead of a MAP approximation. A new heuristic derivation of the model
-function from source-filter theory is added. In BNGIF nested sampling is
+function from source-filter theory is added. In BNGIF variational inference is
 the preferred inference method.
 
 === #pcite(<VanSoom2022>)

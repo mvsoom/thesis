@@ -38,7 +38,7 @@ With the many glottal flow models to follow, it is all too easy to lose connecti
 After a short look at the glottal cycle, we begin with a review of the classic Liljencrants-Fant model.
 Then we revisit the parametric piecewise polynomial models and generalize them to the nonparametric regime, where they are identified with the _arc cosine kernel_ of #pcite(<Cho2009>).
 The latter is argued to combine the advantages of both worlds: the interpretability of parametric models with the flexibility of nonparametric ones.
-This then sets the stage for @chapter:pack, which derives the _periodic arc cosine kernel_ as a learnable surrogate model of synthetic glottal flow data.
+This then sets the stage for @chapter:pack, which derives the _(quasi)periodic arc cosine kernel_ as a learnable surrogate model of synthetic glottal flow data.
 
 #figure(
   image("./fig/glottal-cycle.png", height: 28%),
@@ -166,7 +166,7 @@ For example, #pcite(<Kreiman2007>, supplement: [p.~601]) observe that
 #quote(block: true)[
   in many cases in our data, returning flow derivatives to 0 at the end of the cycle conflicted with the need to match the experimental data and conflicted with the requirement for equal areas under positive and negative curves in the flow derivative. [...] These conflicts between model features, constraints, and the empirical data were handled by abandoning the equal area constraint.#footnote[That "equal area constraint" is just another name for the closure constraint @eq:closure-constraint.]
 ]
-The approach we take in @chapter:qpack is to learn a softened version of the closure constraint @eq:closure-constraint from data rather than set it a priori.
+The approach we take in @chapter:pack is to learn a softened version of the closure constraint @eq:closure-constraint from data rather than set it a priori.
 This means we learn both whether the flow typically returns to zero and, if not, to what extent this constraint is plausibly violated.
 
 ==== Allow negative flow?

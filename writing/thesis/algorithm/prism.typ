@@ -146,8 +146,8 @@ a set of Gaussians in a common $bb(R)^M$, one per waveform, encoding amplitude e
 Downstream tasks — clustering, density modeling, mixture of factor analyzers — operate entirely in this fixed-dimensional latent space, where the variable-length origin of the data is no longer a complication.
 
 === Connection to PRISM-RFF
-<sec:prism-prism-rff-connection>
-The projection @eq:prism-posterior-params is structurally identical to the amplitude posterior in @chapter:prism-rff (@eq:posterior there).
+<sec:prism-prism-vff-connection>
+The projection @eq:prism-posterior-params is structurally identical to the amplitude posterior in @chapter:prism-vff (@eq:posterior there).
 What differs is only the feature map $phi$: in ordinary PRISM, $phi(t) = bm(L)^(-1) bm(k)_Z(t)$ is built from kernel evaluations at the inducing locations $bm(Z)$; in PRISM-RFF, $phi(tau)$ is built from windowed Fourier projections to inducing frequencies.
 The collapsed bound, the BLR structure, the Woodbury/determinant-lemma evaluation, and the projection formula are all inherited unchanged.
 PRISM-RFF is therefore not a new algorithm but a reparameterization of the basis: from time-domain inducing points to spectral features, with all the translation-invariance benefits that follow for DGF.

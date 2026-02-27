@@ -1,8 +1,8 @@
 
 #import "/writing/thesis/lib/prelude.typ": bm
 
-= PRISM-RFF
-<chapter:prism-rff>
+= PRISM-VFF
+<chapter:prism-vff>
 
 PRISM, in its original form, learns a _shared_ low-rank representation by placing inducing variables at locations $bm(Z)$ in the input domain and applying a collapsed variational bound.
 This works well when the kernel is nonstationary or when the relevant input range is naturally bounded.

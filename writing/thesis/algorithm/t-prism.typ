@@ -149,6 +149,6 @@ Given these variables, the GP collapse of @algo:prism applies without change, wi
 The $lambda_(i n)$ variables have closed-form conjugate updates @eq:cavi-update that automatically downweight samples with large residuals, requiring no outer iteration beyond a small fixed-count inner loop per minibatch.
 Global parameters $(bm(Z), theta, sigma^2, nu)$ are then updated by a standard gradient step, and per-example states are discarded.
 
-The PRISM-RFF basis of @chapter:prism-rff is compatible with t-PRISM without modification.
+The PRISM-RFF basis of @chapter:prism-vff is compatible with t-PRISM without modification.
 The only part of the algorithm that touches the definition of the basis is the computation of $bm(Phi)_i$ and the kernel diagonal $k(t_(i n), t_(i n))$; both are provided equally well by time-domain inducing points and by spectral features.
-The two extensions — robustness and spectral basis — are therefore orthogonal, and all four combinations (PRISM, t-PRISM, PRISM-RFF, t-PRISM-RFF) are valid models sharing the same training loop.
+The two extensions — robustness and spectral basis — are therefore orthogonal, and all four combinations (PRISM, t-PRISM, PRISM-VFF, t-PRISM-VFF) are valid models sharing the same training loop.

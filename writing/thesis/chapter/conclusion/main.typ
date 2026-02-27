@@ -1,3 +1,18 @@
+#import "/writing/thesis/lib/prelude.typ": argmax, argmin, bm, expval, ncite, pcite, section-title-page
+#import "/writing/thesis/lib/gnuplot.typ": gnuplot
+
+#import "@preview/tablem:0.3.0": tablem, three-line-table
+#import "@preview/equate:0.3.2": equate, share-align
+#show: equate.with()
+
+#let frame(stroke) = (x, y) => (
+  left: if x > 0 { 0pt } else { stroke },
+  right: stroke,
+  top: if y < 2 { stroke } else { 0pt },
+  bottom: stroke,
+)
+
+
 = Conclusion
 <chapter:conclusion>
 
@@ -132,3 +147,7 @@ biomedical problem: the classification of clinical depression in speech. In
 (Ozdas et al. (2004))
 */
 
+==== Online learning
+Priors for the expansion coefficients $bm(a)$ can be updated from the posterior from previous frame.
+Same for the AR prior $bm(a)$ (nameclash here).
+Likewise, values of ${T, t_c}$ are correlated across frames and this can be exploited too.
