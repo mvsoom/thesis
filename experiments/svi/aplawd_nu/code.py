@@ -1,5 +1,4 @@
-# %%
-# parameters, export
+# %% tags=["parameters", "export"]
 M = 64  # Number of PRISM basis functions
 iteration = 1
 seed = 3164879
@@ -74,7 +73,7 @@ print("Padding width (max waveform length):", WIDTH_TRAIN)
 ##############################################################
 batch_size = 512
 num_iters = (
-    2000  # 800 suffices if we init lengthscale to 10, but this also works
+    3000  # 800 suffices if we init lengthscale to 10, but this also works
 )
 lr = 1e-2
 jitter = 1e-4
@@ -252,11 +251,11 @@ payload = {
 dump_egg(payload, os.getenv("EXPERIMENT_NOTEBOOK_REL"))
 
 
-# %%
-# export
+# %% tags=["export"]
 svi_walltime = svi_timer.walltime
 svi_obs_std = float(qsvi.posterior.likelihood.obs_stddev)
 svi_lengthscale = float(qsvi.posterior.prior.kernel.lengthscale)
+svi_nu = float(qsvi.posterior.prior.kernel.nu)
 
 mean_loglike_test = x_mean
 std_loglike_test = x_std
