@@ -25,6 +25,7 @@ TODO:
   - commands to only update failed notebooks if many of them have succeeded
   - allow a config.csv to specify hyperparameter grid instead of config.py
   - allow a # memoize or # dump tag which memoizes and reuses or dumps with cloudpickle
+  - allow notifications when done: play a ping sound or send email or attend to other experiments inside the experiment tree
 """
 
 import argparse
