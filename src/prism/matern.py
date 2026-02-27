@@ -7,7 +7,6 @@ import jax.scipy as jsp
 from gpjax.kernels import RBF
 from gpjax.kernels.computations import DenseKernelComputation
 from gpjax.parameters import PositiveReal
-
 from prism.spectral import SGMKernel
 
 
