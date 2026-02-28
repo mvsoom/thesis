@@ -1,4 +1,4 @@
-#import "/writing/thesis/lib/prelude.typ": argmax, argmin, bm, expval, ncite, pcite, section-title-page
+#import "../lib/prelude.typ": argmax, argmin, bm, expval, ncite, pcite, section-title-page
 
 = PRISM
 <algo:prism>

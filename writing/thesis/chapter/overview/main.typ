@@ -1,5 +1,5 @@
-#import "/writing/thesis/lib/prelude.typ": bm, pcite, pcite
-#import "/writing/thesis/lib/gnuplot.typ": gnuplot
+#import "../../lib/prelude.typ": bm, pcite, pcite
+#import "../../lib/gnuplot.typ": gnuplot
 
 = Overview
 <chapter:overview>

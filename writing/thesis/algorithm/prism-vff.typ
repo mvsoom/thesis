@@ -1,5 +1,5 @@
 
-#import "/writing/thesis/lib/prelude.typ": bm
+#import "../lib/prelude.typ": bm
 
 = PRISM-VFF
 <chapter:prism-vff>

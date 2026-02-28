@@ -1,5 +1,5 @@
-#import "/writing/thesis/lib/prelude.typ": argmax, argmin, bm, expval, ncite, pcite, section-title-page
-#import "/writing/thesis/lib/gnuplot.typ": gnuplot
+#import "../../lib/prelude.typ": argmax, argmin, bm, expval, ncite, pcite, section-title-page
+#import "../../lib/gnuplot.typ": gnuplot
 
 /*
 CODEX PROMPT:

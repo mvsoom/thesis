@@ -1,4 +1,4 @@
-#import "/writing/thesis/lib/prelude.typ": bm, pcite
+#import "../lib/prelude.typ": bm, pcite
 
 = Related contributions
 <chapter:related-contributions>
