@@ -10,6 +10,7 @@ from jax.tree_util import DictKey, GetAttrKey, SequenceKey
 
 _KEY = jax.random.PRNGKey(int(time.time_ns()) % (2**32 - 1))
 
+JDTYPE = jnp.array(0.0).dtype
 
 def vk(key=None):
     """Volatile key for testing purposes -- don't use in production"""
@@ -19,6 +20,12 @@ def vk(key=None):
         return k
     else:
         return jax.random.PRNGKey(key)
+
+
+def log10normal(key, shape=()):
+    """Draw samples from a log10-uniform distribution, i.e. 10^U where U is uniform."""
+    z = jax.random.normal(key, shape=shape)
+    return (10.0) ** z
 
 
 def jnp_default(a):

@@ -11,10 +11,10 @@ from scipy.stats import ecdf
 from tqdm import tqdm
 
 from prism.pack import NormalizedPACK
-from utils.jax import nocheck, safe_cholesky
+from utils.jax import JDTYPE, nocheck, safe_cholesky
 
 
-def pad_waveforms(waveforms, width=None, dtype=jnp.float64):
+def pad_waveforms(waveforms, width=None, dtype=JDTYPE):
     n = len(waveforms)
 
     if width is None:
@@ -336,28 +336,8 @@ def infer_eps_posterior_single(q, t_row, y_row):
     return mu_eps, Sigma_eps
 
 
-def do_prism(q, dataset, device=jax.devices("cpu")[0]):
+def do_prism(q, dataset, batch_size=None, device=None):
     """Calculate the amplitude posterior for all waveforms in dataset, thereby refracting the dataset like a prism into latent space"""
-    with jax.default_device(device):
-        mu_eps, Sigma_eps = jax.vmap(
-            infer_eps_posterior_single,
-            in_axes=(None, 0, 0),
-        )(q, dataset.X, dataset.y)
-    return mu_eps, Sigma_eps
-
-
-def do_prism_scan(q, dataset, batch_size=None, device=jax.devices("cpu")[0]):
-    """Scanning version of do_prism() to prevent OOM"""
-    with jax.default_device(device):
-        mu_eps, Sigma_eps = jax.lax.map(
-            infer_eps_posterior_single,
-            in_axes=(None, 0, 0),
-        )(q, dataset.X, dataset.y)
-    return mu_eps, Sigma_eps
-
-
-def do_prism_scan(q, dataset, batch_size=None, device=jax.devices("cpu")[0]):
-    """Scanning version of do_prism() to prevent OOM"""
 
     def body(inputs):
         t_row, y_row = inputs
@@ -412,9 +392,13 @@ def svi_basis(q, t):
 
 # %%
 def reconstruct_waveforms(
-    mu_eps, qsvi, train_data, test_indices, tau_test, weights=None
+    mu_eps, qsvi, train_data, test_indices, tau_test=None, weights=None
 ):
     """Is the learned RKHS rich enough to reconstruct some test waveforms?"""
+    if tau_test is None:
+        X = train_data.X[test_indices]
+        tau_test = jnp.linspace(jnp.nanmin(X), jnp.nanmax(X), 4096)
+
     f_means = jax.vmap(
         lambda eps: gp_posterior_mean_from_eps(qsvi, tau_test, eps)
     )(mu_eps[test_indices])
@@ -547,6 +531,74 @@ def latent_pair_density(Xmu, Xvar, pair, nx=200, ny=200, pad=0.5):
 
     extent = [xmin, xmax, ymin, ymax]
     return dens, extent
+
+# %%
+def surrogate_log_evidence(q, t, y):
+    """
+    Exact reduced-rank (Nyström) marginal log-likelihood for a single waveform:
+
+        log N(y; 0, Qxx + sigma^2 I)
+
+    where Qxx = Kxz Kzz^{-1} Kzx, with NaN-masked padding.
+
+    This is the `two_log_prob / 2` part of `collapsed_elbo_masked`,
+    i.e. the Titsias trace correction is omitted.
+    """
+    jitter = q.jitter
+
+    mask_w = ~jnp.isnan(y)
+    mask = mask_w[:, None]
+
+    t = t[:, None]
+    y = y[:, None]
+
+    t = jnp.where(mask, t, 0.0)
+    y = jnp.where(mask, y, 0.0)
+
+    n_eff = jnp.sum(mask_w)
+
+    kernel = q.posterior.prior.kernel
+    sigma2 = q.posterior.likelihood.obs_stddev**2
+
+    Kzz = compute_Kzz(q)
+    Kzx = compute_Kzx(q, t)
+
+    Kzx = Kzx * mask_w[None, :]
+
+    Lz = safe_cholesky(Kzz, jitter=jitter)
+
+    A = jsp.linalg.solve_triangular(Lz, Kzx, lower=True) / jnp.sqrt(sigma2)
+
+    B = jnp.eye(num_inducing(q)) + A @ A.T
+    L = safe_cholesky(B, jitter=jitter)
+
+    log_det_B = 2.0 * jnp.sum(jnp.log(jnp.diagonal(L)))
+
+    diff = y
+    tmp = jsp.linalg.solve_triangular(L, A @ diff, lower=True)
+
+    quad = (jnp.sum(diff * diff) - jnp.sum(tmp * tmp)) / sigma2
+
+    return -0.5 * (n_eff * jnp.log(2.0 * jnp.pi * sigma2) + log_det_B + quad)
+
+
+def surrogate_log_evidence_on_test(q, dataset, batch_size=None, device=None):
+    """Reduced-rank log-likelihood over a Dataset with NaN padding
+
+    Returns [N] array, one scalar per waveform.
+    """
+
+    def body(inputs):
+        t, y = inputs
+        return surrogate_log_evidence(q, t, y)
+
+    with jax.default_device(device):
+        return jax.lax.map(
+            body,
+            (dataset.X, dataset.y),
+            batch_size=batch_size,
+        )
+
 
 # %%
 from gpjax.kernels import White

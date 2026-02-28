@@ -3,6 +3,7 @@ import gpjax as gpx
 import jax
 import jax.numpy as jnp
 import numpy as np
+from gpjax.gps import Prior
 from gpjax.kernels import AbstractKernel, Periodic
 from gpjax.likelihoods import Gaussian
 from gpjax.mean_functions import Zero
@@ -198,6 +199,10 @@ class SHMPeriodicFFT(SHMKernel):
     @property
     def period(self):
         return self.kernel.period
+
+    @property
+    def variance(self):
+        return self.kernel.variance
 
     def __call__(self, x, y):
         return self.kernel(x, y)
@@ -447,3 +452,41 @@ if __name__ == "__main__":
     plt.legend()
     plt.title("Quasi-periodic kernel validation")
     plt.show()
+
+# %%
+from prism.matern import SGMRBF
+from prism.spectral import SGMCollapsedVariationalGaussian
+
+
+def white_rbf_lengthscale(dtau, eps):
+    return dtau / jnp.sqrt(2.0 * jnp.log(1.0 / eps))
+
+
+def harmonic_null_model(qsvi, test_data, eps=1e-6):
+    """Create an approximate spectral null model at the same inducing frequencies that approximates a flat spectrum with same kernel variance
+
+    We do this via a SGM RBF kernel with very tiny lengthscale
+    """
+
+    # Take care of Gaussian input density since we use SGM framework
+    X = test_data.X
+
+    X = X - jnp.nanmean(X, axis=1)[:, None]
+    X_std = jnp.nanmean(jnp.nanstd(X, axis=1))
+
+    centered_test_data = gpx.Dataset(X=X, y=test_data.y)
+
+    dtau = jnp.nanmean(jnp.abs(jnp.diff(X, axis=1)))
+    short_ell = white_rbf_lengthscale(dtau, eps)
+    variance = qsvi.posterior.prior.kernel.variance
+
+    white_RBF = SGMRBF(variance=variance, lengthscale=short_ell)
+    posterior = Prior(white_RBF, Zero()) * qsvi.posterior.likelihood
+
+    qsvi_null = SGMCollapsedVariationalGaussian(
+        posterior=posterior,
+        inducing_inputs=qsvi.inducing_inputs,
+        sigma_w=X_std,
+    )
+
+    return qsvi_null, centered_test_data

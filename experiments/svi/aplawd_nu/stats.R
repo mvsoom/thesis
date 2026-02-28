@@ -5,7 +5,7 @@ library(errors)
 options(errors.digits = 1)
 
 # Get experiment dir from environment variable
-runs_file <- file.path(Sys.getenv("PROJECT_EXPERIMENTS_PATH"), "svi/aplawd/runs.csv")
+runs_file <- file.path(Sys.getenv("PROJECT_EXPERIMENTS_PATH"), "svi/aplawd_nu/runs.csv")
 runs <- data.table(fread(runs_file))
 
 # We have null models for each (kernel, M)
@@ -43,12 +43,14 @@ agg <- runs[
             se_loglike_test_null = se_tot0,
             svi_lengthscale = mean(svi_lengthscale),
             se_lengthscale = se_seed(svi_lengthscale),
+            svi_nu = mean(svi_nu),
+            se_nu = se_seed(svi_nu),
             svi_obs_std = mean(svi_obs_std),
             se_obs_std = se_seed(svi_obs_std),
             N = .N
         )
     },
-    by = .(kernelname, M)
+    by <- .(M)
 ]
 
 
@@ -56,12 +58,13 @@ agg[, `:=`(
     score       = set_errors(mean_loglike_test, se_loglike_test),
     score95     = set_errors(mean_loglike_test, 2 * se_loglike_test),
     score_null  = set_errors(mean_loglike_test_null, se_loglike_test_null),
+    nu          = set_errors(svi_nu, se_nu),
     lengthscale = set_errors(svi_lengthscale, se_lengthscale),
     obs_std     = set_errors(svi_obs_std, se_obs_std)
 )]
 
 # best model
-agg[, .(kernelname, M, score, score95, lengthscale, obs_std)][order(-score)]
+agg[, .(M, score, score95, nu, lengthscale, obs_std)][order(-score)]
 
 # best null
-agg[, .(kernelname, M, score_null)][order(-score_null)]
+agg[, .(M, score_null)][order(-score_null)]
