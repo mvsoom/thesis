@@ -76,7 +76,7 @@ class SHMKernel(AbstractKernel):
 
     def k_from_shm(self, r):
         """k(r) from cosine series"""
-        A, mu = self.compute_shm(M)
+        A, mu = self.compute_shm()
         A0 = A[0]
         Apos = A[1:]
         mup = mu[1:]
