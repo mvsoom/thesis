@@ -1,16 +1,16 @@
 # %%
 import jax.numpy as jnp
 from gpjax.gps import Prior
+from gpjax.kernels import AbstractKernel
 from gpjax.mean_functions import Zero
-from gpjax.parameters import PositiveReal  # keep using this
+from gpjax.parameters import PositiveReal
 
 from ack.parameters import Simplex
 from gfm.ack import compute_Jd
-from prism.harmonic import SHMKernel
 from utils.jax import vk
 
 
-class PACK(SHMKernel):
+class PACK(AbstractKernel):
     """
     Normalized PACK ArcCos kernel with explicit marginal variance and simplex weights.
 
@@ -151,7 +151,7 @@ if __name__ == "__main__":
     from prism.harmonic import SHMCollapsedVariationalGaussian, SHMPeriodicFFT
     from prism.svi import svi_basis
 
-    kfft = SHMPeriodicFFT(k)
+    kfft = SHMPeriodicFFT(k, num_harmonics=16)
 
     prior = Prior(kfft, Zero())
     likelihood = Gaussian(num_datapoints=len(t))
@@ -168,7 +168,7 @@ if __name__ == "__main__":
     plt.plot(t, y)
 
     # %%
-    A, mu = kfft.compute_shm(M)
+    A, mu = kfft.compute_shm()
 
     lhs = kfft(jnp.array(0.0), jnp.array(0.0))
     rhs = (1 / (2 * jnp.pi)) * (A[0] + 2 * A[1:].sum())
@@ -179,13 +179,11 @@ if __name__ == "__main__":
     # %%
     r = t[:, None] - t[None, :]
 
-    for Mtry in [8, 16, 32, 64]:
-
-        def k_from_shm(r):
-            return kfft.k_from_shm(Mtry, r)
-
-        K_shm = jax.vmap(k_from_shm)(r)
+    for nh in [8, 16, 32, 64]:
+        kfft = SHMPeriodicFFT(k, num_harmonics=nh)
+        K_shm = jax.vmap(kfft.k_from_shm)(r)
 
         print(
-            f"Mtry = {Mtry:2} Max abs diff:", jnp.max(jnp.abs(K1 - K_shm))
+            f"Num(harmonics) = {nh:2} Max abs diff:",
+            jnp.max(jnp.abs(K1 - K_shm)),
         )  # ok
