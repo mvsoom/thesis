@@ -15,7 +15,7 @@ This choice is openly acknowledged to be a regularizer rather than an informativ
 
 Two things about this are unsatisfying.
 First, an isotropic Gaussian with $lambda = 0.1$ means $sigma_a^2 = 10$, a standard deviation of about $3.16$ per coefficient — a very loose prior under which the AR filter will almost surely be unstable.
-Second, we actually know a great deal about vocal tract filters: their resonances are spaced roughly $500$~Hz apart, their spectral rolloff is controlled by a handful of dominant poles, and the filter bm(mu)st be causal and passive.
+Second, we actually know a great deal about vocal tract filters: their resonances are spaced roughly $500$~Hz apart, their spectral rolloff is controlled by a handful of dominant poles, and the filter must be causal and passive.
 None of this is encoded in $mono("Normal")(bm(0), 0.1 bm(I)_P)$.
 
 This chapter develops two priors that attempt to do better.
@@ -91,7 +91,7 @@ The diagonal of $bm(S)_q$ also decays roughly as $1/p$, recovering the $1/P$ var
 <sec:pade-tension>
 
 The Monahan prior rests on the assumption that $A(z)$ is a genuine causal stable filter.
-In the source-filter model of speech this is physically motivated: the vocal tract is a passive acoustic resonator and its transfer function bm(mu)st have poles inside the unit disk.
+In the source-filter model of speech this is physically motivated: the vocal tract is a passive acoustic resonator and its transfer function must have poles inside the unit disk.
 From this viewpoint, the Monahan prior is exactly right.
 
 There is a worthy competing viewpoint, however.
@@ -124,8 +124,8 @@ More generally, any desired spectral feature — a resonance, a rolloff pole, a 
 /* TODO: table of spectral features */
 
 Several spectral features and their corresponding $Q$ polynomials are listed in @table:spectral-features.
-Multiple features $Q_1, dots, Q_K$ combine by taking their least common bm(mu)ltiple $M(z) = "lcm"{Q_1(z), dots, Q_K(z)}$, since $Q_k divides A$ for all $k$ if and only if $M divides A$.
-Over $bb(C)$, this just means collecting the union of desired roots with their maxibm(mu)m bm(mu)ltiplicities, so the effective degree of the combined constraint is $L_"eff" = deg M$.
+Multiple features $Q_1, dots, Q_K$ combine by taking their least common multiple $M(z) = "lcm"{Q_1(z), dots, Q_K(z)}$, since $Q_k divides A$ for all $k$ if and only if $M divides A$.
+Over $bb(C)$, this just means collecting the union of desired roots with their maxibm(mu)m multiplicities, so the effective degree of the combined constraint is $L_"eff" = deg M$.
 
 */
 
@@ -142,7 +142,7 @@ so the spectral envelope factors as
 $
   S(omega) prop 1/(|M(e^(i omega))|^2 |R(e^(i omega))|^2).
 $
-The spectral shape of $M$ is therefore a *guaranteed factor* of the envelope: wherever $M$ has a pole near the unit circle, $S(omega)$ bm(mu)st have a peak, and wherever $M$ has a zero, $S(omega)$ bm(mu)st have a trough.
+The spectral shape of $M$ is therefore a *guaranteed factor* of the envelope: wherever $M$ has a pole near the unit circle, $S(omega)$ must have a peak, and wherever $M$ has a zero, $S(omega)$ must have a trough.
 The remaining polynomial $R(z)$ is free to fill in whatever the data requires.
 In the soft version developed below, divisibility becomes an *expected* rather than guaranteed condition, and the prior is nudged toward envelopes whose spectral shape contains the features encoded in $M$, while leaving the data free to adjust $R(z)$ in any direction.
 This is why literally any spectral feature that can be expressed as a root structure can be embedded by this mechanism: formants, antiformants, rolloff poles, seasonal components — all reduce to a choice of $M(z)$.
@@ -197,12 +197,12 @@ This is directly related to the "pre-emphasis" step common in speech processing,
 
 A _DC notch_ or _Nyquist notch_, corresponding to $Q(z) = 1 - z$ or $Q(z) = 1 + z$, removes prior probability mass from filters with runaway low or high-frequency response.
 
-Multiple features combine bm(mu)ltiplicatively: a prior that sibm(mu)ltaneously expects a first formant near $700$~Hz, a second near $1200$~Hz, and a $6$~dB/octave overall rolloff uses $M(z) = Q_"F1"(z) dot Q_"F2"(z) dot Q_"rolloff"(z)$, with $L_"eff" = deg M = 5$.
+Multiple features combine multiplicatively: a prior that sibm(mu)ltaneously expects a first formant near $700$~Hz, a second near $1200$~Hz, and a $6$~dB/octave overall rolloff uses $M(z) = Q_"F1"(z) dot Q_"F2"(z) dot Q_"rolloff"(z)$, with $L_"eff" = deg M = 5$.
 
 == Summary
 
 The standard isotropic prior used in IKLP is a regularizer, not a model.
-It is too loose by a factor of $P/2$ in its effect on output power, and it is indifferent to the stability constraint that any physical vocal tract filter bm(mu)st satisfy.
+It is too loose by a factor of $P/2$ in its effect on output power, and it is indifferent to the stability constraint that any physical vocal tract filter must satisfy.
 
 The Monahan prior corrects the stability problem by moment-matching to the push-forward of a uniform PACF draw, yielding the optimal Gaussian approximation to the uniform distribution over stable AR filters.
 Its covariance $bm(S)_q$ captures the geometry of the stability region and recovers the $sigma_a^2 prop 1/P$ scaling law as a consequence rather than a heuristic.
