@@ -32,8 +32,6 @@ class SHMCollapsedVariationalGaussian(SGMCollapsedVariationalGaussian):
     DC is always included
     """
 
-    M: int  # number of harmonics NOT including DC (GP rank is 2M+1)
-
     def __init__(self, M, *args, **kwargs):
         kernel = kwargs["posterior"].prior.kernel
         period = kernel.period
@@ -45,17 +43,16 @@ class SHMCollapsedVariationalGaussian(SGMCollapsedVariationalGaussian):
         self.inducing_inputs = jnp.array(
             self.inducing_inputs[...]
         )  # not trainable
-        self.M = M
 
     def compute_Kuu(self):
         kernel = self.posterior.prior.kernel
-        A, _ = kernel.compute_shm(self.M)
+        A, _ = kernel.compute_shm()
         Kuu_complex = jnp.diag(A / (2.0 * jnp.pi))
         return complex_to_real_Kuu(Kuu_complex)
 
     def compute_Kuf(self, t):
         kernel = self.posterior.prior.kernel
-        A, mu = kernel.compute_shm(self.M)
+        A, mu = kernel.compute_shm()
         tau = jnp.ravel(t)
         Kuf_complex = (A / (2.0 * jnp.pi))[:, None] * jnp.exp(
             -1j * mu[:, None] * tau[None, :]
@@ -64,13 +61,20 @@ class SHMCollapsedVariationalGaussian(SGMCollapsedVariationalGaussian):
 
 
 class SHMKernel(AbstractKernel):
-    def compute_shm(self, M):
+    def __init__(self, *args, num_harmonics, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.num_harmonics = num_harmonics
+
+    def compute_shm(self):
         """Return (A, mu) for the line spectrum of the periodic kernel
 
-        Here A is the line MASS (ie prefactor of the delta) and mu = (2pi) f (radians per unit time)"""
+        A and mu have shape (M+1,) where M is the number of harmonics self.num_harmonics (not including DC).
+
+        Here A is the line MASS (ie prefactor of the delta) and mu = (2pi) f (radians per unit time)
+        """
         raise NotImplementedError
 
-    def k_from_shm(self, M, r):
+    def k_from_shm(self, r):
         """k(r) from cosine series"""
         A, mu = self.compute_shm(M)
         A0 = A[0]
@@ -82,7 +86,8 @@ class SHMKernel(AbstractKernel):
 
 
 class SHMPeriodic(SHMKernel, Periodic):
-    def compute_shm(self, J):
+    def compute_shm(self):
+        J = self.num_harmonics
         ell = 2.0 * self.lengthscale  # match tinygp convention
         q2 = periodic_se_series_coeffs(ell, J)
 
@@ -113,7 +118,9 @@ if __name__ == "__main__":
     period = 4.89
     ell = 2.75
 
-    k_gpjax = SHMPeriodic(variance=variance, lengthscale=ell / 2, period=period)
+    k_gpjax = SHMPeriodic(
+        variance=variance, lengthscale=ell / 2, period=period, num_harmonics=J
+    )
     k_tinygp = variance * PeriodicSE(ell=jnp.array(ell), period=period, J=J)
 
     K_gpjax = k_gpjax.gram(t[:, None]).to_dense()
@@ -200,8 +207,8 @@ class SHMPeriodicFFT(SHMKernel):
         N = max(self.N_min, self.oversamp * 2 * (M + 1))
         return int(1 << (N - 1).bit_length())
 
-    def compute_shm(self, M: int):
-        M = int(M)
+    def compute_shm(self):
+        M = self.num_harmonics
         N = self._choose_N(M)
 
         T = self.kernel.period
@@ -241,7 +248,7 @@ class SHMPeriodicFFT(SHMKernel):
 
 if __name__ == "__main__":
     d = 1
-    kfft = SHMPeriodicFFT(kernel)
+    kfft = SHMPeriodicFFT(kernel, num_harmonics=16)
     prior = gpx.gps.Prior(kfft, Zero())
     likelihood = Gaussian(num_datapoints=len(t))
     posterior = prior * likelihood
@@ -255,7 +262,7 @@ if __name__ == "__main__":
     plt.plot(t, y)
 
     # %%
-    A, mu = kfft.compute_shm(J)
+    A, mu = kfft.compute_shm()
 
     lhs = kfft(jnp.array([[0.0]]), jnp.array([[0.0]]))
     rhs = (1 / (2 * jnp.pi)) * (A[0] + 2 * A[1:].sum())
@@ -288,10 +295,10 @@ class SGMQuasiPeriodic(SGMKernel):
     def __call__(self, x, y):
         return self.am(x, y) * self.periodic(x, y)
 
-    def compute_sgm(self, M):
+    def compute_sgm(self):
         # AM spectrum: symmetric by construction in Kuu/Kuf (mu>=0 expected)
         A, mu, v = self.am.compute_sgm()  # (Q,)
-        Ap, mup = self.periodic.compute_shm(M)  # (J+1,) with mup[0]=0
+        Ap, mup = self.periodic.compute_shm()  # (J+1,) with mup[0]=0
 
         Q = A.shape[0]
         Jplus = Ap.shape[0]
@@ -386,6 +393,7 @@ if __name__ == "__main__":
         variance=variance_per,
         lengthscale=ell / 2,
         period=period,
+        num_harmonics=16,
     )
 
     # Quasi-periodic SGM
@@ -395,7 +403,7 @@ if __name__ == "__main__":
     # 2) Compare k(0)
     # -------------------------------------------------
 
-    A_qp, mu_qp, v_qp = k_qp.compute_sgm(M=16)
+    A_qp, mu_qp, v_qp = k_qp.compute_sgm()
 
     k00_direct = k_qp(jnp.array([[0.0]]), jnp.array([[0.0]]))
 
