@@ -23,6 +23,8 @@ experiments/**/eggs/
 
 **/*.pdf
 
+.vscode/
+
 # Python packaging artefacts
 *.egg-info/
 *.egg
