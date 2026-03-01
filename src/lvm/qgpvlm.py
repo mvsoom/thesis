@@ -2,11 +2,11 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 from flax import struct
-from joblib import Parallel, delayed
-from scipy.special import gammaln
 
 from lvm.bgplvm import BGPLVMPosterior
 from lvm.xdgmm import GMMFit
+from prism.svi import blr_log_evidence, svi_basis
+from utils.constants import NOISE_FLOOR_POWER
 
 
 @struct.dataclass
@@ -79,115 +79,49 @@ def sample_qgpvlm(key, qgp: QGPVLM, tau, nsamples):
     return jax.vmap(one_sample)(ks, z_keys)
 
 
-def np_safe_cholesky(A, jitter=1e-6):
-    nuggets = float(np.mean(np.diag(A))) * float(jitter)
-    return np.linalg.cholesky(A + nuggets * np.eye(A.shape[-1]))
-
-
-def chol_psd(A, jitter=1e-6, eps=1e-12):
-    A = 0.5 * (A + A.T)
-    try:
-        return np_safe_cholesky(A, jitter=jitter)
-    except np.linalg.LinAlgError:
-        w, Q = np.linalg.eigh(A)
-        scale = max(float(np.max(w)), 1.0)
-        w = np.maximum(w, eps * scale)
-        A = (Q * w) @ Q.T
-        A = 0.5 * (A + A.T)
-        return np.linalg.cholesky(A)
-
-
-def loglikelihood_on_test(
+def surrogate_mixture_log_evidence_on_test(
     qgp,
-    f_list,
-    Psi_list,
-    obs_std,
-    nu=np.inf,
-    noise_floor=1e-3,
+    qsvi,
+    dataset,
+    batch_size=None,
+    device=None,
+    noise_floor=np.sqrt(NOISE_FLOOR_POWER),
     jitter=1e-6,
-    n_jobs=-1,
-    backend="loky",  # "loky" (processes) or "threading"
-    verbose=0,
 ):
-    """Calculate the log likelihood of test data under the qGPVLM model
-
-    Depending on the value of nu, this uses either a Gaussian likelihood (nu=inf) or a Student-t likelihood (finite nu); the latter is a reduced rank Student-t process model, NOT the same as a GP + Student-t noise.
-
-    Note: this is just a GMM in data space, but the reduced rank Psi matrices depend on each data point.
-    This defeats jax and plain numpy was too slow, so we use joblib for parallelism, which gives 50x speedup
     """
-    sigma = max(float(obs_std), float(noise_floor))
-    sigma2 = sigma * sigma
-    inv_sigma2 = 1.0 / sigma2
-    log2pi = np.log(2.0 * np.pi)
+    Exact reduced-rank Gaussian marginal likelihood under a mixture of BLRs.
 
-    mu = np.asarray(qgp.mu)
-    pi = np.asarray(qgp.pi)
-    cov = np.asarray(qgp.cov)
-
-    K, D = mu.shape
-    Ntest = len(f_list)
-
-    # Precompute per-component stuff once.
-    Sig_inv = np.empty((K, D, D), dtype=np.float64)
-    logdet_Sig = np.empty(K, dtype=np.float64)
-    I_D = np.eye(D, dtype=np.float64)
-
-    for k in range(K):
-        L = chol_psd(cov[k], jitter=jitter)
-        logdet_Sig[k] = 2.0 * np.sum(np.log(np.diag(L)))
-        Sig_inv[k] = np.linalg.solve(L.T, np.linalg.solve(L, I_D))
-
-    log_pi = np.log(pi + 1e-300)
-
-    def one_item(f, Psi):
-        f = np.asarray(f)
-        Psi = np.asarray(Psi)
-
-        Gi = Psi.T @ Psi  # (D,D)
-        ti = Psi.T @ f  # (D,)
-        si = float(f @ f)  # scalar
-        T = f.shape[0]
-
-        lps = np.empty(K, dtype=np.float64)
-
-        for k in range(K):
-            muk = mu[k]
-            bik = ti - Gi @ muk
-            r2 = si - 2.0 * (muk @ ti) + muk @ (Gi @ muk)
-
-            Mik = Sig_inv[k] + inv_sigma2 * Gi
-            LM = chol_psd(Mik, jitter=jitter)
-
-            x = np.linalg.solve(LM, bik)
-            quad = inv_sigma2 * (r2 - inv_sigma2 * (x @ x))
-
-            logdet_M = 2.0 * np.sum(np.log(np.diag(LM)))
-            logdet_C = T * np.log(sigma2) + logdet_Sig[k] + logdet_M
-
-            if np.isinf(nu):
-                # Gaussian likelihood: Gaussian process
-                lps[k] = log_pi[k] - 0.5 * (T * log2pi + logdet_C + quad)
-            else:
-                # Student-t likelihood: Student-t process
-                term1 = gammaln((nu + T) / 2) - gammaln(nu / 2)
-                term2 = -0.5 * logdet_C
-                term3 = -(T / 2) * np.log(nu * np.pi)
-                term4 = -((nu + T) / 2) * np.log1p(quad / nu)
-
-                lps[k] = log_pi[k] + term1 + term2 + term3 + term4
-
-        m = np.max(lps)
-        return m + np.log(np.sum(np.exp(lps - m)))
-
-    # Parallel over items (works with varying shapes).
-    if n_jobs == 1:
-        out = np.empty(Ntest, dtype=np.float64)
-        for i, (f, Psi) in enumerate(zip(f_list, Psi_list)):
-            out[i] = one_item(f, Psi)
-        return out
-
-    vals = Parallel(n_jobs=n_jobs, backend=backend, verbose=verbose)(
-        delayed(one_item)(f, Psi) for f, Psi in zip(f_list, Psi_list)
+    Returns:
+        logp : (N,) array, one scalar per waveform
+    """
+    sigma = jnp.maximum(
+        qsvi.posterior.likelihood.obs_stddev,
+        noise_floor,
     )
-    return np.asarray(vals, dtype=np.float64)
+    sigma2 = sigma**2
+
+    log_pi = jnp.log(qgp.pi + 1e-30)
+
+    def one_waveform(inputs):
+        t, y = inputs
+        Psi = jax.vmap(lambda t: svi_basis(qsvi, t))(t)
+
+        def per_component(k):
+            return log_pi[k] + blr_log_evidence(
+                y,
+                Psi,
+                qgp.mu[k],
+                qgp.cov[k],
+                sigma2,
+                jitter=jitter,
+            )
+
+        lps = jax.vmap(per_component)(jnp.arange(qgp.K))
+        return jax.scipy.special.logsumexp(lps)
+
+    with jax.default_device(device):
+        return jax.lax.map(
+            one_waveform,
+            (dataset.X, dataset.y),
+            batch_size=batch_size,
+        )

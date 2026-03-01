@@ -15,6 +15,7 @@ from scipy.stats import chi2, spearmanr
 from prism.svi import (
     latent_pair_density,
 )
+from utils.jax import vk
 
 
 def pair_plots_oq(qlvm, pairs, showdensity, showscatter, oq=None):
@@ -311,7 +312,9 @@ def sample_latent_gmm_pointwise(gmm, plvm, psi, tau_test, unwhiten, nsamples=6):
 
     for _ in range(nsamples):
         # sample component and latent
-        k = np.random.choice(K, p=gmm.pi)
+        k = jax.random.choice(
+            vk(), K, p=gmm.pi
+        )  # has to be jax otherwise fails in x32
         mu_k = gmm.params.mu[k]
         cov_k = gmm.params.cov[k]
 

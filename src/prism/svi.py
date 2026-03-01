@@ -533,6 +533,55 @@ def latent_pair_density(Xmu, Xvar, pair, nx=200, ny=200, pad=0.5):
     return dens, extent
 
 # %%
+def blr_log_evidence(
+    y,  # (W,)
+    Phi,  # (W, D)
+    mu,  # (D,)
+    Sigma,  # (D, D)
+    sigma2,  # scalar
+    jitter=1e-6,
+):
+    """log N(y; Phi mu, Phi Sigma Phi^T + sigma2 I) with NaN padding handled by masking."""
+    inv_sigma2 = 1.0 / sigma2
+
+    mask_w = ~jnp.isnan(y)
+    mask = mask_w[:, None]
+
+    y = jnp.where(mask_w, y, 0.0)
+    Phi = jnp.where(mask, Phi, 0.0)
+
+    T = jnp.sum(mask_w)
+
+    Gi = Phi.T @ Phi  # (D,D)
+    ti = Phi.T @ y  # (D,)
+    si = jnp.dot(y, y)  # scalar
+
+    Ls = safe_cholesky(Sigma, jitter=jitter)
+    logdet_Sigma = 2.0 * jnp.sum(jnp.log(jnp.diagonal(Ls)))
+    Sigma_inv = jsp.linalg.cho_solve(
+        (Ls, True), jnp.eye(Sigma.shape[0], dtype=Sigma.dtype)
+    )
+
+    # Woodbury system: M = Sigma^{-1} + (1/sigma2) * Phi^T Phi
+    M = Sigma_inv + inv_sigma2 * Gi
+    Lm = safe_cholesky(M, jitter=jitter)
+
+    # Residual quadratic pieces
+    bik = ti - Gi @ mu
+    r2 = si - 2.0 * (mu @ ti) + mu @ (Gi @ mu)
+
+    # x = Lm^{-1} bik, so x^T x = bik^T M^{-1} bik
+    x = jsp.linalg.solve_triangular(Lm, bik, lower=True)
+    x2 = jnp.dot(x, x)
+
+    quad = inv_sigma2 * (r2 - inv_sigma2 * x2)
+
+    logdet_M = 2.0 * jnp.sum(jnp.log(jnp.diagonal(Lm)))
+    logdet_C = T * jnp.log(sigma2) + logdet_Sigma + logdet_M
+
+    return -0.5 * (T * jnp.log(2.0 * jnp.pi) + logdet_C + quad)
+
+
 def surrogate_log_evidence(q, t, y):
     """
     Exact reduced-rank (Nyström) marginal log-likelihood for a single waveform:
@@ -544,42 +593,34 @@ def surrogate_log_evidence(q, t, y):
     This is the `two_log_prob / 2` part of `collapsed_elbo_masked`,
     i.e. the Titsias trace correction is omitted.
     """
+    sigma2 = q.posterior.likelihood.obs_stddev**2
     jitter = q.jitter
 
     mask_w = ~jnp.isnan(y)
     mask = mask_w[:, None]
 
     t = t[:, None]
-    y = y[:, None]
-
     t = jnp.where(mask, t, 0.0)
-    y = jnp.where(mask, y, 0.0)
-
-    n_eff = jnp.sum(mask_w)
-
-    kernel = q.posterior.prior.kernel
-    sigma2 = q.posterior.likelihood.obs_stddev**2
 
     Kzz = compute_Kzz(q)
     Kzx = compute_Kzx(q, t)
-
     Kzx = Kzx * mask_w[None, :]
 
     Lz = safe_cholesky(Kzz, jitter=jitter)
+    Psi = jsp.linalg.solve_triangular(Lz, Kzx, lower=True)  # (D,W)
 
-    A = jsp.linalg.solve_triangular(Lz, Kzx, lower=True) / jnp.sqrt(sigma2)
+    D = Psi.shape[0]
+    mu = jnp.zeros((D,), dtype=Psi.dtype)
+    Sigma = jnp.eye(D, dtype=Psi.dtype)
 
-    B = jnp.eye(num_inducing(q)) + A @ A.T
-    L = safe_cholesky(B, jitter=jitter)
-
-    log_det_B = 2.0 * jnp.sum(jnp.log(jnp.diagonal(L)))
-
-    diff = y
-    tmp = jsp.linalg.solve_triangular(L, A @ diff, lower=True)
-
-    quad = (jnp.sum(diff * diff) - jnp.sum(tmp * tmp)) / sigma2
-
-    return -0.5 * (n_eff * jnp.log(2.0 * jnp.pi * sigma2) + log_det_B + quad)
+    return blr_log_evidence(
+        y,
+        Psi.T,  # (W,D)
+        mu,
+        Sigma,
+        sigma2,
+        jitter=jitter,
+    )
 
 
 def surrogate_log_evidence_on_test(q, dataset, batch_size=None, device=None):
@@ -598,7 +639,6 @@ def surrogate_log_evidence_on_test(q, dataset, batch_size=None, device=None):
             (dataset.X, dataset.y),
             batch_size=batch_size,
         )
-
 
 # %%
 from gpjax.kernels import White

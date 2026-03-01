@@ -241,6 +241,7 @@ def fit_xdgmm(
 
     pi_bg = jax.nn.softmax(params.logits)
     pi = jax.nn.softmax(params.logits[1:])
+    pi = pi / jnp.sum(pi)
 
     return GMMFit(
         K=K, params=params, mu0=mu0, cov0=cov0, r=r, pi=pi, pi_bg=pi_bg
