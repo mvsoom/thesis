@@ -8,7 +8,7 @@ def configurations():
     grid = {
         "collection": ["vowel", "speech"],
         "egifa_f0": [90, 120, 150, 180, 210],
-        "method": ["null", "iaif", "cp", "wca1", "wca2"],
+        "method": ["null", "iaif", "cp", "wca1", "wca2", "ccd"],
     }
 
     keys = list(grid)

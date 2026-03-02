@@ -115,20 +115,27 @@ switch lower(par.method)
         for ii = 1:length(gci)
             ts = gci(ii)-round(PQ*DQ*T(ii));
             tsm = ts-rlen;
-            
+
+            te = ts + round(DQ*T(ii));
+            tep_next = te + rlen;
+
+            % Edge cycles can fall outside [1, nsp] when GCIs are very close
+            % to signal boundaries (e.g. externally supplied true GCIs).
+            % Skip those cycles instead of erroring on invalid indices.
+            if (tsm < 1) || (ts < 1) || (te > nsp) || (tep_next > nsp)
+                continue;
+            end
+
             w(tep:tsm) = 1;
             w(tsm:ts) = dramp;
-            
-            te = ts + round(DQ*T(ii));
-            tep = te + rlen;
-            
+
+            tep = tep_next;
             w(ts:te) = d;
             w(te:tep) = uramp;
-            
+
         end;
         
     otherwise
         error(['Unknown method ' par.method]);
         
 end;
-

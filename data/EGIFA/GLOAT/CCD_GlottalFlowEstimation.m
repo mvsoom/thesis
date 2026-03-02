@@ -1,4 +1,4 @@
-function [GlottalSource] = CCD_GlottalFlowEstimation(wave,Fs,gci,f0,VUVDecisions)
+function [GlottalSource,T_analysis] = CCD_GlottalFlowEstimation(wave,Fs,gci,f0,VUVDecisions)
 
 % USAGE:
 % [GlottalSource] = CCD_GlottalFlowEstimation(wave,Fs,gci,f0,VUVDecisions)
@@ -13,6 +13,8 @@ function [GlottalSource] = CCD_GlottalFlowEstimation(wave,Fs,gci,f0,VUVDecisions
 % OUPUT:
 %     - GlottalSource is a signal containing the derivative of the
 %     glottal flow only for voiced glottal cycles
+%     - T_analysis is an Nx2 matrix containing the analysis window
+%       intervals [start end] in 1-based inclusive sample indices
 %     
 % For more information, please read:
 % 
@@ -75,6 +77,7 @@ gcis = gci(gindex);
 % conditions explained in the paper mentioned above, and compute the
 % complex cepstrum-based decomposition
 GlottalSource=zeros(1,length(wave));
+T_analysis=zeros(length(gcis),2);
 
 % Low-pass filtering because after separation, an irrelevant
 % high-frequency noise (>4000Hz) may appear
@@ -92,7 +95,11 @@ for k=1:length(gcis)
     
     T0=round(Fs/f02(gcis(k)));
     
-    Seg=wave(gcis(k)-round(0.9*T0):gcis(k)+round(0.9*T0));
+    start_i=gcis(k)-round(0.9*T0);
+    stop_i=gcis(k)+round(0.9*T0);
+    T_analysis(k,:)=[start_i stop_i];
+
+    Seg=wave(start_i:stop_i);
     Seg=Seg.*blackman(length(Seg));
     
     [minPhase,maxPhase] = CCD_FrameLevel_GlottalFlowEstimation(Seg);

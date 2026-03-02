@@ -1,4 +1,4 @@
-function GlottalSource = ccd_inverseFiltering2(sp,fs,gci)
+function [GlottalSource,T_analysis] = ccd_inverseFiltering2(sp,fs,gci)
 
 % Copyright 2017 Yu-Ren Chien and Jon Gudnason
 %
@@ -34,6 +34,8 @@ for k=1:length(VUVDecisions)
     VUVDecisions2((k-1)*HopSize+1:k*HopSize)=VUVDecisions(k);    
 end
 
+T_analysis = [];
+
 if nargin < 3
     f0_tmp=f0.*VUVDecisions;
     pos= f0_tmp~=0;
@@ -42,4 +44,4 @@ if nargin < 3
     gci = SEDREAMS_GCIDetection(sp,fs,F0mean);
 end;
 
-[GlottalSource] = CCD_GlottalFlowEstimation(sp,fs,gci,f0,VUVDecisions);
+[GlottalSource,T_analysis] = CCD_GlottalFlowEstimation(sp,fs,gci,f0,VUVDecisions);

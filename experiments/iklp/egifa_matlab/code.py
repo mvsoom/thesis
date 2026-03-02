@@ -1,7 +1,7 @@
 # %% tags=["parameters", "export"]
 collection = "vowel"
 egifa_f0 = 120
-method = "iaif"
+method = "ccd"
 
 # %%
 import traceback

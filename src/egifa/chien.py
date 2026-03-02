@@ -129,6 +129,23 @@ def estimate_dgf_file(speech, fs, gci, goi, method="cp"):
         except Exception:
             return nan_dgf(n)
 
+    if method == "ccd":
+        try:
+            uu = MATLAB.ccd_inverseFiltering2(
+                matlab_col(speech),
+                float(fs),
+                matlab_row(gci + 1),  # MATLAB 1-based
+                nargout=1,
+            )
+            uu = numpy_vector(uu).copy()
+            if len(uu) != n:
+                return nan_dgf(n)
+            isnan_uu = np.isnan(uu)
+            uu[isnan_uu] = 0.0
+            return uu
+        except Exception:
+            return nan_dgf(n)
+
     try:
         par = MATLAB.projParam(LPC_METHOD_TO_WPAR[method], nargout=1)
         uu = MATLAB.weightedlpc3(
@@ -273,6 +290,18 @@ def estimate_dgf_file_analysis_frames(speech, fs, gci, goi, method="cp"):
             )
             return uu, frames
 
+        if method == "ccd":
+            uu, Ts = MATLAB.ccd_inverseFiltering2(
+                matlab_col(speech),
+                float(fs),
+                matlab_row(gci + 1),  # MATLAB 1-based
+                nargout=2,
+            )
+            uu = _sanitize_uu(uu, n)
+            starts, stops = _starts_stops_from_matlab_intervals(Ts, n)
+            frames = _frames_from_analysis_windows(method, fs, starts, stops, uu)
+            return uu, frames
+
         par = MATLAB.projParam(LPC_METHOD_TO_WPAR[method], nargout=1)
         uu, _, _, _, _, _, T = MATLAB.weightedlpc3(
             matlab_col(speech),
@@ -288,6 +317,8 @@ def estimate_dgf_file_analysis_frames(speech, fs, gci, goi, method="cp"):
         return uu, frames
     except Exception:
         uu = nan_dgf(n)
+        if method == "ccd":
+            return uu, []
         starts, stops = _analysis_window_bounds(method, n, fs)
         frames = _frames_from_analysis_windows(method, fs, starts, stops, uu)
         return uu, frames
@@ -445,7 +476,7 @@ def estimate_file_frames_from_meta(
 
 def estimate_collection_frames(
     path_contains=None,
-    methods=("cp", "wca1", "wca2", "iaif"),
+    methods=("cp", "wca1", "wca2", "iaif", "ccd"),
     speech_scale=1.0,
 ):
     for m in get_meta_grouped():
@@ -515,7 +546,7 @@ def _make_run_frame(v, mf, method, fs_src, fs_frame, dtype):
 
 def get_voiced_runs_matlab(
     groups,
-    method,  # one of "null", "iaif", "cp", "wca1", "wca2"
+    method,  # one of "null", "iaif", "cp", "wca1", "wca2", "ccd"
     fs_target=20000,
     speech_scale=1.0,
     dtype=np.float64,
