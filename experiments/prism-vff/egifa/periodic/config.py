@@ -21,7 +21,7 @@ def configurations():
 
         if d["kernelname"] == "periodic":
             if d["J"] == 1:
-                d["J"] = float("nan")
+                d["J"] = 0
             else:
                 continue
 

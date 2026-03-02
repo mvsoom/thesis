@@ -1,3 +1,4 @@
+# %%
 library(ggplot2)
 library(plotly)
 library(data.table)
@@ -5,8 +6,37 @@ library(errors)
 options(errors.digits = 1)
 
 # Get experiment dir from environment variable
-runs_file <- file.path(Sys.getenv("PROJECT_EXPERIMENTS_PATH"), "svi/aplawd_nu/runs.csv")
+runs_file <- file.path(Sys.getenv("PROJECT_EXPERIMENTS_PATH"), "prism-vff/egifa/periodic/runs.csv")
 runs <- data.table(fread(runs_file))
+
+# %%
+# inspect distribution of pack weights, then drop them
+
+# select only pack kernels in kernelname
+pack <- runs[grepl("pack", kernelname)]
+
+# plot smoothed density of pack weights according to kernelname
+ggplot(pack, aes(x = log10(svi_lengthscale_or_weights), color = kernelname)) +
+    geom_density() +
+    theme_minimal() +
+    facet_wrap(~J) +
+    labs(title = "Density of pack log10(weights) by kernel")
+
+# looks healthy
+
+# %%
+#
+periodic <- runs[grepl("periodic", kernelname)]
+
+# plot density of lengthscales
+ggplot(periodic, aes(x = (svi_lengthscale_or_weights), color = kernelname)) +
+    geom_density() +
+    theme_minimal() +
+    labs(title = "Density of periodic lengthscale for periodic kernel")
+
+# looks good
+
+# %%
 
 # We have null models for each (kernel, M)
 # We can choose best null model amongst these as global null model to set scale
@@ -41,30 +71,58 @@ agg <- runs[
             se_loglike_test = se_tot,
             mean_loglike_test_null = mean(mu0),
             se_loglike_test_null = se_tot0,
-            svi_lengthscale = mean(svi_lengthscale),
-            se_lengthscale = se_seed(svi_lengthscale),
-            svi_nu = mean(svi_nu),
-            se_nu = se_seed(svi_nu),
             svi_obs_std = mean(svi_obs_std),
             se_obs_std = se_seed(svi_obs_std),
             N = .N
         )
     },
-    by <- .(M)
+    by <- .(kernelname, M, J)
 ]
 
+agg[, `:=`(
+    score_mean      = mean_loglike_test,
+    score_se        = se_loglike_test,
+    score95_half    = 2 * se_loglike_test,
+    score_null_mean = mean_loglike_test_null,
+    score_null_se   = se_loglike_test_null,
+    obs_std_mean    = svi_obs_std,
+    obs_std_se      = se_obs_std
+)]
+
+fmt <- function(m, s, k = 1) {
+    sprintf("%.3f ± %.3f", m, k * s)
+}
 
 agg[, `:=`(
-    score       = set_errors(mean_loglike_test, se_loglike_test),
-    score95     = set_errors(mean_loglike_test, 2 * se_loglike_test),
-    score_null  = set_errors(mean_loglike_test_null, se_loglike_test_null),
-    nu          = set_errors(svi_nu, se_nu),
-    lengthscale = set_errors(svi_lengthscale, se_lengthscale),
-    obs_std     = set_errors(svi_obs_std, se_obs_std)
+    score      = fmt(score_mean, score_se),
+    score95    = fmt(score_mean, score_se, 2),
+    score_null = fmt(score_null_mean, score_null_se),
+    obs_std    = fmt(obs_std_mean, obs_std_se)
 )]
 
 # best model
-agg[, .(M, score, score95, nu, lengthscale, obs_std)][order(-score)]
+best <- agg[
+    order(-score_mean),
+    .(kernelname, M, J, score, score95, obs_std)
+]
+
+best[1:10]
 
 # best null
-agg[, .(M, score_null)][order(-score_null)]
+best0 <- agg[
+    order(-score_null_mean),
+    .(kernelname, M, J, score_null)
+]
+
+best0[1:10]
+
+# %%
+# extract best hyper parameters per kernelname
+
+best_cfg <- agg[
+    order(-score_mean),
+    .SD[1],
+    by = kernelname
+][, .(kernelname, M, J)]
+
+best_cfg

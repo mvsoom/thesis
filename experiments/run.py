@@ -508,15 +508,51 @@ def _cross_join(a, b):
     return res
 
 
+SCRAPBOOK_MIME = "application/scrapbook.scrap.json+json"
+
+
+def _read_scraps_fallback(nb_path):
+    """Fallback scrapbook extraction for malformed scrap payloads."""
+    try:
+        nb_node = nbformat.read(str(nb_path), as_version=4)
+    except Exception:
+        return None
+
+    scraps = {}
+    for cell in nb_node.cells:
+        for out in cell.get("outputs", []):
+            data = out.get("data")
+            if not isinstance(data, Mapping):
+                continue
+            payload = data.get(SCRAPBOOK_MIME)
+            if not isinstance(payload, Mapping):
+                continue
+            name = payload.get("name")
+            if not isinstance(name, str) or not name:
+                continue
+            value = payload.get("data")
+            # scrapbook rejects null scrap data; preserve intent as marker.
+            if value is None:
+                value = "NaN"
+            scraps[name] = value
+    return scraps
+
+
+def _read_scraps(nb):
+    try:
+        return sb.read_notebook(str(nb)).scraps
+    except Exception:
+        return _read_scraps_fallback(nb)
+
+
 def cmd_collect(exp_dir, out_csv):
     exp, runs, _ = exp_paths(exp_dir)
     cmd_merge(exp_dir)
 
     outs = []
     for nb in tqdm(list_runs(runs), desc="collect-explode"):
-        try:
-            scraps = sb.read_notebook(str(nb)).scraps
-        except Exception:
+        scraps = _read_scraps(nb)
+        if scraps is None:
             continue
 
         # skip notebooks that haven't been executed (no glued scraps)
