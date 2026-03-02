@@ -402,6 +402,13 @@ class BGPLVMPosterior:
         v_base = jnp.clip(v_base, a_min=0.0)
 
         Covk = Ekk - ek[:, None] * ek[None, :]
+
+        # save PSDness
+        Covk = 0.5 * (Covk + Covk.T)
+        evals, evecs = jnp.linalg.eigh(Covk)
+        evals = jnp.maximum(evals, 0.0)
+        Covk = (evecs * evals) @ evecs.T
+
         S_mean = W.T @ Covk @ W
 
         D = self.c.shape[1]
@@ -411,7 +418,7 @@ class BGPLVMPosterior:
 
         return y_mu, y_Sigma
 
-    def forward_x_gmm(self, pis, x_mus, x_Sigmas, jitter=1e-6):
+    def forward_x_gmm(self, pis, x_mus, x_Sigmas):
         """Propagate a GMM in X through the BGPLVM nonlinearity to get a GMM in Y"""
         y_mus, y_Sigmas = jax.vmap(self.forward_x)(x_mus, x_Sigmas)
         return pis, y_mus, y_Sigmas
