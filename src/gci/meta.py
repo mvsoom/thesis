@@ -69,8 +69,6 @@ def get_meta_grouped(meta, model_name=PITCH_TRACK_MODEL_NAME, **kwargs):
     MODEL = pitch_track_model(model_name)
 
     X, y, meta = get_data_periods(meta, with_metadata=True, **kwargs)
-    X = jnp.array(X, dtype=jnp.float64)
-    y = jnp.array(y, dtype=jnp.float64)
 
     y = jnp.log10(y)
     y = MODEL["whiten"](y)

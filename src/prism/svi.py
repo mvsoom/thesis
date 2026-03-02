@@ -14,11 +14,14 @@ from prism.pack import NormalizedPACK
 from utils.jax import JDTYPE, nocheck, safe_cholesky
 
 
-def pad_waveforms(waveforms, width=None, dtype=JDTYPE):
+def pad_waveforms(waveforms, width=None, dtype=None):
     n = len(waveforms)
 
     if width is None:
         width = max(len(tau) for tau, du in waveforms)
+
+    if dtype is None:
+        dtype = JDTYPE
 
     X = np.full((n, width), np.nan)
     y = np.full((n, width), np.nan)

@@ -1,6 +1,6 @@
 # %% tags=["parameters", "export"]
-kernelname = "pack:2"
-M = 32  # Number of PRISM basis functions
+kernelname = "pack:0"
+M = 64  # Number of PRISM basis functions
 J = 8
 iteration = 1
 seed = 2455473317
@@ -22,7 +22,7 @@ from gpjax.likelihoods import Gaussian
 from gpjax.mean_functions import Zero
 
 from ack.pack import PACK
-from egifa.data import get_data
+from commonvoice.data import get_data
 from prism.harmonic import (
     SHMCollapsedVariationalGaussian,
     SHMPeriodic,
@@ -42,8 +42,8 @@ master_key = jax.random.key(seed)
 
 # %%
 # Number of independent waveforms to process train/test
-N_TRAIN = 2500
-N_TEST = 700
+N_TRAIN = 15000
+N_TEST = 3000
 
 WIDTH = 8192
 

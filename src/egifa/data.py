@@ -405,7 +405,7 @@ def get_data(
     offset=0,
     path_contains=None,
     width=None,
-    dtype=np.float64,
+    dtype=None,
     with_metadata=False,
     **smooth_dgf_kwargs,
 ):
