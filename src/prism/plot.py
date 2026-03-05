@@ -70,6 +70,7 @@ def plot_spectral_initialization(
     *,
     plot_eps=1e-12,
     log_y=True,
+    alpha=1.0,
 ):
     S_prior_sample = prior_qsvi.posterior.prior.kernel.bochner_spectrum(freqs)
 
@@ -77,7 +78,7 @@ def plot_spectral_initialization(
     S_prior_sample_norm = normalize_density(freqs, S_prior_sample)
     S_mean_norm = normalize_density(freqs, S_mean)
 
-    score = S_prior_sample * average_psd
+    score = (S_prior_sample * average_psd) ** alpha
     score_norm = normalize_density(freqs, score)
 
     samples = quantile_sample(freqs, score_norm, M)

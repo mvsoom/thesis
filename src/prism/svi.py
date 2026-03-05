@@ -83,7 +83,7 @@ def compute_Kzx(q, x):
         return Kzx
 
 
-def collapsed_elbo_masked(q, t, y):
+def _collapsed_elbo_masked(q, t, y):
     """
     Collapsed Titsias (2009) ELBO for a single waveform (t, y) with NaN-masked padding.
 
@@ -153,7 +153,178 @@ def collapsed_elbo_masked(q, t, y):
     return 0.5 * (two_log_prob - two_trace)
 
 
-def batch_collapsed_elbo_masked(q, data, I_total):
+def collapsed_elbo_masked(q, t, y):
+    """Streaming version of _collapsed_elbo_masked that doesn't store large intermediate matrices like Kzx or AAT"""
+
+    jitter = q.jitter
+
+    mask_w = ~jnp.isnan(y)
+    n_eff = jnp.sum(mask_w)
+
+    t = t[:, None]
+    y = y[:, None]
+
+    t = jnp.where(mask_w[:, None], t, 0.0)
+    y = jnp.where(mask_w[:, None], y, 0.0)
+
+    kernel = q.posterior.prior.kernel
+    sigma2 = q.posterior.likelihood.obs_stddev**2
+
+    M = num_inducing(q)
+
+    Kzz = compute_Kzz(q)
+    Lz = safe_cholesky(Kzz, jitter=jitter)
+
+    Kxx_diag = jax.vmap(lambda x: kernel(x, x))(t)
+    sum_Kxx = jnp.sum(Kxx_diag * mask_w)
+
+    def body(carry, inputs):
+
+        AAT, Aty, trace = carry
+        ti, yi, mi = inputs
+
+        # Kzx column
+        k = compute_Kzx(q, ti[None, :])[:, 0]
+
+        k = k * mi
+
+        a = jsp.linalg.solve_triangular(Lz, k[:, None], lower=True) / jnp.sqrt(
+            sigma2
+        )
+
+        AAT = AAT + a @ a.T
+        Aty = Aty + a * yi
+        trace = trace + jnp.sum(a * a)
+
+        return (AAT, Aty, trace), None
+
+    init = (
+        jnp.zeros((M, M)),
+        jnp.zeros((M, 1)),
+        0.0,
+    )
+
+    (AAT, Aty, trace), _ = jax.lax.scan(
+        body,
+        init,
+        (t, y, mask_w),
+    )
+
+    B = jnp.eye(M) + AAT
+    L = safe_cholesky(B, jitter=jitter)
+
+    log_det_B = 2 * jnp.sum(jnp.log(jnp.diagonal(L)))
+
+    Linv_Ay = jsp.linalg.solve_triangular(L, Aty, lower=True)
+
+    quad = (jnp.sum(y * y) - jnp.sum(Linv_Ay * Linv_Ay)) / sigma2
+
+    two_log_prob = -n_eff * jnp.log(2 * jnp.pi * sigma2) - log_det_B - quad
+    two_trace = sum_Kxx / sigma2 - trace
+
+    return 0.5 * (two_log_prob - two_trace)
+
+
+def collapsed_elbo_masked_streamed(
+    q,
+    t,
+    y,
+    chunk=512,
+):
+    jitter = q.jitter
+
+    mask_w = ~jnp.isnan(y)
+    n_eff = jnp.sum(mask_w)
+
+    t = t[:, None]
+    y = y[:, None]
+
+    t = jnp.where(mask_w[:, None], t, 0.0)
+    y = jnp.where(mask_w[:, None], y, 0.0)
+
+    kernel = q.posterior.prior.kernel
+    sigma2 = q.posterior.likelihood.obs_stddev**2
+
+    M = num_inducing(q)
+
+    Kzz = compute_Kzz(q)
+    Lz = safe_cholesky(Kzz, jitter=jitter)
+
+    # diagonal Kxx
+    Kxx_diag = jax.vmap(lambda x: kernel(x, x))(t)
+    sum_Kxx = jnp.sum(Kxx_diag * mask_w)
+
+    W = t.shape[0]
+
+    # number of blocks
+    n_blocks = (W + chunk - 1) // chunk
+    pad = n_blocks * chunk - W
+
+    # pad so reshape works
+    t_pad = jnp.pad(t, ((0, pad), (0, 0)))
+    y_pad = jnp.pad(y, ((0, pad), (0, 0)))
+    m_pad = jnp.pad(mask_w, ((0, pad),))
+
+    # reshape into blocks
+    t_blocks = t_pad.reshape(n_blocks, chunk, 1)
+    y_blocks = y_pad.reshape(n_blocks, chunk, 1)
+    m_blocks = m_pad.reshape(n_blocks, chunk)
+
+    def body(carry, block):
+
+        AAT, Aty, trace = carry
+        t_block, y_block, m_block = block
+
+        # kernel cross covariance
+        Kzx = compute_Kzx(q, t_block)  # [M, chunk]
+        Kzx = Kzx * m_block[None, :]
+
+        # triangular solve
+        A = jsp.linalg.solve_triangular(
+            Lz,
+            Kzx,
+            lower=True,
+        ) / jnp.sqrt(sigma2)  # [M, chunk]
+
+        # accumulate
+        AAT = AAT + A @ A.T
+        Aty = Aty + A @ y_block
+        trace = trace + jnp.sum(A * A)
+
+        return (AAT, Aty, trace), None
+
+    init = (
+        jnp.zeros((M, M), dtype=Kzz.dtype),
+        jnp.zeros((M, 1), dtype=Kzz.dtype),
+        jnp.array(0.0, dtype=Kzz.dtype),
+    )
+
+    (AAT, Aty, trace), _ = jax.lax.scan(
+        body,
+        init,
+        (t_blocks, y_blocks, m_blocks),
+    )
+
+    B = jnp.eye(M, dtype=Kzz.dtype) + AAT
+    L = safe_cholesky(B, jitter=jitter)
+
+    log_det_B = 2 * jnp.sum(jnp.log(jnp.diagonal(L)))
+
+    Linv_Ay = jsp.linalg.solve_triangular(
+        L,
+        Aty,
+        lower=True,
+    )
+
+    quad = (jnp.sum(y * y) - jnp.sum(Linv_Ay * Linv_Ay)) / sigma2
+
+    two_log_prob = -n_eff * jnp.log(2 * jnp.pi * sigma2) - log_det_B - quad
+    two_trace = sum_Kxx / sigma2 - trace
+
+    return 0.5 * (two_log_prob - two_trace)
+
+
+def batch_collapsed_elbo_masked(q, data, I_total, microbatch=None):
     """
     q: CollapsedVariationalGaussian
     data: Dataset with
@@ -162,20 +333,23 @@ def batch_collapsed_elbo_masked(q, data, I_total):
           NaNs indicate masked points
     I_total: total number of waveforms in the full dataset
     """
-
     X = data.X  # [B, W]
     y = data.y  # [B, W]
     B = X.shape[0]
 
-    # vmap over waveforms (rows)
-    elbos = jax.vmap(
-        collapsed_elbo_masked,
-        in_axes=(None, 0, 0),
-    )(q, X, y)  # X,y are [B,W]
+    def body(i):
+        return jax.checkpoint(
+            lambda tt, yy: collapsed_elbo_masked_streamed(q, tt, yy)
+        )(
+            X[i], y[i]
+        )  # FIXME: properly name this function and let chunk be passed as argument
+
+    elbos = jax.lax.map(body, jnp.arange(B), batch_size=microbatch)
 
     # unbiased waveform-level scaling
     elbo = (I_total / B) * jnp.sum(elbos)
     return elbo
+
 
 
 if __name__ == "__main__":
@@ -219,8 +393,18 @@ if __name__ == "__main__":
         print("  Reference ELBO:", reference_elbo)
 
         # Calculate masked ELBO
-        our_elbo = collapsed_elbo_masked(q, tau.squeeze(), du)
-        print("  Our masked ELBO:", our_elbo)
+        our_elbo = _collapsed_elbo_masked(q, tau.squeeze(), du)
+        print("  Our masked reference ELBO:", our_elbo)
+
+        # Calculate streamed masked ELBO
+        our_elbo_streamed = collapsed_elbo_masked(q, tau.squeeze(), du)
+        print("  Our masked fast ELBO:", our_elbo_streamed)
+
+        # Calculate new streaming version
+        our_elbo_streamed2 = collapsed_elbo_masked_streamed(
+            q, tau.squeeze(), du, chunk=11
+        )
+        print("  Our masked fast ELBO v2:", our_elbo_streamed2)
 
 
 # %%
@@ -232,6 +416,7 @@ def optimize(
     batch_size,
     num_iters,
     prior_model=False,
+    microbatch=None,
     **fit_kwargs,
 ):
     key, subkey = jax.random.split(key)
@@ -242,10 +427,15 @@ def optimize(
 
     def cost(q, d):
         if not hasattr(q, "nu"):
-            return -batch_collapsed_elbo_masked(q, d, N)  # PRISM
+            return -batch_collapsed_elbo_masked(
+                q, d, N, microbatch=microbatch
+            )  # PRISM
         else:
             from prism.t_svi import t_batch_collapsed_elbo_masked
-            return -t_batch_collapsed_elbo_masked(q, d, N)  # t-PRISM
+
+            return -t_batch_collapsed_elbo_masked(
+                q, d, N, microbatch=microbatch
+            )  # t-PRISM
 
     fitted, cost_history = gpx.fit(
         model=model,

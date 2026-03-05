@@ -286,16 +286,20 @@ from prism.spectral import SGMKernel
 class SGMQuasiPeriodic(SGMKernel):
     am: SGMKernel
     carrier: SHMKernel
+    baseline: SGMKernel
 
-    def __init__(self, am: SGMKernel, carrier: SHMKernel, **kwargs):
+    def __init__(
+        self, am: SGMKernel, carrier: SHMKernel, baseline: SGMKernel, **kwargs
+    ):
         super().__init__(**kwargs)
         self.am = am
         self.carrier = carrier
+        self.baseline = baseline
 
     def __call__(self, x, y):
         return self.am(x, y) * self.carrier(x, y)
 
-    def compute_sgm(self):
+    def compute_sgm_am_times_carrier(self):
         # AM spectrum: symmetric by construction in Kuu/Kuf (mu>=0 expected)
         A, mu, v = self.am.compute_sgm()  # (Q,)
         Ap, mup = self.carrier.compute_shm()  # (J+1,) with mup[0]=0
@@ -362,6 +366,17 @@ class SGMQuasiPeriodic(SGMKernel):
             axis=0,
         )
         return A_all, mu_all, v_all
+
+    def compute_sgm(self):
+        if self.baseline is None:
+            return self.compute_sgm_am_times_carrier()
+        else:
+            Ab, mub, vb = self.baseline.compute_sgm()
+            A_ac, mu_ac, v_ac = self.compute_sgm_am_times_carrier()
+            A_all = jnp.concatenate([Ab, A_ac], axis=0)
+            mu_all = jnp.concatenate([mub, mu_ac], axis=0)
+            v_all = jnp.concatenate([vb, v_ac], axis=0)
+            return A_all, mu_all, v_all
 
 
 if __name__ == "__main__":

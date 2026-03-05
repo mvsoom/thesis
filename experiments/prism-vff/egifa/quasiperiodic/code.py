@@ -1,6 +1,6 @@
 # %% tags=["parameters", "export"]
 kernelname = "pack:0"
-M = 8  # Number of PRISM basis functions
+M = 128  # Number of PRISM basis functions
 J = 8
 iteration = 1
 seed = 2455473317
@@ -29,7 +29,7 @@ from prism.harmonic import (
     SHMPeriodicFFT,
     harmonic_null_model,
 )
-from prism.matern import SGMRBF
+from prism.matern import SGMRBF, SGMMatern
 from prism.plot import (
     compute_mean_yw_power,
     mean_spectrum,
@@ -60,10 +60,10 @@ master_key = jax.random.key(seed)
 
 # %%
 # Number of independent waveforms to process train/test
-N_TRAIN = 2500
-N_TEST = 700
+N_TRAIN = 7000
+N_TEST = 500
 
-WIDTH = 8192
+WIDTH = 2048
 
 # %%
 X, y, meta = get_data(width=WIDTH, with_metadata=True)
@@ -113,7 +113,7 @@ plot_average_psd_db(freqs, average_psd).show()
 
 
 # %%
-def init_carrier_kernel(key=vk(), num_harmonics=32):  # FIXME
+def init_carrier_kernel(key=vk(), num_harmonics=16):  # FIXME
     if "pack" in kernelname:
         d = kernelname.split(":")[1]
         lz = jax.random.lognormal(key, shape=(J + 2,))
@@ -156,14 +156,22 @@ def init_am_kernel(key=vk()):
     lz = jax.random.lognormal(key, shape=(2,))
     return SGMRBF(variance=lz[0], lengthscale=lz[1])
 
+def init_baseline_kernel(key=vk(), J=16):
+    lz = jax.random.lognormal(key, shape=(3,))
+    return SGMMatern(nu=lz[0], variance=lz[1], lengthscale=lz[2], J=J)
+
 
 # %%
-def collapsed_svi(key=vk(), M=M, sigma_w=sigma_w, freqs=freqs):  # FIXME
-    k1, k2 = jax.random.split(key)
+alpha = 1 / 4
+
+
+def collapsed_svi(key=vk(), M=M, sigma_w=sigma_w, freqs=freqs, alpha=alpha):
+    k1, k2, k3 = jax.random.split(key, 3)
 
     am = init_am_kernel(k1)
     carrier = init_carrier_kernel(k2)
-    kernel = SGMQuasiPeriodic(am, carrier)  # TODO: add baseline
+    baseline = init_baseline_kernel(k3)
+    kernel = SGMQuasiPeriodic(am, carrier, baseline)
 
     prior = gpx.gps.Prior(kernel, Zero())
     likelihood = Gaussian(num_datapoints=WIDTH)
@@ -172,8 +180,9 @@ def collapsed_svi(key=vk(), M=M, sigma_w=sigma_w, freqs=freqs):  # FIXME
     S = kernel.bochner_spectrum(freqs)
     D = average_psd
     score = S * D
-    score_norm = normalize_density(freqs, score)
-    samples = quantile_sample(freqs, score_norm, M)
+    tempered_score = score**alpha
+    tempered_score_norm = normalize_density(freqs, tempered_score)
+    samples = quantile_sample(freqs, tempered_score_norm, M)
 
     inducing_inputs = samples[:, None]
 
@@ -182,7 +191,6 @@ def collapsed_svi(key=vk(), M=M, sigma_w=sigma_w, freqs=freqs):  # FIXME
     )
 
 
-# %%
 n_samples = 1000
 keys = jax.random.split(vk(), n_samples)
 S_mean = mean_spectrum(collapsed_svi, keys, freqs)
@@ -194,22 +202,26 @@ plot_spectral_initialization(
     prior_qsvi=prior_qsvi,
     S_mean=S_mean,
     M=M,
+    alpha=alpha,
 ).show()
 
 # %%
 from prism.svi import collapsed_elbo_masked
 
-qsvi = collapsed_svi(M=16)  # fail for larger M due to init probably
+qsvi = collapsed_svi(
+    M=128, alpha=alpha, key=vk()
+)  # fail for larger M due to init probably
 
 test_train_data = Dataset(X=X[:1], y=y[:1])
 
-collapsed_elbo_masked(qsvi, X[0], y[0])  # non nan
+collapsed_elbo_masked(qsvi, X[0], y[0])
 
 
 # %%
 # Do PRISM-VFF
 batch_size = 32
-num_iters = 10  # 10_000
+microbatch = None
+num_iters = 10_000
 lr = 1e-3
 jitter = 1e-4
 
@@ -226,6 +238,7 @@ with time_this() as svi_timer:
         batch_size,
         num_iters,
         prior_model=True,
+        microbatch=microbatch,
     )
 
 # %%

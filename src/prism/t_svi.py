@@ -41,6 +41,8 @@ def _collapsed_gaussian_stats(q, t, y, w):
         m : [W,1] posterior mean of f
         v : [W,1] posterior variance of f
         aux : dict with reusable terms for ELBO
+
+    NOTE: this can be sped-up by doing same streaming trick as in collapsed_elbo_masked()
     """
     jitter = q.jitter
 
@@ -209,18 +211,20 @@ def t_collapsed_elbo_masked(q: t_CollapsedVariationalGaussian, t, y):
 
 
 def t_batch_collapsed_elbo_masked(
-    q: t_CollapsedVariationalGaussian, data, I_total
+    q: t_CollapsedVariationalGaussian, data, I_total, microbatch=None
 ):
     X = data.X
     y = data.y
     B = X.shape[0]
 
-    elbos = jax.vmap(
-        lambda t_i, y_i: t_collapsed_elbo_masked(q, t_i, y_i),
-        in_axes=(0, 0),
-    )(X, y)
+    def body(i):
+        return t_collapsed_elbo_masked(q, X[i], y[i])
 
-    return (I_total / B) * jnp.sum(elbos)
+    elbos = jax.lax.map(body, jnp.arange(B), batch_size=microbatch)
+
+    # unbiased waveform-level scaling
+    elbo = (I_total / B) * jnp.sum(elbos)
+    return elbo
 
 
 def t_infer_eps_posterior_single(q, t, y):
