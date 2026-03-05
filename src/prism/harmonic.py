@@ -285,25 +285,20 @@ from prism.spectral import SGMKernel
 
 class SGMQuasiPeriodic(SGMKernel):
     am: SGMKernel
-    periodic: SHMKernel
+    carrier: SHMKernel
 
-    def __init__(self, am: SGMKernel, periodic: SHMKernel, **kwargs):
+    def __init__(self, am: SGMKernel, carrier: SHMKernel, **kwargs):
         super().__init__(**kwargs)
-
-        periodic.variance = jnp.asarray(
-            periodic.variance[...]
-        )  # don't train as this isn't identifiable due to am.variance
-
         self.am = am
-        self.periodic = periodic
+        self.carrier = carrier
 
     def __call__(self, x, y):
-        return self.am(x, y) * self.periodic(x, y)
+        return self.am(x, y) * self.carrier(x, y)
 
     def compute_sgm(self):
         # AM spectrum: symmetric by construction in Kuu/Kuf (mu>=0 expected)
         A, mu, v = self.am.compute_sgm()  # (Q,)
-        Ap, mup = self.periodic.compute_shm()  # (J+1,) with mup[0]=0
+        Ap, mup = self.carrier.compute_shm()  # (J+1,) with mup[0]=0
 
         Q = A.shape[0]
         Jplus = Ap.shape[0]
@@ -478,6 +473,7 @@ def harmonic_null_model(qsvi, test_data, eps=1e-6):
 
     dtau = jnp.nanmean(jnp.abs(jnp.diff(X, axis=1)))
     short_ell = white_rbf_lengthscale(dtau, eps)
+
     variance = qsvi.posterior.prior.kernel.variance
 
     white_RBF = SGMRBF(variance=variance, lengthscale=short_ell)

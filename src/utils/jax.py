@@ -1,5 +1,6 @@
 import time
 
+import flax.nnx as nnx
 import gpjax as gpx
 import jax
 import jax.numpy as jnp
@@ -169,6 +170,30 @@ def kl_diag_gauss(mu, var, prior_mu, prior_var):
     t1 = jnp.log(prior_var) - jnp.log(var)
     t2 = (var + (mu - prior_mu) ** 2) / prior_var
     return 0.5 * jnp.sum(t1 - 1.0 + t2)
+
+
+def normalize_density(x, y):
+    z = jnp.trapezoid(y, x)
+    return y / z
+
+
+def build_cdf(x, pdf):
+    dx = x[1:] - x[:-1]
+    area = 0.5 * (pdf[1:] + pdf[:-1]) * dx
+    cdf = jnp.concatenate([jnp.array([0.0]), jnp.cumsum(area)])
+    return cdf / cdf[-1]
+
+
+def quantile_sample(x, pdf, n):
+    cdf = build_cdf(x, pdf)
+    q = (jnp.arange(n) + 0.5) / n
+    return jnp.interp(q, cdf, x)
+
+
+def nnx_copy(module):
+    graphdef, state = nnx.split(module)
+    new_module = nnx.merge(graphdef, state)
+    return new_module
 
 
 def pca_reduce(X: jnp.ndarray, latent_dim: int) -> jnp.ndarray:

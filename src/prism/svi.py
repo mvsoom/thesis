@@ -224,11 +224,20 @@ if __name__ == "__main__":
 
 
 # %%
-def optimize(key, model, dataset, lr, batch_size, num_iters, **fit_kwargs):
+def optimize(
+    key,
+    model,
+    dataset,
+    lr,
+    batch_size,
+    num_iters,
+    prior_model=False,
+    **fit_kwargs,
+):
     key, subkey = jax.random.split(key)
 
     N = dataset.X.shape[0]
-    model = model(subkey)
+    model = model(subkey) if not prior_model else model
     optim = ox.adam(learning_rate=lr)
 
     def cost(q, d):

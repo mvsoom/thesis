@@ -27,6 +27,12 @@ class SGMKernel(AbstractKernel):
         """Return (A, mu, v) each shaped (Q,) for the Q SGM components."""
         raise NotImplementedError
 
+    def bochner_spectrum(self, f):
+        """Evaluate S(2 pi f) on given frequencies f"""
+        A, mu, v = self.compute_sgm()
+        xi = 2 * jnp.pi * f
+        return _numeric_sgm_spectrum_symm(A, mu, v, xi)
+
 
 def _sgm_symm_Kuu_complex(A, mu, v, omega, sigma_w):
     """
@@ -269,8 +275,9 @@ class SGMCollapsedVariationalGaussian(CollapsedVariationalGaussian):
 
     @property
     def omega(self):
+        # Keep frequencies 1D even when there is a single inducing input.
         freq = jnp.concatenate(
-            [jnp.array([0.0]), self.inducing_inputs.squeeze()]
+            [jnp.array([0.0]), jnp.asarray(self.inducing_inputs).reshape(-1)]
         )  # explicit DC
         return (2.0 * jnp.pi) * freq
 
