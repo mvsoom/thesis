@@ -1,15 +1,15 @@
 from itertools import product
 from random import Random
 
-rng = Random(9497315)
+rng = Random(85647219)
 
 
 def configurations():
     grid = {
         "iteration": range(16),
-        "M": [4, 8, 16, 32, 64, 128],
-        "J": [1, 2, 4, 8, 16, 32],
-        "carriername": ["periodic", "pack:0", "pack:1", "pack:2", "pack:3"],
+        "prism": ["iteration=0_M=64_J=8_kernelname=pack:0"],
+        "Q": [1, 3, 6, 9],
+        "K": [1, 2, 3, 4, 5, 6],
     }
 
     keys = list(grid)
@@ -18,11 +18,4 @@ def configurations():
         d = dict(zip(keys, values))
         d["seed"] = rng.randint(0, 2**32 - 1)
         d["name"] = "_".join(f"{k}={d[k]}" for k in keys)
-
-        if d["carriername"] == "periodic":
-            if d["J"] == 1:
-                d["J"] = 0
-            else:
-                continue
-
         yield d

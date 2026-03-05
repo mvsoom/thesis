@@ -203,17 +203,18 @@ print(
 # %%
 # Calculate test score of a local "harmonic" null model
 # This means: keep variance and inducing points, but an essentially flat spectrum
-qsvi_null, centered_test_data = harmonic_null_model(qsvi, test_data)
+if 0:  # FIXME
+    qsvi_null, centered_test_data = harmonic_null_model(qsvi, test_data)
 
-logp_null = surrogate_log_evidence_on_test(qsvi_null, centered_test_data)
+    logp_null = surrogate_log_evidence_on_test(qsvi_null, centered_test_data)
 
-x_null = logp_null / neff
-x_null_mean = np.mean(x_null)
-x_null_std = np.std(x_null)
+    x_null = logp_null / neff
+    x_null_mean = np.mean(x_null)
+    x_null_std = np.std(x_null)
 
-print(
-    f"Average log likelihood per effective data point on test set under NULL: {x_null_mean:.4f} +/- {x_null_std:.4f}"
-)
+    print(
+        f"Average log likelihood per effective data point on test set under NULL: {x_null_mean:.4f} +/- {x_null_std:.4f}"
+    )
 
 # %%
 payload = {
@@ -225,9 +226,9 @@ dump_egg(payload, os.getenv("EXPERIMENT_NOTEBOOK_REL"))
 # %% tags=["export"]
 svi_walltime = svi_timer.walltime
 svi_obs_std = float(qsvi.posterior.likelihood.obs_stddev)
-svi_lengthscale_or_weights = get_lengthscale_or_weights(qsvi)
+# svi_lengthscale_or_weights = get_lengthscale_or_weights(qsvi)
 
 mean_loglike_test = x_mean
 std_loglike_test = x_std
-mean_loglike_test_null = x_null_mean
-std_loglike_test_null = x_null_std
+# mean_loglike_test_null = x_null_mean
+# std_loglike_test_null = x_null_std

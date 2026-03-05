@@ -1,16 +1,16 @@
 # %%
 import jax.numpy as jnp
 from gpjax.gps import Prior
-from gpjax.kernels import AbstractKernel
 from gpjax.mean_functions import Zero
 from gpjax.parameters import PositiveReal
 
 from ack.parameters import Simplex
+from ack.stationary import AbstractStationaryKernel
 from gfm.ack import compute_Jd
 from utils.jax import vk
 
 
-class PACK(AbstractKernel):
+class PACK(AbstractStationaryKernel):
     """
     Normalized PACK ArcCos kernel with explicit marginal variance and simplex weights.
 

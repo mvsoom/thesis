@@ -4,11 +4,12 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 from gpjax.gps import Prior
-from gpjax.kernels import AbstractKernel, Periodic
+from gpjax.kernels import Periodic
 from gpjax.likelihoods import Gaussian
 from gpjax.mean_functions import Zero
 from gpjax.variational_families import CollapsedVariationalGaussian
 
+from ack.stationary import AbstractStationaryKernel
 from gp.periodic import periodic_se_series_coeffs
 from prism.spectral import (
     SGMCollapsedVariationalGaussian,
@@ -61,7 +62,7 @@ class SHMCollapsedVariationalGaussian(SGMCollapsedVariationalGaussian):
         return complex_to_real_Kuf(Kuf_complex)
 
 
-class SHMKernel(AbstractKernel):
+class SHMKernel(AbstractStationaryKernel):
     def __init__(self, *args, num_harmonics, **kwargs):
         super().__init__(*args, **kwargs)
         self.num_harmonics = num_harmonics
@@ -277,7 +278,6 @@ if __name__ == "__main__":
 
 # %%
 import jax.numpy as jnp
-from gpjax.kernels import AbstractKernel
 
 from prism.harmonic import SHMKernel
 from prism.spectral import SGMKernel
@@ -498,6 +498,32 @@ def harmonic_null_model(qsvi, test_data, eps=1e-6):
         posterior=posterior,
         inducing_inputs=qsvi.inducing_inputs,
         sigma_w=X_std,
+    )
+
+    return qsvi_null, centered_test_data
+
+
+def quasiharmonic_null_model(qsvi, test_data, sigma_w, eps=1e-6):
+    # Take care of Gaussian input density since we use SGM framework
+    X = test_data.X
+
+    X = X - jnp.nanmean(X, axis=1)[:, None]
+    X_std = jnp.nanmean(jnp.nanstd(X, axis=1))
+
+    centered_test_data = gpx.Dataset(X=X, y=test_data.y)
+
+    dtau = jnp.nanmean(jnp.abs(jnp.diff(X, axis=1)))
+    short_ell = white_rbf_lengthscale(dtau, eps)
+
+    variance = qsvi.posterior.prior.kernel.am.variance
+
+    white_RBF = SGMRBF(variance=variance, lengthscale=short_ell)
+    posterior = Prior(white_RBF, Zero()) * qsvi.posterior.likelihood
+
+    qsvi_null = SGMCollapsedVariationalGaussian(
+        posterior=posterior,
+        inducing_inputs=qsvi.inducing_inputs,
+        sigma_w=sigma_w,
     )
 
     return qsvi_null, centered_test_data

@@ -229,8 +229,9 @@ def collapsed_elbo_masked_streamed(
     q,
     t,
     y,
-    chunk=512,
+    chunk=None,
 ):
+    chunk = chunk if chunk else hasattr(q, "chunk") and q.chunk or 512
     jitter = q.jitter
 
     mask_w = ~jnp.isnan(y)
@@ -251,8 +252,12 @@ def collapsed_elbo_masked_streamed(
     Lz = safe_cholesky(Kzz, jitter=jitter)
 
     # diagonal Kxx
-    Kxx_diag = jax.vmap(lambda x: kernel(x, x))(t)
-    sum_Kxx = jnp.sum(Kxx_diag * mask_w)
+    if hasattr(kernel, "stationary") and kernel.stationary:
+        kdiag0 = kernel(t[0], t[0])
+        sum_Kxx = kdiag0 * n_eff
+    else:
+        Kxx_diag = jax.vmap(lambda x: kernel(x, x))(t)
+        sum_Kxx = jnp.sum(Kxx_diag * mask_w)
 
     W = t.shape[0]
 
@@ -272,26 +277,23 @@ def collapsed_elbo_masked_streamed(
 
     def body(carry, block):
 
-        AAT, Aty, trace = carry
+        AAT, Aty, tr = carry
         t_block, y_block, m_block = block
 
-        # kernel cross covariance
         Kzx = compute_Kzx(q, t_block)  # [M, chunk]
         Kzx = Kzx * m_block[None, :]
 
-        # triangular solve
-        A = jsp.linalg.solve_triangular(
-            Lz,
-            Kzx,
-            lower=True,
-        ) / jnp.sqrt(sigma2)  # [M, chunk]
+        A = jsp.linalg.solve_triangular(Lz, Kzx, lower=True) / jnp.sqrt(sigma2)
 
-        # accumulate
         AAT = AAT + A @ A.T
-        Aty = Aty + A @ y_block
-        trace = trace + jnp.sum(A * A)
+        tr = tr + jnp.sum(A * A)
 
-        return (AAT, Aty, trace), None
+        v = Kzx @ y_block  # [M, 1]
+        Aty = Aty + jsp.linalg.solve_triangular(Lz, v, lower=True) / jnp.sqrt(
+            sigma2
+        )
+
+        return (AAT, Aty, tr), None
 
     init = (
         jnp.zeros((M, M), dtype=Kzz.dtype),
@@ -342,7 +344,7 @@ def batch_collapsed_elbo_masked(q, data, I_total, microbatch=None):
             lambda tt, yy: collapsed_elbo_masked_streamed(q, tt, yy)
         )(
             X[i], y[i]
-        )  # FIXME: properly name this function and let chunk be passed as argument
+        )  # checkpoint to save memory, since autograd needs intermediates for backward pass
 
     elbos = jax.lax.map(body, jnp.arange(B), batch_size=microbatch)
 

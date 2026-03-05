@@ -3,8 +3,9 @@
 prism = "iteration~0_M~64_J~16_kernelname~pack:0".replace(
     "~", chr(61)
 )  # avoid papermill bug with "=" in parameter values
-Q = 6  # Latent dimensionality of BGPLVM
+Q = 9  # Latent dimensionality of BGPLVM
 K = 4  # Number of GMM components in latent space of BGPLVM
+iteration = 1
 seed = 2455473317
 
 # %%
@@ -58,7 +59,7 @@ qsvi = payload["qsvi"]
 
 # %%
 # Number of independent waveforms to process train/test
-N_TRAIN = 2500  # FIXME: embed ALL ??
+N_TRAIN = 2500  # FIXME: embed ALL ?? the N² covariance kills us, need to do in cpu; once we take diagonal covariance we are fine
 N_TEST = 700
 
 # N_TRAIN = 15000
@@ -227,7 +228,6 @@ plvm = qlvm.build_posterior(dataset_bgplvm.y)
 def psi(t):
     return svi_basis(qsvi, t)
 
-
 tau_test = jnp.linspace(0, 3, 1024)
 
 sample_latent_gmm_pointwise(gmm, plvm, psi, tau_test, unwhiten).show()
@@ -245,8 +245,11 @@ plot_cluster_samples_in_data_space(subkey, qgp, tau_test, nsamples=3).show()
 # %%
 # Evaluate on test set
 
+# NOTE: if nans, this is probably because PSDness is lost in make_qgpvlm -> forward_x_gmm
 neff = np.sum(~np.isnan(test_data.y), axis=1)
-log_prob_gmm = surrogate_mixture_log_evidence_on_test(qgp, qsvi, test_data)
+log_prob_gmm = surrogate_mixture_log_evidence_on_test(
+    qgp, qsvi, test_data, jitter=1e-4
+)
 lp = log_prob_gmm / neff
 
 # %%

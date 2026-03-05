@@ -1,13 +1,13 @@
 from itertools import product
 from random import Random
 
-rng = Random(9497315)
+rng = Random(46987513)
 
 
 def configurations():
     grid = {
         "iteration": range(16),
-        "M": [4, 8, 16, 32, 64, 128],
+        "M": [128, 64, 32, 16, 8, 4],
         "J": [1, 2, 4, 8, 16, 32],
         "carriername": ["periodic", "pack:0", "pack:1", "pack:2", "pack:3"],
     }

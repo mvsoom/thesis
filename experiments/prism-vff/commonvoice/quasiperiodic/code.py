@@ -22,7 +22,7 @@ from gpjax.likelihoods import Gaussian
 from gpjax.mean_functions import Zero
 
 from ack.pack import PACK
-from egifa.data import get_data
+from commonvoice.data import get_data
 from prism.harmonic import (
     SGMQuasiPeriodic,
     SHMPeriodic,
@@ -60,13 +60,13 @@ master_key = jax.random.key(seed)
 
 # %%
 # Number of independent waveforms to process train/test
-N_TRAIN = 5000
-N_TEST = 600
+N_TRAIN = 15000
+N_TEST = 1800
 
 WIDTH = 4096
 
 # %%
-X, y, meta = get_data(width=WIDTH, with_metadata=True)
+X, y = get_data(width=WIDTH)
 
 X = jnp.array(X, dtype=JDTYPE)
 y = jnp.array(y, dtype=JDTYPE)
@@ -80,13 +80,11 @@ test_data = Dataset(
     X=X[N_TRAIN : N_TRAIN + N_TEST], y=y[N_TRAIN : N_TRAIN + N_TEST]
 )
 
-oq = np.array([np.mean(m["oq"]) for m in meta])
 n_eff = int(np.sum(~np.isnan(X), axis=1).mean())
 
 print("Number of training waveforms:", N_TRAIN)
 print("Average number samples per waveform:", n_eff)
 print("Padding width (max waveform length):", WIDTH)
-print("Input density X mean, std:", float(jnp.nanmean(X)), input_density_std)
 
 occupancy = (~np.isnan(y)).sum() / np.prod(y.shape)
 print(
@@ -155,6 +153,7 @@ def get_carrier_lengthscale_or_weights(qsvi):
 def init_am_kernel(key=vk()):
     lz = jax.random.lognormal(key, shape=(2,))
     return SGMRBF(variance=lz[0], lengthscale=lz[1])
+
 
 def init_baseline_kernel(key=vk(), J=16):
     lz = jax.random.lognormal(key, shape=(3,))

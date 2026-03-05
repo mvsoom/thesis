@@ -1,14 +1,14 @@
 # %%
 import jax
 import jax.numpy as jnp
-from gpjax.kernels import AbstractKernel
 from gpjax.parameters import PositiveReal
 from gpjax.variational_families import CollapsedVariationalGaussian
 
+from ack.stationary import AbstractStationaryKernel
 from prism.svi import init_Z_grid
 
 
-class SGMKernel(AbstractKernel):
+class SGMKernel(AbstractStationaryKernel):
     """Spectral Gaussian Mixture kernel in 1D
 
     Fourier convention:
@@ -244,12 +244,17 @@ class SGMCollapsedVariationalGaussian(CollapsedVariationalGaussian):
         w(tau) = N(tau | 0, sigma_w^2)
     """
 
-    def __init__(self, *args, sigma_w=15.0, **kwargs):
+    def __init__(
+        self, *args, sigma_w=15.0, freeze_inducing_inputs=False, **kwargs
+    ):
         super().__init__(*args, **kwargs)
         self.sigma_w = float(sigma_w)
 
         # inducing_inputs are frequencies (cycles per unit tau)
-        self.inducing_inputs = PositiveReal(self.inducing_inputs.value)
+        if not freeze_inducing_inputs:
+            self.inducing_inputs = PositiveReal(self.inducing_inputs.value)
+        else:
+            self.inducing_inputs = jnp.asarray(self.inducing_inputs[...])
 
     def compute_Kuu(self):
         kernel = self.posterior.prior.kernel
